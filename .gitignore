@@ -1,0 +1,69 @@
+# Root workspace metadata
+.trae/
+.git-backups/
+
+# Keep original child repositories independent
+canglian/.git/
+canglian-vue3/.git/
+
+# Build Tools
+.gradle
+/build/
+!gradle/wrapper/gradle-wrapper.jar
+
+target/
+!.mvn/wrapper/maven-wrapper.jar
+
+# IDE
+.apt_generated
+.classpath
+.factorypath
+.project
+.settings
+.springBeans
+
+.idea
+*.iws
+*.iml
+*.ipr
+
+rebel.xml
+
+nbproject/private/
+nbbuild/
+dist/
+nbdist/
+.nb-gradle/
+
+# Logs and temp files
+*.log
+*.xml.versionsBackup
+*.swp
+**/*.log
+
+!*/build/*.java
+!*/build/*.html
+!*/build/*.xml
+.DS_Store
+
+# Frontend dependencies and outputs
+node_modules/
+dist/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+tests/**/coverage/
+tests/e2e/reports
+selenium-debug.log
+
+# Editor directories and files
+.vscode
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.local
+
+# Keep child project package manager lock handling consistent
+canglian-vue3/package-lock.json
+canglian-vue3/yarn.lock

@@ -1,0 +1,106 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.canglian.business.mapper.FinReceiptMapper">
+
+    <resultMap type="FinReceipt" id="FinReceiptResult">
+        <id     property="receiptId"   column="receipt_id"   />
+        <result property="receiptNo"   column="receipt_no"   />
+        <result property="customerId"  column="customer_id"  />
+        <result property="receivableId" column="receivable_id" />
+        <result property="amount"      column="amount"       />
+        <result property="receiptDate" column="receipt_date" />
+        <result property="payChannel"  column="pay_channel"  />
+        <result property="createBy"    column="create_by"    />
+        <result property="createTime"  column="create_time"  />
+        <result property="updateBy"    column="update_by"    />
+        <result property="updateTime"  column="update_time"  />
+        <result property="remark"      column="remark"       />
+    </resultMap>
+
+    <sql id="selectFinReceiptVo">
+        select receipt_id, receipt_no, customer_id, receivable_id, amount, receipt_date, pay_channel,
+               create_by, create_time, update_by, update_time, remark
+        from fin_receipt
+    </sql>
+
+    <select id="selectFinReceiptById" parameterType="Long" resultMap="FinReceiptResult">
+        <include refid="selectFinReceiptVo"/>
+        where receipt_id = #{receiptId}
+    </select>
+
+    <select id="selectFinReceiptList" parameterType="FinReceipt" resultMap="FinReceiptResult">
+        <include refid="selectFinReceiptVo"/>
+        <where>
+            <if test="receiptNo != null and receiptNo != ''">
+                and receipt_no like concat('%', #{receiptNo}, '%')
+            </if>
+            <if test="customerId != null">
+                and customer_id = #{customerId}
+            </if>
+            <if test="receivableId != null">
+                and receivable_id = #{receivableId}
+            </if>
+            <if test="payChannel != null and payChannel != ''">
+                and pay_channel = #{payChannel}
+            </if>
+        </where>
+    </select>
+
+    <insert id="insertFinReceipt" parameterType="FinReceipt" useGeneratedKeys="true" keyProperty="receiptId">
+        insert into fin_receipt
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="receiptNo != null and receiptNo != ''">receipt_no,</if>
+            <if test="customerId != null">customer_id,</if>
+            <if test="receivableId != null">receivable_id,</if>
+            <if test="amount != null">amount,</if>
+            <if test="receiptDate != null">receipt_date,</if>
+            <if test="payChannel != null">pay_channel,</if>
+            <if test="createBy != null and createBy != ''">create_by,</if>
+            create_time,
+            <if test="updateBy != null and updateBy != ''">update_by,</if>
+            <if test="remark != null">remark,</if>
+        </trim>
+        <trim prefix="values (" suffix=")" suffixOverrides=",">
+            <if test="receiptNo != null and receiptNo != ''">#{receiptNo},</if>
+            <if test="customerId != null">#{customerId},</if>
+            <if test="receivableId != null">#{receivableId},</if>
+            <if test="amount != null">#{amount},</if>
+            <if test="receiptDate != null">#{receiptDate},</if>
+            <if test="payChannel != null">#{payChannel},</if>
+            <if test="createBy != null and createBy != ''">#{createBy},</if>
+            sysdate(),
+            <if test="updateBy != null and updateBy != ''">#{updateBy},</if>
+            <if test="remark != null">#{remark},</if>
+        </trim>
+    </insert>
+
+    <update id="updateFinReceipt" parameterType="FinReceipt">
+        update fin_receipt
+        <set>
+            <if test="receiptNo != null and receiptNo != ''">receipt_no = #{receiptNo},</if>
+            <if test="customerId != null">customer_id = #{customerId},</if>
+            <if test="receivableId != null">receivable_id = #{receivableId},</if>
+            <if test="amount != null">amount = #{amount},</if>
+            <if test="receiptDate != null">receipt_date = #{receiptDate},</if>
+            <if test="payChannel != null">pay_channel = #{payChannel},</if>
+            <if test="updateBy != null and updateBy != ''">update_by = #{updateBy},</if>
+            update_time = sysdate(),
+            <if test="remark != null">remark = #{remark},</if>
+        </set>
+        where receipt_id = #{receiptId}
+    </update>
+
+    <delete id="deleteFinReceiptById" parameterType="Long">
+        delete from fin_receipt where receipt_id = #{receiptId}
+    </delete>
+
+    <delete id="deleteFinReceiptByIds" parameterType="Long">
+        delete from fin_receipt where receipt_id in
+        <foreach collection="array" item="receiptId" open="(" separator="," close=")">
+            #{receiptId}
+        </foreach>
+    </delete>
+</mapper>
+
