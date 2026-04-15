@@ -1,5 +1,68 @@
 # 仓链管理系统
 
+> 基于 `RuoYi` / `RuoYi-Vue` 二次开发的仓储与财务一体化管理系统。
+
+## 项目定位
+
+本仓库用于维护仓链管理系统的完整代码，包括：
+
+- 后端多模块工程 `canglian`
+- 前端工程 `canglian-vue3`
+- 根目录项目说明与统一仓库配置
+
+如果从技术来源上理解，本项目属于基于 RuoYi 体系进行的业务二次开发，而不是脱离 RuoYi 完全独立实现的新框架。
+
+## 快速开始
+
+### 1. 准备环境
+
+- JDK 1.8
+- Maven 3.6+
+- Node.js 18+
+- MySQL 5.7 / 8.0
+- Redis
+
+### 2. 初始化数据库
+
+建议按以下顺序导入：
+
+1. `canglian/sql/canglian_20250522.sql`
+2. `canglian/sql/ec_core_20260125.sql`
+3. `canglian/sql/quartz.sql`
+4. `canglian/sql/sample_data.sql`
+
+### 3. 启动后端
+
+```bash
+cd canglian
+mvn package -DskipTests
+```
+
+启动类：
+
+```text
+com.canglian.CanglianApplication
+```
+
+### 4. 启动前端
+
+```bash
+cd canglian-vue3
+npm install
+npm run dev
+```
+
+### 5. 默认访问
+
+- 后端接口：`http://localhost:8098`
+- 前端开发地址：以 `npm run dev` 实际输出端口为准
+
+## 当前仓库说明
+
+- 当前根仓库用于统一管理整套项目代码
+- 子目录 `canglian` 和 `canglian-vue3` 原有项目规则已在根仓库忽略规则中继承处理
+- 根仓库已额外忽略 `.trae/` 目录，避免本地工具目录被提交
+
 ## 项目简介
 
 仓链管理系统是一套基于 `RuoYi` / `RuoYi-Vue` 体系进行二次开发的前后端分离管理系统。
