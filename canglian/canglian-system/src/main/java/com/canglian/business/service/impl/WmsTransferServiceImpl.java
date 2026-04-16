@@ -20,6 +20,11 @@ import com.canglian.business.mapper.WmsStockLogMapper;
 import com.canglian.business.service.IWmsTransferService;
 import com.canglian.common.utils.StringUtils;
 
+/**
+ * 调拨单 服务层实现
+ * 
+ * @author canglian
+ */
 @Service
 public class WmsTransferServiceImpl implements IWmsTransferService
 {
@@ -37,18 +42,36 @@ public class WmsTransferServiceImpl implements IWmsTransferService
     @Autowired
     private WmsStockLogMapper wmsStockLogMapper;
 
+    /**
+     * 查询调拨单信息
+     * 
+     * @param transferId 调拨单id
+     * @return 调拨单信息
+     */
     @Override
     public WmsTransfer selectWmsTransferById(Long transferId)
     {
         return wmsTransferMapper.selectWmsTransferById(transferId);
     }
 
+    /**
+     * 查询调拨单列表
+     * 
+     * @param wmsTransfer 调拨单信息
+     * @return 调拨单集合
+     */
     @Override
     public List<WmsTransfer> selectWmsTransferList(WmsTransfer wmsTransfer)
     {
         return wmsTransferMapper.selectWmsTransferList(wmsTransfer);
     }
 
+    /**
+     * 新增调拨单
+     * 
+     * @param wmsTransfer 调拨单信息
+     * @return 结果
+     */
     @Override
     public int insertWmsTransfer(WmsTransfer wmsTransfer)
     {
@@ -56,15 +79,31 @@ public class WmsTransferServiceImpl implements IWmsTransferService
         {
             wmsTransfer.setTransferNo(generateTransferNo());
         }
+        wmsTransfer.setStatus("0");
         return wmsTransferMapper.insertWmsTransfer(wmsTransfer);
     }
 
+    /**
+     * 修改调拨单
+     * 
+     * @param wmsTransfer 调拨单信息
+     * @return 结果
+     */
     @Override
     public int updateWmsTransfer(WmsTransfer wmsTransfer)
     {
+        WmsTransfer transfer = getExistingTransfer(wmsTransfer.getTransferId());
+        validateTransferEditable(transfer);
+        wmsTransfer.setStatus(transfer.getStatus());
         return wmsTransferMapper.updateWmsTransfer(wmsTransfer);
     }
 
+    /**
+     * 删除调拨单
+     * 
+     * @param transferId 调拨单id
+     * @return 结果
+     */
     @Override
     public int deleteWmsTransferById(Long transferId)
     {
@@ -72,6 +111,12 @@ public class WmsTransferServiceImpl implements IWmsTransferService
         return wmsTransferMapper.deleteWmsTransferById(transferId);
     }
 
+    /**
+     * 批量删除调拨单
+     * 
+     * @param transferIds 需要删除的调拨单id
+     * @return 结果
+     */
     @Override
     public int deleteWmsTransferByIds(Long[] transferIds)
     {
@@ -93,11 +138,7 @@ public class WmsTransferServiceImpl implements IWmsTransferService
     @Transactional
     public int auditWmsTransfer(Long transferId, String operator)
     {
-        WmsTransfer transfer = wmsTransferMapper.selectWmsTransferById(transferId);
-        if (transfer == null)
-        {
-            throw new ServiceException("调拨单不存在");
-        }
+        WmsTransfer transfer = getExistingTransfer(transferId);
         if (!"0".equals(transfer.getStatus()))
         {
             throw new ServiceException("调拨单状态已变更，无法审核");
@@ -293,6 +334,40 @@ public class WmsTransferServiceImpl implements IWmsTransferService
         return batchNo == null ? "" : batchNo;
     }
 
+    /**
+     * 获取存在的调拨单
+     * 
+     * @param transferId 调拨单id
+     * @return 调拨单信息
+     */
+    private WmsTransfer getExistingTransfer(Long transferId)
+    {
+        WmsTransfer transfer = wmsTransferMapper.selectWmsTransferById(transferId);
+        if (transfer == null)
+        {
+            throw new ServiceException("调拨单不存在");
+        }
+        return transfer;
+    }
+
+    /**
+     * 校验调拨单是否允许修改
+     * 
+     * @param transfer 调拨单信息
+     */
+    private void validateTransferEditable(WmsTransfer transfer)
+    {
+        if (!"0".equals(transfer.getStatus()))
+        {
+            throw new ServiceException("调拨单已审核，无法修改");
+        }
+    }
+
+    /**
+     * 生成调拨单号
+     * 
+     * @return 调拨单号
+     */
     private String generateTransferNo()
     {
         String noPrefix = "trf" + LocalDate.now().format(DOCUMENT_DATE_FORMATTER);
@@ -309,6 +384,11 @@ public class WmsTransferServiceImpl implements IWmsTransferService
         return noPrefix + String.format("%03d", nextSequence);
     }
 
+    /**
+     * 校验调拨单是否可删除
+     * 
+     * @param transferId 调拨单id
+     */
     private void checkTransferDeletable(Long transferId)
     {
         WmsTransfer transfer = wmsTransferMapper.selectWmsTransferById(transferId);

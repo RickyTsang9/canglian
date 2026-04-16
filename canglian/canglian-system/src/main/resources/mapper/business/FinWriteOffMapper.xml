@@ -48,6 +48,12 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             <if test="payableId != null">
                 and payable_id = #{payableId}
             </if>
+            <if test="receiptId != null">
+                and receipt_id = #{receiptId}
+            </if>
+            <if test="paymentId != null">
+                and payment_id = #{paymentId}
+            </if>
             <if test="status != null and status != ''">
                 and status = #{status}
             </if>

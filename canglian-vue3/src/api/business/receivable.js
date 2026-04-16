@@ -35,6 +35,14 @@ export function updateReceivable(data) {
   })
 }
 
+// 审核应收单
+export function auditReceivable(receivableId) {
+  return request({
+    url: '/business/receivable/audit/' + receivableId,
+    method: 'put'
+  })
+}
+
 // 删除应收单
 export function delReceivable(receivableId) {
   return request({

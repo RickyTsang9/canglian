@@ -43,6 +43,15 @@ public interface IFinExpenseService
     public int updateFinExpense(FinExpense finExpense);
 
     /**
+     * 确认费用单
+     * 
+     * @param expenseId 费用id
+     * @param operator 操作人
+     * @return 结果
+     */
+    public int confirmFinExpense(Long expenseId, String operator);
+
+    /**
      * 删除费用
      * 
      * @param expenseId 费用id

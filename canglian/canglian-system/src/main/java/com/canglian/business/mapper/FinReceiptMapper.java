@@ -27,6 +27,14 @@ public interface FinReceiptMapper
     public List<FinReceipt> selectFinReceiptList(FinReceipt finReceipt);
 
     /**
+     * 查询指定前缀的最大收款单号
+     * 
+     * @param receiptNoPrefix 收款单号前缀
+     * @return 最大收款单号
+     */
+    public String selectMaxReceiptNoByPrefix(String receiptNoPrefix);
+
+    /**
      * 新增收款单
      * 
      * @param finReceipt 收款单信息

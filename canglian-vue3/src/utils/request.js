@@ -39,12 +39,13 @@ service.interceptors.request.use(config => {
     config.url = url
   }
   if (!isRepeatSubmit && (config.method === 'post' || config.method === 'put')) {
+    const requestData = typeof config.data === 'object' ? JSON.stringify(config.data) : config.data
     const requestObj = {
       url: config.url,
-      data: typeof config.data === 'object' ? JSON.stringify(config.data) : config.data,
-      time: new Date().getTime()
+      data: requestData,
+      time: Date.now()
     }
-    const requestSize = Object.keys(JSON.stringify(requestObj)).length // 请求数据大小
+    const requestSize = JSON.stringify(requestObj).length // 请求数据大小
     const limitSize = 5 * 1024 * 1024 // 限制存放数据5M
     if (requestSize >= limitSize) {
       console.warn(`[${config.url}]: ` + '请求数据大小超出允许的5M限制，无法进行防重复提交验证。')
@@ -68,8 +69,7 @@ service.interceptors.request.use(config => {
   }
   return config
 }, error => {
-    console.log(error)
-    Promise.reject(error)
+    return Promise.reject(error)
 })
 
 // 响应拦截器
@@ -109,14 +109,14 @@ service.interceptors.response.use(res => {
     }
   },
   error => {
-    console.log('err' + error)
     let { message } = error
-    if (message == "Network Error") {
-      message = "后端接口连接异常"
-    } else if (message.includes("timeout")) {
-      message = "系统接口请求超时"
-    } else if (message.includes("Request failed with status code")) {
-      message = "系统接口" + message.slice(-3) + "异常"
+    message = message || '系统接口异常'
+    if (message === 'Network Error') {
+      message = '后端接口连接异常'
+    } else if (message.includes('timeout')) {
+      message = '系统接口请求超时'
+    } else if (message.includes('Request failed with status code')) {
+      message = '系统接口' + message.slice(-3) + '异常'
     }
     ElMessage({ message: message, type: 'error', duration: 5 * 1000 })
     return Promise.reject(error)

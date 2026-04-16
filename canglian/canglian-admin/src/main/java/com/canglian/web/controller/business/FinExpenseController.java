@@ -83,14 +83,7 @@ public class FinExpenseController extends BaseController
     @PutMapping("/confirm/{expenseId}")
     public AjaxResult confirm(@PathVariable Long expenseId)
     {
-        FinExpense expense = finExpenseService.selectFinExpenseById(expenseId);
-        if (expense == null)
-        {
-            return AjaxResult.error("费用单不存在");
-        }
-        expense.setStatus("1");
-        expense.setUpdateBy(getUsername());
-        return toAjax(finExpenseService.updateFinExpense(expense));
+        return toAjax(finExpenseService.confirmFinExpense(expenseId, getUsername()));
     }
 
     /**

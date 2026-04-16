@@ -24,8 +24,6 @@ import com.canglian.business.domain.WmsOutbound;
 import com.canglian.business.domain.WmsOutboundItem;
 import com.canglian.business.service.IWmsOutboundService;
 import com.canglian.business.service.IWmsOutboundItemService;
-import com.canglian.business.domain.FinReceipt;
-import com.canglian.business.service.IFinReceiptService;
 import java.math.BigDecimal;
 
 /**
@@ -42,9 +40,6 @@ public class WmsOutboundController extends BaseController
 
     @Autowired
     private IWmsOutboundItemService wmsOutboundItemService;
-
-    @Autowired
-    private IFinReceiptService finReceiptService;
 
     /**
      * 获取出库单列表
@@ -150,19 +145,9 @@ public class WmsOutboundController extends BaseController
     @PreAuthorize("@ss.hasPermi('business:outbound:ship')")
     @Log(title = "出库发货", businessType = BusinessType.UPDATE)
     @PutMapping("/ship/{outboundId}")
-    public AjaxResult ship(@PathVariable Long outboundId, @RequestBody WmsOutbound payload)
+    public AjaxResult ship(@PathVariable Long outboundId, @RequestBody(required = false) WmsOutbound payload)
     {
-        WmsOutbound outbound = wmsOutboundService.selectWmsOutboundById(outboundId);
-        if (outbound == null)
-        {
-            return AjaxResult.error("出库单不存在");
-        }
-        outbound.setCarrier(payload.getCarrier());
-        outbound.setWaybillNo(payload.getWaybillNo());
-        outbound.setFreightCost(payload.getFreightCost());
-        outbound.setDeliveryStatus("1");
-        outbound.setUpdateBy(getUsername());
-        return toAjax(wmsOutboundService.updateWmsOutbound(outbound));
+        return toAjax(wmsOutboundService.shipWmsOutbound(outboundId, payload, getUsername()));
     }
 
     /**
@@ -173,14 +158,7 @@ public class WmsOutboundController extends BaseController
     @PutMapping("/sign/{outboundId}")
     public AjaxResult sign(@PathVariable Long outboundId)
     {
-        WmsOutbound outbound = wmsOutboundService.selectWmsOutboundById(outboundId);
-        if (outbound == null)
-        {
-            return AjaxResult.error("出库单不存在");
-        }
-        outbound.setDeliveryStatus("2");
-        outbound.setUpdateBy(getUsername());
-        return toAjax(wmsOutboundService.updateWmsOutbound(outbound));
+        return toAjax(wmsOutboundService.signWmsOutbound(outboundId, getUsername()));
     }
 
     /**
@@ -191,27 +169,7 @@ public class WmsOutboundController extends BaseController
     @PutMapping("/return/{outboundId}")
     public AjaxResult returnOrder(@PathVariable Long outboundId, @RequestParam(required = false) BigDecimal refundAmount, @RequestParam(required = false) Long receivableId)
     {
-        WmsOutbound outbound = wmsOutboundService.selectWmsOutboundById(outboundId);
-        if (outbound == null)
-        {
-            return AjaxResult.error("出库单不存在");
-        }
-        outbound.setDeliveryStatus("3");
-        outbound.setUpdateBy(getUsername());
-        int rows = wmsOutboundService.updateWmsOutbound(outbound);
-        if (rows > 0 && refundAmount != null && refundAmount.compareTo(BigDecimal.ZERO) > 0 && outbound.getCustomerId() != null)
-        {
-            FinReceipt finReceipt = new FinReceipt();
-            finReceipt.setReceiptNo("RF-" + System.currentTimeMillis());
-            finReceipt.setCustomerId(outbound.getCustomerId());
-            finReceipt.setReceivableId(receivableId);
-            finReceipt.setAmount(refundAmount.negate());
-            finReceipt.setReceiptDate(new java.sql.Date(System.currentTimeMillis()));
-            finReceipt.setPayChannel("refund");
-            finReceipt.setCreateBy(getUsername());
-            finReceiptService.insertFinReceipt(finReceipt);
-        }
-        return toAjax(rows);
+        return toAjax(wmsOutboundService.returnWmsOutbound(outboundId, refundAmount, receivableId, getUsername()));
     }
 }
 

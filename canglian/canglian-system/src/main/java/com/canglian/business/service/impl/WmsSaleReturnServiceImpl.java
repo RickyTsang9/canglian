@@ -70,6 +70,9 @@ public class WmsSaleReturnServiceImpl implements IWmsSaleReturnService
     @Override
     public int insertWmsSaleReturn(WmsSaleReturn wmsSaleReturn)
     {
+        wmsSaleReturn.setStatus("0");
+        wmsSaleReturn.setAuditBy(null);
+        wmsSaleReturn.setAuditTime(null);
         return wmsSaleReturnMapper.insertWmsSaleReturn(wmsSaleReturn);
     }
 
@@ -82,6 +85,11 @@ public class WmsSaleReturnServiceImpl implements IWmsSaleReturnService
     @Override
     public int updateWmsSaleReturn(WmsSaleReturn wmsSaleReturn)
     {
+        WmsSaleReturn saleReturn = getExistingSaleReturn(wmsSaleReturn.getSaleReturnId());
+        validateSaleReturnEditable(saleReturn);
+        wmsSaleReturn.setStatus(saleReturn.getStatus());
+        wmsSaleReturn.setAuditBy(saleReturn.getAuditBy());
+        wmsSaleReturn.setAuditTime(saleReturn.getAuditTime());
         return wmsSaleReturnMapper.updateWmsSaleReturn(wmsSaleReturn);
     }
 
@@ -125,11 +133,7 @@ public class WmsSaleReturnServiceImpl implements IWmsSaleReturnService
     @Transactional
     public int auditWmsSaleReturn(Long saleReturnId, String operator)
     {
-        WmsSaleReturn saleReturn = wmsSaleReturnMapper.selectWmsSaleReturnById(saleReturnId);
-        if (saleReturn == null)
-        {
-            throw new ServiceException("销售退货单不存在");
-        }
+        WmsSaleReturn saleReturn = getExistingSaleReturn(saleReturnId);
         if (!"0".equals(saleReturn.getStatus()))
         {
             throw new ServiceException("销售退货单状态已变更，无法审核");
@@ -256,6 +260,35 @@ public class WmsSaleReturnServiceImpl implements IWmsSaleReturnService
     private String defaultBatchNo(String batchNo)
     {
         return batchNo == null ? "" : batchNo;
+    }
+
+    /**
+     * 获取存在的销售退货单
+     * 
+     * @param saleReturnId 销售退货id
+     * @return 销售退货信息
+     */
+    private WmsSaleReturn getExistingSaleReturn(Long saleReturnId)
+    {
+        WmsSaleReturn saleReturn = wmsSaleReturnMapper.selectWmsSaleReturnById(saleReturnId);
+        if (saleReturn == null)
+        {
+            throw new ServiceException("销售退货单不存在");
+        }
+        return saleReturn;
+    }
+
+    /**
+     * 校验销售退货单是否允许修改
+     * 
+     * @param saleReturn 销售退货信息
+     */
+    private void validateSaleReturnEditable(WmsSaleReturn saleReturn)
+    {
+        if (!"0".equals(saleReturn.getStatus()))
+        {
+            throw new ServiceException("销售退货单已审核，无法修改");
+        }
     }
 
     /**

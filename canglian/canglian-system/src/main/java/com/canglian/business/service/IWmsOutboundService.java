@@ -1,5 +1,6 @@
 package com.canglian.business.service;
 
+import java.math.BigDecimal;
 import java.util.List;
 import com.canglian.business.domain.WmsOutbound;
 
@@ -66,5 +67,35 @@ public interface IWmsOutboundService
      * @return 结果
      */
     public int auditWmsOutbound(Long outboundId, String operator);
+
+    /**
+     * 出库单发货
+     * 
+     * @param outboundId 出库单id
+     * @param wmsOutbound 出库单信息
+     * @param operator 操作人
+     * @return 结果
+     */
+    public int shipWmsOutbound(Long outboundId, WmsOutbound wmsOutbound, String operator);
+
+    /**
+     * 出库单签收
+     * 
+     * @param outboundId 出库单id
+     * @param operator 操作人
+     * @return 结果
+     */
+    public int signWmsOutbound(Long outboundId, String operator);
+
+    /**
+     * 出库单退货
+     * 
+     * @param outboundId 出库单id
+     * @param refundAmount 退款金额
+     * @param receivableId 关联应收单id
+     * @param operator 操作人
+     * @return 结果
+     */
+    public int returnWmsOutbound(Long outboundId, BigDecimal refundAmount, Long receivableId, String operator);
 }
 

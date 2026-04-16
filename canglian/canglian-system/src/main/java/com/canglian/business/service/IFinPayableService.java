@@ -57,5 +57,14 @@ public interface IFinPayableService
      * @return 结果
      */
     public int deleteFinPayableByIds(Long[] payableIds);
+
+    /**
+     * 审核应付单
+     * 
+     * @param payableId 应付单id
+     * @param operator 操作人
+     * @return 结果
+     */
+    public int auditFinPayable(Long payableId, String operator);
 }
 

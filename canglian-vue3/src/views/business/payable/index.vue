@@ -92,10 +92,11 @@
           <span>{{ parseTime(scope.row.createTime) }}</span>
         </template>
       </el-table-column>
-      <el-table-column label="操作" width="180" align="center" class-name="small-padding fixed-width">
+      <el-table-column label="操作" width="240" align="center" class-name="small-padding fixed-width">
         <template #default="scope">
-          <el-button link type="primary" icon="Edit" @click="handleUpdate(scope.row)" v-hasPermi="['business:payable:edit']">修改</el-button>
-          <el-button link type="primary" icon="Delete" @click="handleDelete(scope.row)" v-hasPermi="['business:payable:remove']">删除</el-button>
+          <el-button link type="primary" icon="Edit" :disabled="!canEditRow(scope.row)" @click="handleUpdate(scope.row)" v-hasPermi="['business:payable:edit']">修改</el-button>
+          <el-button link type="primary" icon="Delete" :disabled="!canDeleteRow(scope.row)" @click="handleDelete(scope.row)" v-hasPermi="['business:payable:remove']">删除</el-button>
+          <el-button link type="primary" icon="CircleCheck" :disabled="!canAuditRow(scope.row)" @click="handleAudit(scope.row)" v-hasPermi="['business:payable:audit']">审核</el-button>
         </template>
       </el-table-column>
     </el-table>
@@ -147,7 +148,7 @@
           </el-col>
         </el-row>
         <el-form-item label="状态" prop="status">
-          <el-radio-group v-model="form.status">
+          <el-radio-group v-model="form.status" disabled>
             <el-radio
               v-for="dict in sys_normal_disable"
               :key="dict.value"
@@ -178,7 +179,7 @@
 </template>
 
 <script setup name="Payable">
-import { listPayable, addPayable, delPayable, getPayable, updatePayable } from "@/api/business/payable"
+import { listPayable, addPayable, delPayable, getPayable, updatePayable, auditPayable } from "@/api/business/payable"
 
 const { proxy } = getCurrentInstance()
 const { sys_normal_disable } = proxy.useDict("sys_normal_disable")
@@ -252,8 +253,23 @@ function resetQuery() {
 
 function handleSelectionChange(selection) {
   selectedIds.value = selection.map(item => item.payableId)
-  isSingleDisabled.value = selection.length !== 1
-  isMultipleDisabled.value = !selection.length
+  isSingleDisabled.value = selection.length !== 1 || !canEditRow(selection[0])
+  isMultipleDisabled.value = !selection.length || selection.some(item => !canDeleteRow(item))
+}
+
+// 判断应付单是否允许修改
+function canEditRow(currentRow) {
+  return !!currentRow && currentRow.status === "0"
+}
+
+// 判断应付单是否允许删除
+function canDeleteRow(currentRow) {
+  return canEditRow(currentRow)
+}
+
+// 判断应付单是否允许审核
+function canAuditRow(currentRow) {
+  return !!currentRow && currentRow.status === "0"
 }
 
 function handleAdd() {
@@ -270,6 +286,15 @@ function handleUpdate(currentRow) {
     open.value = true
     title.value = "修改应付单"
   })
+}
+
+function handleAudit(currentRow) {
+  proxy.$modal.confirm('是否确认审核应付编号为"' + currentRow.payableId + '"的数据项？').then(function() {
+    return auditPayable(currentRow.payableId)
+  }).then(() => {
+    getList()
+    proxy.$modal.msgSuccess("审核成功")
+  }).catch(() => {})
 }
 
 function submitForm() {

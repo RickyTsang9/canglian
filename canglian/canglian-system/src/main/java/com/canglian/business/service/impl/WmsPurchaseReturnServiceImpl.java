@@ -70,6 +70,9 @@ public class WmsPurchaseReturnServiceImpl implements IWmsPurchaseReturnService
     @Override
     public int insertWmsPurchaseReturn(WmsPurchaseReturn wmsPurchaseReturn)
     {
+        wmsPurchaseReturn.setStatus("0");
+        wmsPurchaseReturn.setAuditBy(null);
+        wmsPurchaseReturn.setAuditTime(null);
         return wmsPurchaseReturnMapper.insertWmsPurchaseReturn(wmsPurchaseReturn);
     }
 
@@ -82,6 +85,11 @@ public class WmsPurchaseReturnServiceImpl implements IWmsPurchaseReturnService
     @Override
     public int updateWmsPurchaseReturn(WmsPurchaseReturn wmsPurchaseReturn)
     {
+        WmsPurchaseReturn purchaseReturn = getExistingPurchaseReturn(wmsPurchaseReturn.getPurchaseReturnId());
+        validatePurchaseReturnEditable(purchaseReturn);
+        wmsPurchaseReturn.setStatus(purchaseReturn.getStatus());
+        wmsPurchaseReturn.setAuditBy(purchaseReturn.getAuditBy());
+        wmsPurchaseReturn.setAuditTime(purchaseReturn.getAuditTime());
         return wmsPurchaseReturnMapper.updateWmsPurchaseReturn(wmsPurchaseReturn);
     }
 
@@ -125,11 +133,7 @@ public class WmsPurchaseReturnServiceImpl implements IWmsPurchaseReturnService
     @Transactional
     public int auditWmsPurchaseReturn(Long purchaseReturnId, String operator)
     {
-        WmsPurchaseReturn purchaseReturn = wmsPurchaseReturnMapper.selectWmsPurchaseReturnById(purchaseReturnId);
-        if (purchaseReturn == null)
-        {
-            throw new ServiceException("采购退货单不存在");
-        }
+        WmsPurchaseReturn purchaseReturn = getExistingPurchaseReturn(purchaseReturnId);
         if (!"0".equals(purchaseReturn.getStatus()))
         {
             throw new ServiceException("采购退货单状态已变更，无法审核");
@@ -262,6 +266,35 @@ public class WmsPurchaseReturnServiceImpl implements IWmsPurchaseReturnService
     private String defaultBatchNo(String batchNo)
     {
         return batchNo == null ? "" : batchNo;
+    }
+
+    /**
+     * 获取存在的采购退货单
+     * 
+     * @param purchaseReturnId 采购退货id
+     * @return 采购退货信息
+     */
+    private WmsPurchaseReturn getExistingPurchaseReturn(Long purchaseReturnId)
+    {
+        WmsPurchaseReturn purchaseReturn = wmsPurchaseReturnMapper.selectWmsPurchaseReturnById(purchaseReturnId);
+        if (purchaseReturn == null)
+        {
+            throw new ServiceException("采购退货单不存在");
+        }
+        return purchaseReturn;
+    }
+
+    /**
+     * 校验采购退货单是否允许修改
+     * 
+     * @param purchaseReturn 采购退货信息
+     */
+    private void validatePurchaseReturnEditable(WmsPurchaseReturn purchaseReturn)
+    {
+        if (!"0".equals(purchaseReturn.getStatus()))
+        {
+            throw new ServiceException("采购退货单已审核，无法修改");
+        }
     }
 
     /**

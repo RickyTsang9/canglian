@@ -58,5 +58,14 @@ public interface IFinReceivableService
      */
     public int deleteFinReceivableByIds(Long[] receivableIds);
 
+    /**
+     * 审核应收单
+     * 
+     * @param receivableId 应收单id
+     * @param operator 操作人
+     * @return 结果
+     */
+    public int auditFinReceivable(Long receivableId, String operator);
+
 }
 

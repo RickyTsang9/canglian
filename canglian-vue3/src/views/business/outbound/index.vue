@@ -143,13 +143,13 @@
       </el-table-column>
       <el-table-column label="操作" width="260" align="center" class-name="small-padding fixed-width">
         <template #default="scope">
-          <el-button link type="primary" icon="Edit" @click="handleUpdate(scope.row)" v-hasPermi="['business:outbound:edit']">修改</el-button>
-          <el-button link type="primary" icon="Delete" @click="handleDelete(scope.row)" v-hasPermi="['business:outbound:remove']">删除</el-button>
-          <el-button link type="primary" icon="CircleCheck" @click="handleAudit(scope.row)" v-hasPermi="['business:outbound:audit']">审核</el-button>
+          <el-button link type="primary" icon="Edit" :disabled="!canEditRow(scope.row)" @click="handleUpdate(scope.row)" v-hasPermi="['business:outbound:edit']">修改</el-button>
+          <el-button link type="primary" icon="Delete" :disabled="!canDeleteRow(scope.row)" @click="handleDelete(scope.row)" v-hasPermi="['business:outbound:remove']">删除</el-button>
+          <el-button link type="primary" icon="CircleCheck" :disabled="!canAuditRow(scope.row)" @click="handleAudit(scope.row)" v-hasPermi="['business:outbound:audit']">审核</el-button>
           <el-button link type="primary" icon="Printer" @click="handlePrint(scope.row)" v-hasPermi="['business:outbound:print']">打印</el-button>
-          <el-button link type="primary" icon="Position" @click="handleShip(scope.row)" v-hasPermi="['business:outbound:ship']">发货</el-button>
-          <el-button link type="primary" icon="CircleCheck" @click="handleSign(scope.row)" v-hasPermi="['business:outbound:sign']">签收</el-button>
-          <el-button link type="primary" icon="RefreshLeft" @click="handleReturn(scope.row)" v-hasPermi="['business:outbound:return']">退货</el-button>
+          <el-button link type="primary" icon="Position" :disabled="!canShipRow(scope.row)" @click="handleShip(scope.row)" v-hasPermi="['business:outbound:ship']">发货</el-button>
+          <el-button link type="primary" icon="CircleCheck" :disabled="!canSignRow(scope.row)" @click="handleSign(scope.row)" v-hasPermi="['business:outbound:sign']">签收</el-button>
+          <el-button link type="primary" icon="RefreshLeft" :disabled="!canReturnRow(scope.row)" @click="handleReturn(scope.row)" v-hasPermi="['business:outbound:return']">退货</el-button>
         </template>
       </el-table-column>
     </el-table>
@@ -237,7 +237,7 @@
           </el-col>
         </el-row>
         <el-form-item label="状态" prop="status">
-          <el-radio-group v-model="form.status">
+          <el-radio-group v-model="form.status" disabled>
             <el-radio
               v-for="dict in sys_normal_disable"
               :key="dict.value"
@@ -246,7 +246,7 @@
           </el-radio-group>
         </el-form-item>
         <el-form-item label="配送状态" prop="deliveryStatus">
-          <el-radio-group v-model="form.deliveryStatus">
+          <el-radio-group v-model="form.deliveryStatus" disabled>
             <el-radio
               v-for="item in deliveryStatusOptions"
               :key="item.value"
@@ -257,7 +257,7 @@
         <el-row>
           <el-col :span="12">
             <el-form-item label="审核人" prop="auditBy">
-              <el-input v-model="form.auditBy" placeholder="请输入审核人" />
+              <el-input v-model="form.auditBy" placeholder="系统审核后自动回填" disabled />
             </el-form-item>
           </el-col>
           <el-col :span="12">
@@ -267,6 +267,7 @@
                 type="datetime"
                 value-format="YYYY-MM-DD HH:mm:ss"
                 placeholder="请选择审核时间"
+                disabled
               ></el-date-picker>
             </el-form-item>
           </el-col>
@@ -434,8 +435,38 @@ function resetQuery() {
 
 function handleSelectionChange(selection) {
   selectedIds.value = selection.map(item => item.outboundId)
-  isSingleDisabled.value = selection.length !== 1
-  isMultipleDisabled.value = !selection.length
+  isSingleDisabled.value = selection.length !== 1 || !canEditRow(selection[0])
+  isMultipleDisabled.value = !selection.length || selection.some(item => !canDeleteRow(item))
+}
+
+// 判断出库单是否允许修改
+function canEditRow(currentRow) {
+  return !!currentRow && currentRow.status === "0"
+}
+
+// 判断出库单是否允许删除
+function canDeleteRow(currentRow) {
+  return canEditRow(currentRow)
+}
+
+// 判断出库单是否允许审核
+function canAuditRow(currentRow) {
+  return !!currentRow && currentRow.status === "0"
+}
+
+// 判断出库单是否允许发货
+function canShipRow(currentRow) {
+  return !!currentRow && currentRow.status === "1" && currentRow.deliveryStatus === "0"
+}
+
+// 判断出库单是否允许签收
+function canSignRow(currentRow) {
+  return !!currentRow && currentRow.status === "1" && currentRow.deliveryStatus === "1"
+}
+
+// 判断出库单是否允许退货
+function canReturnRow(currentRow) {
+  return !!currentRow && currentRow.status === "1" && ["1", "2"].includes(currentRow.deliveryStatus)
 }
 
 function handleAdd() {

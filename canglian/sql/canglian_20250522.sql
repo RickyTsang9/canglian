@@ -419,6 +419,7 @@ insert into sys_menu values('2360', '核销查询',   '2207', '1', '#', '', '', 
 insert into sys_menu values('2361', '核销新增',   '2207', '2', '#', '', '', '', 1, 0, 'F', '0', '0', 'business:writeOff:add',       '#', 'admin', sysdate(), '', null, '');
 insert into sys_menu values('2362', '核销修改',   '2207', '3', '#', '', '', '', 1, 0, 'F', '0', '0', 'business:writeOff:edit',      '#', 'admin', sysdate(), '', null, '');
 insert into sys_menu values('2363', '核销删除',   '2207', '4', '#', '', '', '', 1, 0, 'F', '0', '0', 'business:writeOff:remove',    '#', 'admin', sysdate(), '', null, '');
+insert into sys_menu values('2364', '核销确认',   '2207', '5', '#', '', '', '', 1, 0, 'F', '0', '0', 'business:writeOff:confirm',   '#', 'admin', sysdate(), '', null, '');
 
 insert into sys_menu values('2370', '坏账查询',   '2208', '1', '#', '', '', '', 1, 0, 'F', '0', '0', 'business:badDebt:query',      '#', 'admin', sysdate(), '', null, '');
 insert into sys_menu values('2371', '坏账新增',   '2208', '2', '#', '', '', '', 1, 0, 'F', '0', '0', 'business:badDebt:add',        '#', 'admin', sysdate(), '', null, '');
@@ -663,6 +664,7 @@ insert into sys_role_menu values ('2', '2360');
 insert into sys_role_menu values ('2', '2361');
 insert into sys_role_menu values ('2', '2362');
 insert into sys_role_menu values ('2', '2363');
+insert into sys_role_menu values ('2', '2364');
 insert into sys_role_menu values ('2', '2370');
 insert into sys_role_menu values ('2', '2371');
 insert into sys_role_menu values ('2', '2372');
@@ -839,6 +841,7 @@ insert into sys_role_menu values ('6', '2360');
 insert into sys_role_menu values ('6', '2361');
 insert into sys_role_menu values ('6', '2362');
 insert into sys_role_menu values ('6', '2363');
+insert into sys_role_menu values ('6', '2364');
 insert into sys_role_menu values ('6', '2370');
 insert into sys_role_menu values ('6', '2371');
 insert into sys_role_menu values ('6', '2372');

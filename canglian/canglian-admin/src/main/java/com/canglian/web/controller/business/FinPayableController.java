@@ -86,18 +86,7 @@ public class FinPayableController extends BaseController
     @PutMapping("/audit/{payableId}")
     public AjaxResult audit(@PathVariable Long payableId)
     {
-        // 根据编号获取应付单
-        FinPayable finPayable = finPayableService.selectFinPayableById(payableId);
-        // 校验应付单是否存在
-        if (finPayable == null)
-        {
-            return AjaxResult.error("应付单不存在");
-        }
-        // 设置审核后的状态与更新人
-        finPayable.setStatus("1");
-        finPayable.setUpdateBy(getUsername());
-        // 执行更新
-        return toAjax(finPayableService.updateFinPayable(finPayable));
+        return toAjax(finPayableService.auditFinPayable(payableId, getUsername()));
     }
 
     /**

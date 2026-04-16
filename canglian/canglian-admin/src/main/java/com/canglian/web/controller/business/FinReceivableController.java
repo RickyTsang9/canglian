@@ -86,18 +86,7 @@ public class FinReceivableController extends BaseController
     @PutMapping("/audit/{receivableId}")
     public AjaxResult audit(@PathVariable Long receivableId)
     {
-        // 根据编号获取应收单
-        FinReceivable finReceivable = finReceivableService.selectFinReceivableById(receivableId);
-        // 校验应收单是否存在
-        if (finReceivable == null)
-        {
-            return AjaxResult.error("应收单不存在");
-        }
-        // 设置审核后的状态与更新人
-        finReceivable.setStatus("1");
-        finReceivable.setUpdateBy(getUsername());
-        // 执行更新
-        return toAjax(finReceivableService.updateFinReceivable(finReceivable));
+        return toAjax(finReceivableService.auditFinReceivable(receivableId, getUsername()));
     }
 
     /**

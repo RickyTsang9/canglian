@@ -84,9 +84,9 @@
       </el-table-column>
       <el-table-column label="操作" width="240" align="center" class-name="small-padding fixed-width">
         <template #default="scope">
-          <el-button link type="primary" icon="Edit" @click="handleUpdate(scope.row)" v-hasPermi="['business:transfer:edit']">修改</el-button>
-          <el-button link type="primary" icon="CircleCheck" :disabled="scope.row.status !== '0'" @click="handleAudit(scope.row)" v-hasPermi="['business:transfer:audit']">审核</el-button>
-          <el-button link type="primary" icon="Delete" @click="handleDelete(scope.row)" v-hasPermi="['business:transfer:remove']">删除</el-button>
+          <el-button link type="primary" icon="Edit" :disabled="!canEditRow(scope.row)" @click="handleUpdate(scope.row)" v-hasPermi="['business:transfer:edit']">修改</el-button>
+          <el-button link type="primary" icon="CircleCheck" :disabled="!canAuditRow(scope.row)" @click="handleAudit(scope.row)" v-hasPermi="['business:transfer:audit']">审核</el-button>
+          <el-button link type="primary" icon="Delete" :disabled="!canDeleteRow(scope.row)" @click="handleDelete(scope.row)" v-hasPermi="['business:transfer:remove']">删除</el-button>
           <el-button link type="primary" icon="Printer" @click="handlePrint(scope.row)" v-hasPermi="['business:transfer:print']">打印</el-button>
         </template>
       </el-table-column>
@@ -134,7 +134,7 @@
           </el-col>
         </el-row>
         <el-form-item label="状态" prop="status">
-          <el-radio-group v-model="form.status">
+          <el-radio-group v-model="form.status" disabled>
             <el-radio
               v-for="dict in sys_normal_disable"
               :key="dict.value"
@@ -225,8 +225,23 @@ function resetQuery() {
 
 function handleSelectionChange(selection) {
   selectedIds.value = selection.map(item => item.transferId)
-  isSingleDisabled.value = selection.length !== 1
-  isMultipleDisabled.value = !selection.length
+  isSingleDisabled.value = selection.length !== 1 || !canEditRow(selection[0])
+  isMultipleDisabled.value = !selection.length || selection.some(item => !canDeleteRow(item))
+}
+
+// 判断调拨单是否允许修改
+function canEditRow(currentRow) {
+  return !!currentRow && currentRow.status === "0"
+}
+
+// 判断调拨单是否允许删除
+function canDeleteRow(currentRow) {
+  return canEditRow(currentRow)
+}
+
+// 判断调拨单是否允许审核
+function canAuditRow(currentRow) {
+  return !!currentRow && currentRow.status === "0"
 }
 
 function handleAdd() {

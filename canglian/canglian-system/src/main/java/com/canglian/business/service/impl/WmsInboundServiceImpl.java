@@ -79,6 +79,9 @@ public class WmsInboundServiceImpl implements IWmsInboundService
         {
             wmsInbound.setInboundNo(generateInboundNo());
         }
+        wmsInbound.setStatus("0");
+        wmsInbound.setAuditBy(null);
+        wmsInbound.setAuditTime(null);
         return wmsInboundMapper.insertWmsInbound(wmsInbound);
     }
 
@@ -91,6 +94,11 @@ public class WmsInboundServiceImpl implements IWmsInboundService
     @Override
     public int updateWmsInbound(WmsInbound wmsInbound)
     {
+        WmsInbound inbound = getExistingInbound(wmsInbound.getInboundId());
+        validateInboundEditable(inbound);
+        wmsInbound.setStatus(inbound.getStatus());
+        wmsInbound.setAuditBy(inbound.getAuditBy());
+        wmsInbound.setAuditTime(inbound.getAuditTime());
         return wmsInboundMapper.updateWmsInbound(wmsInbound);
     }
 
@@ -134,11 +142,7 @@ public class WmsInboundServiceImpl implements IWmsInboundService
     @Transactional
     public int auditWmsInbound(Long inboundId, String operator)
     {
-        WmsInbound inbound = wmsInboundMapper.selectWmsInboundById(inboundId);
-        if (inbound == null)
-        {
-            throw new ServiceException("入库单不存在");
-        }
+        WmsInbound inbound = getExistingInbound(inboundId);
         if (!"0".equals(inbound.getStatus()))
         {
             throw new ServiceException("入库单状态已变更，无法审核");
@@ -267,6 +271,40 @@ public class WmsInboundServiceImpl implements IWmsInboundService
         return batchNo == null ? "" : batchNo;
     }
 
+    /**
+     * 获取存在的入库单
+     * 
+     * @param inboundId 入库单id
+     * @return 入库单信息
+     */
+    private WmsInbound getExistingInbound(Long inboundId)
+    {
+        WmsInbound inbound = wmsInboundMapper.selectWmsInboundById(inboundId);
+        if (inbound == null)
+        {
+            throw new ServiceException("入库单不存在");
+        }
+        return inbound;
+    }
+
+    /**
+     * 校验入库单是否允许修改
+     * 
+     * @param inbound 入库单信息
+     */
+    private void validateInboundEditable(WmsInbound inbound)
+    {
+        if (!"0".equals(inbound.getStatus()))
+        {
+            throw new ServiceException("入库单已审核，无法修改");
+        }
+    }
+
+    /**
+     * 生成入库单号
+     * 
+     * @return 入库单号
+     */
     private String generateInboundNo()
     {
         String noPrefix = "inb" + LocalDate.now().format(DOCUMENT_DATE_FORMATTER);
@@ -283,6 +321,11 @@ public class WmsInboundServiceImpl implements IWmsInboundService
         return noPrefix + String.format("%03d", nextSequence);
     }
 
+    /**
+     * 校验入库单是否可删除
+     * 
+     * @param inboundId 入库单id
+     */
     private void checkInboundDeletable(Long inboundId)
     {
         WmsInbound inbound = wmsInboundMapper.selectWmsInboundById(inboundId);

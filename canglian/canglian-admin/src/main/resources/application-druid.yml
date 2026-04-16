@@ -6,7 +6,7 @@ spring:
         druid:
             # 主库数据源
             master:
-                url: jdbc:mysql://192.168.2.155:3307/canglian?characterEncoding=utf-8&useSSL=false&serverTimezone=Hongkong
+                url: jdbc:mysql://192.168.2.155:3307/sale_erp?characterEncoding=utf-8&useSSL=false&serverTimezone=Hongkong
                 username: root
                 password: 123456
             # 从库数据源

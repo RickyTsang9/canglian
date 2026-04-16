@@ -11,21 +11,27 @@
         />
       </el-form-item>
       <el-form-item label="核销类型" prop="writeOffType">
-        <el-input
+        <el-select
           v-model="queryParams.writeOffType"
-          placeholder="请输入核销类型"
+          placeholder="请选择核销类型"
           clearable
           style="width: 200px"
-          @keyup.enter="handleQuery"
-        />
+        >
+          <el-option
+            v-for="writeOffTypeOption in writeOffTypeOptions"
+            :key="writeOffTypeOption.value"
+            :label="writeOffTypeOption.label"
+            :value="writeOffTypeOption.value"
+          />
+        </el-select>
       </el-form-item>
       <el-form-item label="状态" prop="status">
         <el-select v-model="queryParams.status" placeholder="核销状态" clearable style="width: 200px">
           <el-option
-            v-for="dict in sys_normal_disable"
-            :key="dict.value"
-            :label="dict.label"
-            :value="dict.value"
+            v-for="writeOffStatusOption in writeOffStatusOptions"
+            :key="writeOffStatusOption.value"
+            :label="writeOffStatusOption.label"
+            :value="writeOffStatusOption.value"
           />
         </el-select>
       </el-form-item>
@@ -57,6 +63,16 @@
       </el-col>
       <el-col :span="1.5">
         <el-button
+          type="warning"
+          plain
+          icon="CircleCheck"
+          :disabled="isConfirmDisabled"
+          @click="handleConfirm"
+          v-hasPermi="['business:writeOff:confirm']"
+        >确认</el-button>
+      </el-col>
+      <el-col :span="1.5">
+        <el-button
           type="danger"
           plain
           icon="Delete"
@@ -85,7 +101,7 @@
       </el-table-column>
       <el-table-column label="状态" align="center" prop="status">
         <template #default="scope">
-          <dict-tag :options="sys_normal_disable" :value="scope.row.status" />
+          <dict-tag :options="writeOffStatusOptions" :value="scope.row.status" />
         </template>
       </el-table-column>
       <el-table-column label="创建时间" align="center" prop="createTime" width="180">
@@ -93,10 +109,11 @@
           <span>{{ parseTime(scope.row.createTime) }}</span>
         </template>
       </el-table-column>
-      <el-table-column label="操作" width="180" align="center" class-name="small-padding fixed-width">
+      <el-table-column label="操作" width="240" align="center" class-name="small-padding fixed-width">
         <template #default="scope">
-          <el-button link type="primary" icon="Edit" @click="handleUpdate(scope.row)" v-hasPermi="['business:writeOff:edit']">修改</el-button>
-          <el-button link type="primary" icon="Delete" @click="handleDelete(scope.row)" v-hasPermi="['business:writeOff:remove']">删除</el-button>
+          <el-button link type="primary" icon="Edit" :disabled="!canEditRow(scope.row)" @click="handleUpdate(scope.row)" v-hasPermi="['business:writeOff:edit']">修改</el-button>
+          <el-button link type="primary" icon="CircleCheck" :disabled="!canConfirmRow(scope.row)" @click="handleConfirm(scope.row)" v-hasPermi="['business:writeOff:confirm']">确认</el-button>
+          <el-button link type="primary" icon="Delete" :disabled="!canDeleteRow(scope.row)" @click="handleDelete(scope.row)" v-hasPermi="['business:writeOff:remove']">删除</el-button>
         </template>
       </el-table-column>
     </el-table>
@@ -119,7 +136,14 @@
           </el-col>
           <el-col :span="12">
             <el-form-item label="核销类型" prop="writeOffType">
-              <el-input v-model="form.writeOffType" placeholder="请输入核销类型" />
+              <el-select v-model="form.writeOffType" placeholder="请选择核销类型" style="width: 100%">
+                <el-option
+                  v-for="writeOffTypeOption in writeOffTypeOptions"
+                  :key="writeOffTypeOption.value"
+                  :label="writeOffTypeOption.label"
+                  :value="writeOffTypeOption.value"
+                />
+              </el-select>
             </el-form-item>
           </el-col>
         </el-row>
@@ -165,12 +189,12 @@
           </el-col>
         </el-row>
         <el-form-item label="状态" prop="status">
-          <el-radio-group v-model="form.status">
+          <el-radio-group v-model="form.status" disabled>
             <el-radio
-              v-for="dict in sys_normal_disable"
-              :key="dict.value"
-              :value="dict.value"
-            >{{ dict.label }}</el-radio>
+              v-for="writeOffStatusOption in writeOffStatusOptions"
+              :key="writeOffStatusOption.value"
+              :value="writeOffStatusOption.value"
+            >{{ writeOffStatusOption.label }}</el-radio>
           </el-radio-group>
         </el-form-item>
         <el-form-item label="备注" prop="remark">
@@ -188,10 +212,9 @@
 </template>
 
 <script setup name="WriteOff">
-import { listWriteOff, addWriteOff, delWriteOff, getWriteOff, updateWriteOff } from "@/api/business/writeOff"
+import { listWriteOff, addWriteOff, delWriteOff, getWriteOff, updateWriteOff, confirmWriteOff } from "@/api/business/writeOff"
 
 const { proxy } = getCurrentInstance()
-const { sys_normal_disable } = proxy.useDict("sys_normal_disable")
 
 const writeOffList = ref([])
 const open = ref(false)
@@ -199,9 +222,18 @@ const loading = ref(true)
 const showSearch = ref(true)
 const selectedIds = ref([])
 const isSingleDisabled = ref(true)
+const isConfirmDisabled = ref(true)
 const isMultipleDisabled = ref(true)
 const total = ref(0)
 const title = ref("")
+const writeOffTypeOptions = [
+  { label: "应收核销", value: "receivable" },
+  { label: "应付核销", value: "payable" }
+]
+const writeOffStatusOptions = [
+  { label: "草稿", value: "0" },
+  { label: "已核销", value: "1" }
+]
 
 const data = reactive({
   form: {},
@@ -248,7 +280,7 @@ function reset() {
     paymentId: undefined,
     amount: undefined,
     writeOffDate: undefined,
-    status: undefined,
+    status: "0",
     remark: undefined
   }
   proxy.resetForm("writeOffRef")
@@ -269,8 +301,24 @@ function resetQuery() {
 // 选择行变化
 function handleSelectionChange(selection) {
   selectedIds.value = selection.map(item => item.writeOffId)
-  isSingleDisabled.value = selection.length !== 1
-  isMultipleDisabled.value = !selection.length
+  isSingleDisabled.value = selection.length !== 1 || !canEditRow(selection[0])
+  isConfirmDisabled.value = selection.length !== 1 || !canConfirmRow(selection[0])
+  isMultipleDisabled.value = !selection.length || selection.some(item => !canDeleteRow(item))
+}
+
+// 判断核销单是否允许修改
+function canEditRow(currentRow) {
+  return !!currentRow && currentRow.status === "0"
+}
+
+// 判断核销单是否允许确认
+function canConfirmRow(currentRow) {
+  return !!currentRow && currentRow.status === "0"
+}
+
+// 判断核销单是否允许删除
+function canDeleteRow(currentRow) {
+  return canEditRow(currentRow)
 }
 
 // 新增核销单
@@ -289,6 +337,17 @@ function handleUpdate(currentRow) {
     open.value = true
     title.value = "修改核销单"
   })
+}
+
+// 确认核销单
+function handleConfirm(currentRow) {
+  const writeOffId = currentRow?.writeOffId || selectedIds.value[0]
+  proxy.$modal.confirm('是否确认核销编号为"' + writeOffId + '"的数据项？').then(function() {
+    return confirmWriteOff(writeOffId)
+  }).then(() => {
+    getList()
+    proxy.$modal.msgSuccess("确认成功")
+  }).catch(() => {})
 }
 
 // 提交表单

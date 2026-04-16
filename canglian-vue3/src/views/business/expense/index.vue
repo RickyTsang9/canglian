@@ -101,9 +101,9 @@
       </el-table-column>
       <el-table-column label="操作" width="180" align="center" class-name="small-padding fixed-width">
         <template #default="scope">
-          <el-button link type="primary" icon="Edit" @click="handleUpdate(scope.row)" v-hasPermi="['business:expense:edit']">修改</el-button>
-          <el-button link type="primary" icon="Delete" @click="handleDelete(scope.row)" v-hasPermi="['business:expense:remove']">删除</el-button>
-          <el-button link type="primary" icon="CircleCheck" @click="handleConfirm(scope.row)" v-hasPermi="['business:expense:confirm']">确认</el-button>
+          <el-button link type="primary" icon="Edit" :disabled="!canEditRow(scope.row)" @click="handleUpdate(scope.row)" v-hasPermi="['business:expense:edit']">修改</el-button>
+          <el-button link type="primary" icon="Delete" :disabled="!canDeleteRow(scope.row)" @click="handleDelete(scope.row)" v-hasPermi="['business:expense:remove']">删除</el-button>
+          <el-button link type="primary" icon="CircleCheck" :disabled="!canConfirmRow(scope.row)" @click="handleConfirm(scope.row)" v-hasPermi="['business:expense:confirm']">确认</el-button>
         </template>
       </el-table-column>
     </el-table>
@@ -155,7 +155,7 @@
           </el-col>
         </el-row>
         <el-form-item label="状态" prop="status">
-          <el-radio-group v-model="form.status">
+          <el-radio-group v-model="form.status" disabled>
             <el-radio
               v-for="dict in sys_normal_disable"
               :key="dict.value"
@@ -252,8 +252,23 @@ function resetQuery() {
 
 function handleSelectionChange(selection) {
   selectedIds.value = selection.map(item => item.expenseId)
-  isSingleDisabled.value = selection.length !== 1
-  isMultipleDisabled.value = !selection.length
+  isSingleDisabled.value = selection.length !== 1 || !selection.every(item => canEditRow(item))
+  isMultipleDisabled.value = !selection.length || !selection.every(item => canDeleteRow(item))
+}
+
+// 判断费用单是否允许修改
+function canEditRow(row) {
+  return row?.status !== "1"
+}
+
+// 判断费用单是否允许删除
+function canDeleteRow(row) {
+  return row?.status !== "1"
+}
+
+// 判断费用单是否允许确认
+function canConfirmRow(row) {
+  return row?.status !== "1"
 }
 
 function handleAdd() {

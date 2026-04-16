@@ -70,6 +70,7 @@ public class WmsInventoryCheckServiceImpl implements IWmsInventoryCheckService
     @Override
     public int insertWmsInventoryCheck(WmsInventoryCheck wmsInventoryCheck)
     {
+        wmsInventoryCheck.setStatus("0");
         return wmsInventoryCheckMapper.insertWmsInventoryCheck(wmsInventoryCheck);
     }
 
@@ -82,6 +83,9 @@ public class WmsInventoryCheckServiceImpl implements IWmsInventoryCheckService
     @Override
     public int updateWmsInventoryCheck(WmsInventoryCheck wmsInventoryCheck)
     {
+        WmsInventoryCheck inventoryCheck = getExistingInventoryCheck(wmsInventoryCheck.getCheckId());
+        validateInventoryCheckEditable(inventoryCheck);
+        wmsInventoryCheck.setStatus(inventoryCheck.getStatus());
         return wmsInventoryCheckMapper.updateWmsInventoryCheck(wmsInventoryCheck);
     }
 
@@ -125,11 +129,7 @@ public class WmsInventoryCheckServiceImpl implements IWmsInventoryCheckService
     @Transactional
     public int auditWmsInventoryCheck(Long checkId, String operator)
     {
-        WmsInventoryCheck inventoryCheck = wmsInventoryCheckMapper.selectWmsInventoryCheckById(checkId);
-        if (inventoryCheck == null)
-        {
-            throw new ServiceException("盘点单不存在");
-        }
+        WmsInventoryCheck inventoryCheck = getExistingInventoryCheck(checkId);
         if (!"0".equals(inventoryCheck.getStatus()))
         {
             throw new ServiceException("盘点单状态已变更，无法审核");
@@ -283,6 +283,35 @@ public class WmsInventoryCheckServiceImpl implements IWmsInventoryCheckService
     private String defaultBatchNo(String batchNo)
     {
         return batchNo == null ? "" : batchNo;
+    }
+
+    /**
+     * 获取存在的盘点单
+     * 
+     * @param checkId 盘点单id
+     * @return 盘点单信息
+     */
+    private WmsInventoryCheck getExistingInventoryCheck(Long checkId)
+    {
+        WmsInventoryCheck inventoryCheck = wmsInventoryCheckMapper.selectWmsInventoryCheckById(checkId);
+        if (inventoryCheck == null)
+        {
+            throw new ServiceException("盘点单不存在");
+        }
+        return inventoryCheck;
+    }
+
+    /**
+     * 校验盘点单是否允许修改
+     * 
+     * @param inventoryCheck 盘点单信息
+     */
+    private void validateInventoryCheckEditable(WmsInventoryCheck inventoryCheck)
+    {
+        if (!"0".equals(inventoryCheck.getStatus()))
+        {
+            throw new ServiceException("盘点单已审核，无法修改");
+        }
     }
 
     private void checkInventoryCheckDeletable(Long checkId)

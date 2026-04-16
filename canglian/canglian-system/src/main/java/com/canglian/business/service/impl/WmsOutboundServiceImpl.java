@@ -8,6 +8,7 @@ import java.util.List;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import com.canglian.business.domain.FinReceipt;
 import com.canglian.common.exception.ServiceException;
 import com.canglian.business.domain.WmsOutbound;
 import com.canglian.business.domain.WmsOutboundItem;
@@ -17,6 +18,7 @@ import com.canglian.business.mapper.WmsOutboundMapper;
 import com.canglian.business.mapper.WmsOutboundItemMapper;
 import com.canglian.business.mapper.WmsStockLogMapper;
 import com.canglian.business.mapper.WmsStockMapper;
+import com.canglian.business.service.IFinReceiptService;
 import com.canglian.business.service.IWmsOutboundService;
 import com.canglian.common.utils.StringUtils;
 
@@ -41,6 +43,9 @@ public class WmsOutboundServiceImpl implements IWmsOutboundService
 
     @Autowired
     private WmsStockLogMapper wmsStockLogMapper;
+
+    @Autowired
+    private IFinReceiptService finReceiptService;
 
     /**
      * 查询出库单信息
@@ -79,6 +84,10 @@ public class WmsOutboundServiceImpl implements IWmsOutboundService
         {
             wmsOutbound.setOutboundNo(generateOutboundNo());
         }
+        wmsOutbound.setStatus("0");
+        wmsOutbound.setDeliveryStatus("0");
+        wmsOutbound.setAuditBy(null);
+        wmsOutbound.setAuditTime(null);
         return wmsOutboundMapper.insertWmsOutbound(wmsOutbound);
     }
 
@@ -91,6 +100,12 @@ public class WmsOutboundServiceImpl implements IWmsOutboundService
     @Override
     public int updateWmsOutbound(WmsOutbound wmsOutbound)
     {
+        WmsOutbound outbound = getExistingOutbound(wmsOutbound.getOutboundId());
+        validateOutboundEditable(outbound);
+        wmsOutbound.setStatus(outbound.getStatus());
+        wmsOutbound.setDeliveryStatus(outbound.getDeliveryStatus());
+        wmsOutbound.setAuditBy(outbound.getAuditBy());
+        wmsOutbound.setAuditTime(outbound.getAuditTime());
         return wmsOutboundMapper.updateWmsOutbound(wmsOutbound);
     }
 
@@ -134,11 +149,7 @@ public class WmsOutboundServiceImpl implements IWmsOutboundService
     @Transactional
     public int auditWmsOutbound(Long outboundId, String operator)
     {
-        WmsOutbound outbound = wmsOutboundMapper.selectWmsOutboundById(outboundId);
-        if (outbound == null)
-        {
-            throw new ServiceException("出库单不存在");
-        }
+        WmsOutbound outbound = getExistingOutbound(outboundId);
         if (!"0".equals(outbound.getStatus()))
         {
             throw new ServiceException("出库单状态已变更，无法审核");
@@ -227,6 +238,75 @@ public class WmsOutboundServiceImpl implements IWmsOutboundService
     }
 
     /**
+     * 出库单发货
+     * 
+     * @param outboundId 出库单id
+     * @param wmsOutbound 出库单信息
+     * @param operator 操作人
+     * @return 结果
+     */
+    @Override
+    public int shipWmsOutbound(Long outboundId, WmsOutbound wmsOutbound, String operator)
+    {
+        WmsOutbound outbound = getExistingOutbound(outboundId);
+        validateOutboundShippable(outbound);
+        WmsOutbound outboundPayload = wmsOutbound == null ? new WmsOutbound() : wmsOutbound;
+        outbound.setCarrier(outboundPayload.getCarrier());
+        outbound.setWaybillNo(outboundPayload.getWaybillNo());
+        outbound.setFreightCost(outboundPayload.getFreightCost());
+        outbound.setDeliveryStatus("1");
+        outbound.setUpdateBy(operator);
+        return wmsOutboundMapper.updateWmsOutbound(outbound);
+    }
+
+    /**
+     * 出库单签收
+     * 
+     * @param outboundId 出库单id
+     * @param operator 操作人
+     * @return 结果
+     */
+    @Override
+    public int signWmsOutbound(Long outboundId, String operator)
+    {
+        WmsOutbound outbound = getExistingOutbound(outboundId);
+        validateOutboundSignable(outbound);
+        outbound.setDeliveryStatus("2");
+        outbound.setUpdateBy(operator);
+        return wmsOutboundMapper.updateWmsOutbound(outbound);
+    }
+
+    /**
+     * 出库单退货
+     * 
+     * @param outboundId 出库单id
+     * @param refundAmount 退款金额
+     * @param receivableId 关联应收单id
+     * @param operator 操作人
+     * @return 结果
+     */
+    @Override
+    @Transactional
+    public int returnWmsOutbound(Long outboundId, BigDecimal refundAmount, Long receivableId, String operator)
+    {
+        WmsOutbound outbound = getExistingOutbound(outboundId);
+        validateOutboundReturnable(outbound);
+        outbound.setDeliveryStatus("3");
+        outbound.setUpdateBy(operator);
+        int rows = wmsOutboundMapper.updateWmsOutbound(outbound);
+        if (rows > 0 && refundAmount != null && refundAmount.compareTo(BigDecimal.ZERO) > 0 && outbound.getCustomerId() != null)
+        {
+            FinReceipt refundReceipt = buildRefundReceipt(outbound, refundAmount, receivableId, operator);
+            int receiptRows = finReceiptService.insertFinReceipt(refundReceipt);
+            if (receiptRows <= 0)
+            {
+                throw new ServiceException("退货退款单生成失败");
+            }
+        }
+        return rows;
+    }
+
+    /**
      * 空值转默认值
      * 
      * @param value 数值
@@ -273,6 +353,140 @@ public class WmsOutboundServiceImpl implements IWmsOutboundService
         return batchNo == null ? "" : batchNo;
     }
 
+    /**
+     * 构建退货退款收款单
+     * 
+     * @param outbound 出库单信息
+     * @param refundAmount 退款金额
+     * @param receivableId 关联应收单id
+     * @param operator 操作人
+     * @return 收款单信息
+     */
+    private FinReceipt buildRefundReceipt(WmsOutbound outbound, BigDecimal refundAmount, Long receivableId, String operator)
+    {
+        FinReceipt finReceipt = new FinReceipt();
+        finReceipt.setCustomerId(outbound.getCustomerId());
+        finReceipt.setReceivableId(receivableId);
+        finReceipt.setAmount(refundAmount.negate());
+        finReceipt.setReceiptDate(new Date());
+        finReceipt.setPayChannel("refund");
+        finReceipt.setCreateBy(operator);
+        if (StringUtils.isNotEmpty(outbound.getOutboundNo()))
+        {
+            finReceipt.setRemark("出库退货自动生成退款收款单，关联出库单号：" + outbound.getOutboundNo());
+        }
+        else
+        {
+            finReceipt.setRemark("出库退货自动生成退款收款单");
+        }
+        return finReceipt;
+    }
+
+    /**
+     * 获取存在的出库单
+     * 
+     * @param outboundId 出库单id
+     * @return 出库单信息
+     */
+    private WmsOutbound getExistingOutbound(Long outboundId)
+    {
+        WmsOutbound outbound = wmsOutboundMapper.selectWmsOutboundById(outboundId);
+        if (outbound == null)
+        {
+            throw new ServiceException("出库单不存在");
+        }
+        return outbound;
+    }
+
+    /**
+     * 校验出库单是否允许修改
+     * 
+     * @param outbound 出库单信息
+     */
+    private void validateOutboundEditable(WmsOutbound outbound)
+    {
+        if (!"0".equals(outbound.getStatus()))
+        {
+            throw new ServiceException("出库单已审核，无法修改");
+        }
+    }
+
+    /**
+     * 校验出库单是否允许发货
+     * 
+     * @param outbound 出库单信息
+     */
+    private void validateOutboundShippable(WmsOutbound outbound)
+    {
+        if (!"1".equals(outbound.getStatus()))
+        {
+            throw new ServiceException("出库单未审核，无法发货");
+        }
+        if ("1".equals(outbound.getDeliveryStatus()))
+        {
+            throw new ServiceException("出库单已发货，请勿重复操作");
+        }
+        if ("2".equals(outbound.getDeliveryStatus()))
+        {
+            throw new ServiceException("出库单已签收，无法重复发货");
+        }
+        if ("3".equals(outbound.getDeliveryStatus()))
+        {
+            throw new ServiceException("出库单已退货，无法发货");
+        }
+    }
+
+    /**
+     * 校验出库单是否允许签收
+     * 
+     * @param outbound 出库单信息
+     */
+    private void validateOutboundSignable(WmsOutbound outbound)
+    {
+        if (!"1".equals(outbound.getStatus()))
+        {
+            throw new ServiceException("出库单未审核，无法签收");
+        }
+        if ("0".equals(outbound.getDeliveryStatus()) || StringUtils.isEmpty(outbound.getDeliveryStatus()))
+        {
+            throw new ServiceException("出库单未发货，无法签收");
+        }
+        if ("2".equals(outbound.getDeliveryStatus()))
+        {
+            throw new ServiceException("出库单已签收，请勿重复操作");
+        }
+        if ("3".equals(outbound.getDeliveryStatus()))
+        {
+            throw new ServiceException("出库单已退货，无法签收");
+        }
+    }
+
+    /**
+     * 校验出库单是否允许退货
+     * 
+     * @param outbound 出库单信息
+     */
+    private void validateOutboundReturnable(WmsOutbound outbound)
+    {
+        if (!"1".equals(outbound.getStatus()))
+        {
+            throw new ServiceException("出库单未审核，无法退货");
+        }
+        if ("0".equals(outbound.getDeliveryStatus()) || StringUtils.isEmpty(outbound.getDeliveryStatus()))
+        {
+            throw new ServiceException("出库单未发货，无法退货");
+        }
+        if ("3".equals(outbound.getDeliveryStatus()))
+        {
+            throw new ServiceException("出库单已退货，请勿重复操作");
+        }
+    }
+
+    /**
+     * 生成出库单号
+     * 
+     * @return 出库单号
+     */
     private String generateOutboundNo()
     {
         String noPrefix = "out" + LocalDate.now().format(DOCUMENT_DATE_FORMATTER);
@@ -289,6 +503,11 @@ public class WmsOutboundServiceImpl implements IWmsOutboundService
         return noPrefix + String.format("%03d", nextSequence);
     }
 
+    /**
+     * 校验出库单是否可删除
+     * 
+     * @param outboundId 出库单id
+     */
     private void checkOutboundDeletable(Long outboundId)
     {
         WmsOutbound outbound = wmsOutboundMapper.selectWmsOutboundById(outboundId);

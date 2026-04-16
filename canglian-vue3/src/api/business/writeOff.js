@@ -35,6 +35,14 @@ export function updateWriteOff(data) {
   })
 }
 
+// 确认核销单
+export function confirmWriteOff(writeOffId) {
+  return request({
+    url: '/business/writeOff/confirm/' + writeOffId,
+    method: 'put'
+  })
+}
+
 // 删除核销单
 export function delWriteOff(writeOffId) {
   return request({

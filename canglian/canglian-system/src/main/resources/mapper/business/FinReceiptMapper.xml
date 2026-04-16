@@ -48,6 +48,12 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         </where>
     </select>
 
+    <select id="selectMaxReceiptNoByPrefix" parameterType="String" resultType="String">
+        select max(receipt_no)
+        from fin_receipt
+        where receipt_no like concat(#{receiptNoPrefix}, '%')
+    </select>
+
     <insert id="insertFinReceipt" parameterType="FinReceipt" useGeneratedKeys="true" keyProperty="receiptId">
         insert into fin_receipt
         <trim prefix="(" suffix=")" suffixOverrides=",">

@@ -43,6 +43,15 @@ public interface IFinWriteOffService
     public int updateFinWriteOff(FinWriteOff finWriteOff);
 
     /**
+     * 确认核销单
+     * 
+     * @param writeOffId 核销id
+     * @param operator 操作人
+     * @return 结果
+     */
+    public int confirmFinWriteOff(Long writeOffId, String operator);
+
+    /**
      * 删除核销
      * 
      * @param writeOffId 核销id

@@ -35,6 +35,14 @@ export function updatePayable(data) {
   })
 }
 
+// 审核应付单
+export function auditPayable(payableId) {
+  return request({
+    url: '/business/payable/audit/' + payableId,
+    method: 'put'
+  })
+}
+
 // 删除应付单
 export function delPayable(payableId) {
   return request({
