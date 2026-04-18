@@ -27,6 +27,14 @@ public interface FinPaymentMapper
     public List<FinPayment> selectFinPaymentList(FinPayment finPayment);
 
     /**
+     * 查询指定前缀的最大付款单号
+     * 
+     * @param paymentNoPrefix 付款单号前缀
+     * @return 最大付款单号
+     */
+    public String selectMaxPaymentNoByPrefix(String paymentNoPrefix);
+
+    /**
      * 新增付款单
      * 
      * @param finPayment 付款单信息

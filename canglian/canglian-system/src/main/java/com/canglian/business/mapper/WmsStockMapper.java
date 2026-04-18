@@ -1,6 +1,8 @@
 package com.canglian.business.mapper;
 
 import java.util.List;
+import java.math.BigDecimal;
+import org.apache.ibatis.annotations.Param;
 import com.canglian.business.domain.WmsStock;
 
 /**
@@ -51,6 +53,22 @@ public interface WmsStockMapper
      * @return 结果
      */
     public int updateWmsStock(WmsStock wmsStock);
+
+    /**
+     * 按商品同步库存预警阈值
+     * 
+     * @param productId 商品id
+     * @param originalWarningMinQty 原最小库存
+     * @param originalWarningMaxQty 原最大库存
+     * @param warningMinQty 最新最小库存
+     * @param warningMaxQty 最新最大库存
+     * @return 结果
+     */
+    public int updateWarningQtyByProductId(@Param("productId") Long productId,
+        @Param("originalWarningMinQty") BigDecimal originalWarningMinQty,
+        @Param("originalWarningMaxQty") BigDecimal originalWarningMaxQty,
+        @Param("warningMinQty") BigDecimal warningMinQty,
+        @Param("warningMaxQty") BigDecimal warningMaxQty);
 
     /**
      * 删除库存

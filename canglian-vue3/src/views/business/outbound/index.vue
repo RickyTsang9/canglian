@@ -227,12 +227,12 @@
         <el-row>
           <el-col :span="12">
             <el-form-item label="总数量" prop="totalQty">
-              <el-input v-model="form.totalQty" placeholder="请输入总数量" />
+              <el-input v-model="form.totalQty" placeholder="审核后自动计算" disabled />
             </el-form-item>
           </el-col>
           <el-col :span="12">
             <el-form-item label="总金额" prop="totalAmount">
-              <el-input v-model="form.totalAmount" placeholder="请输入总金额" />
+              <el-input v-model="form.totalAmount" placeholder="审核后自动计算" disabled />
             </el-form-item>
           </el-col>
         </el-row>
@@ -303,7 +303,7 @@
       </template>
     </el-dialog>
     <el-dialog title="退货处理" v-model="returnOpen" width="520px" append-to-body>
-      <el-form ref="returnRef" :model="returnForm" label-width="90px">
+      <el-form ref="returnRef" :model="returnForm" :rules="returnRules" label-width="90px">
         <el-form-item label="退款金额" prop="refundAmount">
           <el-input v-model="returnForm.refundAmount" placeholder="请输入退款金额" />
         </el-form-item>
@@ -341,6 +341,39 @@ const returnOpen = ref(false)
 const currentOutboundId = ref(undefined)
 const shipForm = ref({})
 const returnForm = ref({})
+// 校验退款金额
+const validateRefundAmount = (rule, value, callback) => {
+  if (value === undefined || value === null || String(value).trim() === "") {
+    callback()
+    return
+  }
+  const refundAmountNumber = Number(String(value).trim())
+  if (!Number.isFinite(refundAmountNumber)) {
+    callback(new Error("退款金额必须为数字"))
+    return
+  }
+  if (refundAmountNumber < 0) {
+    callback(new Error("退款金额不能小于0"))
+    return
+  }
+  callback()
+}
+// 校验应收编号
+const validateReceivableId = (rule, value, callback) => {
+  if (value === undefined || value === null || String(value).trim() === "") {
+    callback()
+    return
+  }
+  if (!/^[1-9]\d*$/.test(String(value).trim())) {
+    callback(new Error("应收编号必须为正整数"))
+    return
+  }
+  callback()
+}
+const returnRules = ref({
+  refundAmount: [{ validator: validateRefundAmount, trigger: "blur" }],
+  receivableId: [{ validator: validateReceivableId, trigger: "blur" }]
+})
 const deliveryStatusOptions = [
   { label: "待发货", value: "0" },
   { label: "已发货", value: "1" },
@@ -415,6 +448,7 @@ function resetShip() {
   proxy.resetForm("shipRef")
 }
 
+// 重置退货表单
 function resetReturn() {
   returnForm.value = {
     refundAmount: undefined,
@@ -618,23 +652,44 @@ function handleSign(currentRow) {
   }).catch(() => {})
 }
 
+// 打开退货弹窗
 function handleReturn(currentRow) {
   resetReturn()
   currentOutboundId.value = currentRow.outboundId
   returnOpen.value = true
 }
 
+// 取消退货
 function cancelReturn() {
   returnOpen.value = false
   resetReturn()
 }
 
+// 提交退货
 function submitReturn() {
-  outboundReturn(currentOutboundId.value, returnForm.value).then(() => {
-    returnOpen.value = false
-    getList()
-    proxy.$modal.msgSuccess("退货成功")
+  proxy.$refs["returnRef"].validate(valid => {
+    if (valid) {
+      outboundReturn(currentOutboundId.value, buildReturnParams()).then(() => {
+        returnOpen.value = false
+        getList()
+        proxy.$modal.msgSuccess("退货成功")
+      })
+    }
   })
+}
+
+// 构建退货参数
+function buildReturnParams() {
+  const returnParams = {}
+  const refundAmountText = returnForm.value.refundAmount == null ? "" : String(returnForm.value.refundAmount).trim()
+  const receivableIdText = returnForm.value.receivableId == null ? "" : String(returnForm.value.receivableId).trim()
+  if (refundAmountText !== "") {
+    returnParams.refundAmount = refundAmountText
+  }
+  if (receivableIdText !== "") {
+    returnParams.receivableId = receivableIdText
+  }
+  return returnParams
 }
 
 getList()

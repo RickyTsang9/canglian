@@ -3,20 +3,31 @@ package com.canglian.business.service.impl;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
+import java.util.Calendar;
 import java.util.Date;
 import java.util.List;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import com.canglian.business.domain.FinPayable;
+import com.canglian.business.domain.MdProduct;
+import com.canglian.business.domain.MdSupplier;
+import com.canglian.business.domain.PurOrder;
 import com.canglian.common.exception.ServiceException;
 import com.canglian.business.domain.WmsInbound;
 import com.canglian.business.domain.WmsInboundItem;
 import com.canglian.business.domain.WmsStock;
 import com.canglian.business.domain.WmsStockLog;
+import com.canglian.business.mapper.FinPayableMapper;
+import com.canglian.business.mapper.MdProductMapper;
+import com.canglian.business.mapper.MdSupplierMapper;
+import com.canglian.business.mapper.PurOrderMapper;
 import com.canglian.business.mapper.WmsInboundMapper;
 import com.canglian.business.mapper.WmsInboundItemMapper;
 import com.canglian.business.mapper.WmsStockLogMapper;
 import com.canglian.business.mapper.WmsStockMapper;
+import com.canglian.business.service.IFinPayableService;
+import com.canglian.business.service.IFinVoucherEventService;
 import com.canglian.business.service.IWmsInboundService;
 import com.canglian.common.utils.StringUtils;
 
@@ -41,6 +52,24 @@ public class WmsInboundServiceImpl implements IWmsInboundService
 
     @Autowired
     private WmsStockLogMapper wmsStockLogMapper;
+
+    @Autowired
+    private FinPayableMapper finPayableMapper;
+
+    @Autowired
+    private MdSupplierMapper mdSupplierMapper;
+
+    @Autowired
+    private MdProductMapper mdProductMapper;
+
+    @Autowired
+    private PurOrderMapper purOrderMapper;
+
+    @Autowired
+    private IFinPayableService finPayableService;
+
+    @Autowired
+    private IFinVoucherEventService finVoucherEventService;
 
     /**
      * 查询入库单信息
@@ -79,7 +108,14 @@ public class WmsInboundServiceImpl implements IWmsInboundService
         {
             wmsInbound.setInboundNo(generateInboundNo());
         }
+        if (wmsInbound.getBusinessDate() == null)
+        {
+            wmsInbound.setBusinessDate(new Date());
+        }
+        wmsInbound.setTotalQty(null);
+        wmsInbound.setTotalAmount(null);
         wmsInbound.setStatus("0");
+        wmsInbound.setBizStatus("draft");
         wmsInbound.setAuditBy(null);
         wmsInbound.setAuditTime(null);
         return wmsInboundMapper.insertWmsInbound(wmsInbound);
@@ -96,7 +132,10 @@ public class WmsInboundServiceImpl implements IWmsInboundService
     {
         WmsInbound inbound = getExistingInbound(wmsInbound.getInboundId());
         validateInboundEditable(inbound);
+        wmsInbound.setTotalQty(inbound.getTotalQty());
+        wmsInbound.setTotalAmount(inbound.getTotalAmount());
         wmsInbound.setStatus(inbound.getStatus());
+        wmsInbound.setBizStatus(inbound.getBizStatus());
         wmsInbound.setAuditBy(inbound.getAuditBy());
         wmsInbound.setAuditTime(inbound.getAuditTime());
         return wmsInboundMapper.updateWmsInbound(wmsInbound);
@@ -190,8 +229,7 @@ public class WmsInboundServiceImpl implements IWmsInboundService
                 stock.setQuantity(itemQuantity);
                 stock.setLockedQuantity(BigDecimal.ZERO);
                 stock.setFrozenQuantity(BigDecimal.ZERO);
-                stock.setWarningMinQty(BigDecimal.ZERO);
-                stock.setWarningMaxQty(BigDecimal.ZERO);
+                fillStockWarningQty(stock, inboundItem.getProductId());
                 stock.setVersion(0L);
                 stock.setCreateBy(operator);
                 wmsStockMapper.insertWmsStock(stock);
@@ -235,7 +273,16 @@ public class WmsInboundServiceImpl implements IWmsInboundService
         inbound.setUpdateBy(operator);
         inbound.setTotalQty(totalQuantity);
         inbound.setTotalAmount(totalAmount);
-        return wmsInboundMapper.updateWmsInbound(inbound);
+        inbound.setBizStatus("completed");
+        int updateRows = wmsInboundMapper.updateWmsInbound(inbound);
+        if (updateRows > 0)
+        {
+            syncPayableCandidate(inbound, operator);
+            syncSourcePurchaseOrder(inbound, operator);
+            finVoucherEventService.recordVoucherEvent("inbound", inbound.getInboundId(), inbound.getInboundNo(), "inbound_complete",
+                inbound.getBusinessDate(), inbound.getTotalAmount(), operator, "采购入库完成待生成凭证");
+        }
+        return updateRows;
     }
 
     /**
@@ -269,6 +316,181 @@ public class WmsInboundServiceImpl implements IWmsInboundService
     private String defaultBatchNo(String batchNo)
     {
         return batchNo == null ? "" : batchNo;
+    }
+
+    /**
+     * 同步应付候选单
+     * 
+     * @param inbound 入库单信息
+     * @param operator 操作人
+     */
+    private void syncPayableCandidate(WmsInbound inbound, String operator)
+    {
+        if (inbound.getSupplierId() == null || defaultBigDecimal(inbound.getTotalAmount()).compareTo(BigDecimal.ZERO) <= 0)
+        {
+            return;
+        }
+        FinPayable existingFinPayable = selectLinkedPayable(inbound);
+        if (existingFinPayable == null)
+        {
+            FinPayable finPayable = buildPayableCandidate(inbound, operator);
+            finPayableService.insertFinPayable(finPayable);
+            finPayableService.auditFinPayable(finPayable.getPayableId(), operator);
+            return;
+        }
+        if (defaultBigDecimal(existingFinPayable.getPaidAmount()).compareTo(defaultBigDecimal(inbound.getTotalAmount())) > 0)
+        {
+            throw new ServiceException("应付候选单已付款金额大于当前入库金额，无法自动回写");
+        }
+        existingFinPayable.setSupplierId(inbound.getSupplierId());
+        existingFinPayable.setBillType("inbound");
+        existingFinPayable.setBillId(inbound.getInboundId());
+        existingFinPayable.setSourceBillType(inbound.getSourceBillType());
+        existingFinPayable.setSourceBillId(inbound.getSourceBillId());
+        existingFinPayable.setSourceBillNo(inbound.getSourceBillNo());
+        existingFinPayable.setBusinessDate(inbound.getBusinessDate());
+        existingFinPayable.setAmount(inbound.getTotalAmount());
+        existingFinPayable.setDueDate(resolvePayableDueDate(inbound.getSupplierId(), inbound.getBusinessDate()));
+        existingFinPayable.setStatus(calculatePayableStatus(existingFinPayable.getPaidAmount(), inbound.getTotalAmount()));
+        existingFinPayable.setBizStatus("confirmed");
+        existingFinPayable.setUpdateBy(operator);
+        existingFinPayable.setRemark(buildInboundPayableRemark(inbound));
+        finPayableMapper.updateFinPayable(existingFinPayable);
+    }
+
+    /**
+     * 查询已关联的应付候选单
+     * 
+     * @param inbound 入库单信息
+     * @return 应付候选单
+     */
+    private FinPayable selectLinkedPayable(WmsInbound inbound)
+    {
+        FinPayable finPayableQuery = new FinPayable();
+        finPayableQuery.setBillType("inbound");
+        if (StringUtils.isNotEmpty(inbound.getSourceBillNo()))
+        {
+            finPayableQuery.setSourceBillNo(inbound.getSourceBillNo());
+        }
+        List<FinPayable> finPayableList = finPayableMapper.selectFinPayableList(finPayableQuery);
+        for (FinPayable finPayable : finPayableList)
+        {
+            if ("inbound".equals(finPayable.getBillType()) && inbound.getInboundId().equals(finPayable.getBillId()))
+            {
+                return finPayable;
+            }
+        }
+        return null;
+    }
+
+    /**
+     * 构建应付候选单
+     * 
+     * @param inbound 入库单信息
+     * @param operator 操作人
+     * @return 应付候选单
+     */
+    private FinPayable buildPayableCandidate(WmsInbound inbound, String operator)
+    {
+        FinPayable finPayable = new FinPayable();
+        finPayable.setSupplierId(inbound.getSupplierId());
+        finPayable.setBillType("inbound");
+        finPayable.setBillId(inbound.getInboundId());
+        finPayable.setSourceBillType(inbound.getSourceBillType());
+        finPayable.setSourceBillId(inbound.getSourceBillId());
+        finPayable.setSourceBillNo(inbound.getSourceBillNo());
+        finPayable.setBusinessDate(inbound.getBusinessDate());
+        finPayable.setAmount(inbound.getTotalAmount());
+        finPayable.setDueDate(resolvePayableDueDate(inbound.getSupplierId(), inbound.getBusinessDate()));
+        finPayable.setCreateBy(operator);
+        finPayable.setRemark(buildInboundPayableRemark(inbound));
+        return finPayable;
+    }
+
+    /**
+     * 构建入库应付备注
+     * 
+     * @param inbound 入库单信息
+     * @return 备注
+     */
+    private String buildInboundPayableRemark(WmsInbound inbound)
+    {
+        return "采购入库完成自动生成，关联入库单号：" + inbound.getInboundNo();
+    }
+
+    /**
+     * 计算应付状态
+     * 
+     * @param paidAmount 已付金额
+     * @param payableAmount 应付金额
+     * @return 应付状态
+     */
+    private String calculatePayableStatus(BigDecimal paidAmount, BigDecimal payableAmount)
+    {
+        BigDecimal paidAmountValue = defaultBigDecimal(paidAmount);
+        BigDecimal payableAmountValue = defaultBigDecimal(payableAmount);
+        if (paidAmountValue.compareTo(BigDecimal.ZERO) <= 0)
+        {
+            return "0";
+        }
+        if (paidAmountValue.compareTo(payableAmountValue) >= 0)
+        {
+            return "2";
+        }
+        return "1";
+    }
+
+    /**
+     * 计算应付到期日
+     * 
+     * @param supplierId 供应商编号
+     * @param businessDate 业务日期
+     * @return 到期日
+     */
+    private Date resolvePayableDueDate(Long supplierId, Date businessDate)
+    {
+        MdSupplier mdSupplier = mdSupplierMapper.selectMdSupplierById(supplierId);
+        int payableDays = mdSupplier == null || mdSupplier.getPayableDays() == null ? 30 : mdSupplier.getPayableDays();
+        Calendar dueDateCalendar = Calendar.getInstance();
+        dueDateCalendar.setTime(businessDate == null ? new Date() : businessDate);
+        dueDateCalendar.add(Calendar.DAY_OF_MONTH, payableDays);
+        return dueDateCalendar.getTime();
+    }
+
+    /**
+     * 同步来源购货订单状态
+     * 
+     * @param inbound 入库单信息
+     * @param operator 操作人
+     */
+    private void syncSourcePurchaseOrder(WmsInbound inbound, String operator)
+    {
+        if (!"pur_order".equals(inbound.getSourceBillType()) || inbound.getSourceBillId() == null)
+        {
+            return;
+        }
+        PurOrder purOrder = purOrderMapper.selectPurOrderById(inbound.getSourceBillId());
+        if (purOrder == null)
+        {
+            return;
+        }
+        purOrder.setStatus("2");
+        purOrder.setBizStatus("completed");
+        purOrder.setUpdateBy(operator);
+        purOrderMapper.updatePurOrder(purOrder);
+    }
+
+    /**
+     * 按商品档案填充库存预警阈值
+     * 
+     * @param stock 库存信息
+     * @param productId 商品id
+     */
+    private void fillStockWarningQty(WmsStock stock, Long productId)
+    {
+        MdProduct mdProduct = mdProductMapper.selectMdProductById(productId);
+        stock.setWarningMinQty(mdProduct == null ? BigDecimal.ZERO : defaultBigDecimal(mdProduct.getWarningMinQty()));
+        stock.setWarningMaxQty(mdProduct == null ? BigDecimal.ZERO : defaultBigDecimal(mdProduct.getWarningMaxQty()));
     }
 
     /**

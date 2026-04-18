@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.canglian.business.mapper.PurOrderItemMapper">
+
+    <resultMap type="PurOrderItem" id="PurOrderItemResult">
+        <id property="purchaseOrderItemId" column="purchase_order_item_id" />
+        <result property="purchaseOrderId" column="purchase_order_id" />
+        <result property="productId" column="product_id" />
+        <result property="quantity" column="quantity" />
+        <result property="price" column="price" />
+        <result property="amount" column="amount" />
+        <result property="remark" column="remark" />
+    </resultMap>
+
+    <select id="selectPurOrderItemListByOrderId" parameterType="Long" resultMap="PurOrderItemResult">
+        select purchase_order_item_id, purchase_order_id, product_id, quantity, price, amount, remark
+        from pur_order_item
+        where purchase_order_id = #{purchaseOrderId}
+        order by purchase_order_item_id asc
+    </select>
+
+    <insert id="insertPurOrderItem" parameterType="PurOrderItem" useGeneratedKeys="true" keyProperty="purchaseOrderItemId">
+        insert into pur_order_item(purchase_order_id, product_id, quantity, price, amount, remark)
+        values(#{purchaseOrderId}, #{productId}, #{quantity}, #{price}, #{amount}, #{remark})
+    </insert>
+
+    <delete id="deletePurOrderItemByOrderId" parameterType="Long">
+        delete from pur_order_item where purchase_order_id = #{purchaseOrderId}
+    </delete>
+</mapper>

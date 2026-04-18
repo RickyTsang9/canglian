@@ -1,6 +1,8 @@
 package com.canglian.business.service.impl;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Objects;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -13,6 +15,8 @@ import com.canglian.business.mapper.FinPayableMapper;
 import com.canglian.business.mapper.FinWriteOffMapper;
 import com.canglian.business.service.IFinPaymentService;
 import com.canglian.common.exception.ServiceException;
+import com.canglian.common.utils.SecurityUtils;
+import com.canglian.common.utils.StringUtils;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
@@ -23,6 +27,8 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class FinPaymentServiceImpl implements IFinPaymentService
 {
+    private static final DateTimeFormatter DOCUMENT_DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyyMMdd");
+
     @Autowired
     private FinPaymentMapper finPaymentMapper;
 
@@ -66,6 +72,10 @@ public class FinPaymentServiceImpl implements IFinPaymentService
     @Transactional
     public int insertFinPayment(FinPayment finPayment)
     {
+        if (StringUtils.isEmpty(finPayment.getPaymentNo()))
+        {
+            finPayment.setPaymentNo(generatePaymentNo());
+        }
         validatePaymentAmount(finPayment.getAmount());
         syncPayablePaidAmount(null, finPayment, finPayment.getCreateBy());
         return finPaymentMapper.insertFinPayment(finPayment);
@@ -100,7 +110,7 @@ public class FinPaymentServiceImpl implements IFinPaymentService
     {
         FinPayment finPayment = getExistingPayment(paymentId);
         checkPaymentDeletable(finPayment);
-        rollbackPayablePaidAmount(finPayment, finPayment.getUpdateBy());
+        rollbackPayablePaidAmount(finPayment, resolveOperator(finPayment.getUpdateBy()));
         return finPaymentMapper.deleteFinPaymentById(paymentId);
     }
 
@@ -118,7 +128,7 @@ public class FinPaymentServiceImpl implements IFinPaymentService
         {
             FinPayment finPayment = getExistingPayment(paymentId);
             checkPaymentDeletable(finPayment);
-            rollbackPayablePaidAmount(finPayment, finPayment.getUpdateBy());
+            rollbackPayablePaidAmount(finPayment, resolveOperator(finPayment.getUpdateBy()));
         }
         return finPaymentMapper.deleteFinPaymentByIds(paymentIds);
     }
@@ -254,7 +264,7 @@ public class FinPaymentServiceImpl implements IFinPaymentService
      */
     private void validatePayableRelation(FinPayable finPayable, FinPayment finPayment)
     {
-        if (!"1".equals(finPayable.getStatus()))
+        if (!"confirmed".equals(finPayable.getBizStatus()))
         {
             throw new ServiceException("仅已审核的应付单允许登记付款");
         }
@@ -289,6 +299,7 @@ public class FinPaymentServiceImpl implements IFinPaymentService
             throw new ServiceException("付款金额不能大于应付单未付金额");
         }
         finPayable.setPaidAmount(updatedPaidAmount);
+        finPayable.setStatus(calculatePaymentStatus(updatedPaidAmount, totalPayableAmount));
         finPayable.setUpdateBy(operator);
         finPayableMapper.updateFinPayable(finPayable);
     }
@@ -305,6 +316,27 @@ public class FinPaymentServiceImpl implements IFinPaymentService
         queryFinWriteOff.setPaymentId(paymentId);
         queryFinWriteOff.setStatus("1");
         return sumWriteOffAmount(finWriteOffMapper.selectFinWriteOffList(queryFinWriteOff));
+    }
+
+    /**
+     * 生成付款单号
+     * 
+     * @return 付款单号
+     */
+    private String generatePaymentNo()
+    {
+        String paymentNoPrefix = "pay" + LocalDate.now().format(DOCUMENT_DATE_FORMATTER);
+        String currentMaxPaymentNo = finPaymentMapper.selectMaxPaymentNoByPrefix(paymentNoPrefix);
+        int nextSequence = 1;
+        if (StringUtils.isNotEmpty(currentMaxPaymentNo) && currentMaxPaymentNo.length() > paymentNoPrefix.length())
+        {
+            String sequenceText = currentMaxPaymentNo.substring(paymentNoPrefix.length());
+            if (StringUtils.isNumeric(sequenceText))
+            {
+                nextSequence = Integer.parseInt(sequenceText) + 1;
+            }
+        }
+        return paymentNoPrefix + String.format("%03d", nextSequence);
     }
 
     /**
@@ -332,6 +364,44 @@ public class FinPaymentServiceImpl implements IFinPaymentService
     private BigDecimal defaultAmount(BigDecimal amount)
     {
         return amount == null ? BigDecimal.ZERO : amount;
+    }
+
+    /**
+     * 计算付款状态
+     * 
+     * @param paidAmount 已付金额
+     * @param payableAmount 应付金额
+     * @return 付款状态
+     */
+    private String calculatePaymentStatus(BigDecimal paidAmount, BigDecimal payableAmount)
+    {
+        if (defaultAmount(paidAmount).compareTo(BigDecimal.ZERO) <= 0)
+        {
+            return "0";
+        }
+        if (defaultAmount(paidAmount).compareTo(defaultAmount(payableAmount)) >= 0)
+        {
+            return "2";
+        }
+        return "1";
+    }
+
+    /**
+     * 解析当前操作人
+     * 
+     * @param fallbackOperator 兜底操作人
+     * @return 当前操作人
+     */
+    private String resolveOperator(String fallbackOperator)
+    {
+        try
+        {
+            return SecurityUtils.getUsername();
+        }
+        catch (Exception exception)
+        {
+            return fallbackOperator;
+        }
     }
 }
 

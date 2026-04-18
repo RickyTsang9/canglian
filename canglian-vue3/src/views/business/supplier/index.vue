@@ -75,6 +75,8 @@
       <el-table-column label="供应商名称" align="center" prop="supplierName" />
       <el-table-column label="联系人" align="center" prop="contactPerson" />
       <el-table-column label="联系电话" align="center" prop="contactPhone" />
+      <el-table-column label="供应商等级" align="center" prop="supplierLevel" />
+      <el-table-column label="账期天数" align="center" prop="payableDays" />
       <el-table-column label="邮箱" align="center" prop="contactEmail" />
       <el-table-column label="地址" align="center" prop="address" />
       <el-table-column label="状态" align="center" prop="status">
@@ -126,6 +128,18 @@
           <el-col :span="12">
             <el-form-item label="联系电话" prop="contactPhone">
               <el-input v-model="form.contactPhone" placeholder="请输入联系电话" />
+            </el-form-item>
+          </el-col>
+        </el-row>
+        <el-row>
+          <el-col :span="12">
+            <el-form-item label="供应商等级" prop="supplierLevel">
+              <el-input v-model="form.supplierLevel" placeholder="请输入供应商等级" />
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="账期天数" prop="payableDays">
+              <el-input-number v-model="form.payableDays" controls-position="right" :min="0" />
             </el-form-item>
           </el-col>
         </el-row>
@@ -218,6 +232,8 @@ function reset() {
     supplierName: undefined,
     contactPerson: undefined,
     contactPhone: undefined,
+    supplierLevel: undefined,
+    payableDays: 30,
     contactEmail: undefined,
     address: undefined,
     status: "0",

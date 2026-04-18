@@ -44,6 +44,12 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         </where>
     </select>
 
+    <select id="selectMaxCheckNoByPrefix" parameterType="String" resultType="String">
+        select max(check_no)
+        from wms_inventory_check
+        where check_no like concat(#{checkNoPrefix}, '%')
+    </select>
+
     <insert id="insertWmsInventoryCheck" parameterType="WmsInventoryCheck" useGeneratedKeys="true" keyProperty="checkId">
         insert into wms_inventory_check
         <trim prefix="(" suffix=")" suffixOverrides=",">

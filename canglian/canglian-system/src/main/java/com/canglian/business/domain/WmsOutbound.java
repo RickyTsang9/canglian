@@ -20,11 +20,21 @@ public class WmsOutbound extends BaseEntity
 
     private Long warehouseId;
 
+    private String sourceBillType;
+
+    private Long sourceBillId;
+
+    private String sourceBillNo;
+
+    private Date businessDate;
+
     private BigDecimal totalQty;
 
     private BigDecimal totalAmount;
 
     private String status;
+
+    private String bizStatus;
 
     private String auditBy;
 
@@ -94,6 +104,46 @@ public class WmsOutbound extends BaseEntity
         this.warehouseId = warehouseId;
     }
 
+    public String getSourceBillType()
+    {
+        return sourceBillType;
+    }
+
+    public void setSourceBillType(String sourceBillType)
+    {
+        this.sourceBillType = sourceBillType;
+    }
+
+    public Long getSourceBillId()
+    {
+        return sourceBillId;
+    }
+
+    public void setSourceBillId(Long sourceBillId)
+    {
+        this.sourceBillId = sourceBillId;
+    }
+
+    public String getSourceBillNo()
+    {
+        return sourceBillNo;
+    }
+
+    public void setSourceBillNo(String sourceBillNo)
+    {
+        this.sourceBillNo = sourceBillNo;
+    }
+
+    public Date getBusinessDate()
+    {
+        return businessDate;
+    }
+
+    public void setBusinessDate(Date businessDate)
+    {
+        this.businessDate = businessDate;
+    }
+
     public BigDecimal getTotalQty()
     {
         return totalQty;
@@ -122,6 +172,16 @@ public class WmsOutbound extends BaseEntity
     public void setStatus(String status)
     {
         this.status = status;
+    }
+
+    public String getBizStatus()
+    {
+        return bizStatus;
+    }
+
+    public void setBizStatus(String bizStatus)
+    {
+        this.bizStatus = bizStatus;
     }
 
     public String getAuditBy()
@@ -223,9 +283,14 @@ public class WmsOutbound extends BaseEntity
             .append("outboundType", getOutboundType())
             .append("customerId", getCustomerId())
             .append("warehouseId", getWarehouseId())
+            .append("sourceBillType", getSourceBillType())
+            .append("sourceBillId", getSourceBillId())
+            .append("sourceBillNo", getSourceBillNo())
+            .append("businessDate", getBusinessDate())
             .append("totalQty", getTotalQty())
             .append("totalAmount", getTotalAmount())
             .append("status", getStatus())
+            .append("bizStatus", getBizStatus())
             .append("auditBy", getAuditBy())
             .append("auditTime", getAuditTime())
             .append("platformType", getPlatformType())

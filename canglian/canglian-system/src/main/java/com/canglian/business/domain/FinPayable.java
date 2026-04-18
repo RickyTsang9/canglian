@@ -20,11 +20,21 @@ public class FinPayable extends BaseEntity
 
     private Long billId;
 
+    private String sourceBillType;
+
+    private Long sourceBillId;
+
+    private String sourceBillNo;
+
+    private Date businessDate;
+
     private BigDecimal amount;
 
     private BigDecimal paidAmount;
 
     private String status;
+
+    private String bizStatus;
 
     private Date dueDate;
 
@@ -78,6 +88,46 @@ public class FinPayable extends BaseEntity
         this.billId = billId;
     }
 
+    public String getSourceBillType()
+    {
+        return sourceBillType;
+    }
+
+    public void setSourceBillType(String sourceBillType)
+    {
+        this.sourceBillType = sourceBillType;
+    }
+
+    public Long getSourceBillId()
+    {
+        return sourceBillId;
+    }
+
+    public void setSourceBillId(Long sourceBillId)
+    {
+        this.sourceBillId = sourceBillId;
+    }
+
+    public String getSourceBillNo()
+    {
+        return sourceBillNo;
+    }
+
+    public void setSourceBillNo(String sourceBillNo)
+    {
+        this.sourceBillNo = sourceBillNo;
+    }
+
+    public Date getBusinessDate()
+    {
+        return businessDate;
+    }
+
+    public void setBusinessDate(Date businessDate)
+    {
+        this.businessDate = businessDate;
+    }
+
     public BigDecimal getAmount()
     {
         return amount;
@@ -108,6 +158,16 @@ public class FinPayable extends BaseEntity
         this.status = status;
     }
 
+    public String getBizStatus()
+    {
+        return bizStatus;
+    }
+
+    public void setBizStatus(String bizStatus)
+    {
+        this.bizStatus = bizStatus;
+    }
+
     public Date getDueDate()
     {
         return dueDate;
@@ -127,9 +187,14 @@ public class FinPayable extends BaseEntity
             .append("supplierId", getSupplierId())
             .append("billType", getBillType())
             .append("billId", getBillId())
+            .append("sourceBillType", getSourceBillType())
+            .append("sourceBillId", getSourceBillId())
+            .append("sourceBillNo", getSourceBillNo())
+            .append("businessDate", getBusinessDate())
             .append("amount", getAmount())
             .append("paidAmount", getPaidAmount())
             .append("status", getStatus())
+            .append("bizStatus", getBizStatus())
             .append("dueDate", getDueDate())
             .append("createBy", getCreateBy())
             .append("createTime", getCreateTime())

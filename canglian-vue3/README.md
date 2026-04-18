@@ -32,6 +32,8 @@ yarn dev
 # 前端访问地址 http://localhost:80
 ```
 
+开发环境下如需切换后端地址，可直接修改 `.env.development` 中的 `VITE_APP_PROXY_TARGET`，无需再改 `vite.config.js` 源码。
+
 ## 前端参考说明（结合 Canglian-Geek-App 思路）
 
 - 当前项目已采用 Vue3 + Vite 架构，并使用 Pinia 进行状态管理，适合作为 Web 管理端长期迭代基础。

@@ -14,6 +14,10 @@ public class MdSupplier extends BaseEntity
 
     private String supplierName;
 
+    private String supplierLevel;
+
+    private Integer payableDays;
+
     private String contactPerson;
 
     private String contactPhone;
@@ -54,6 +58,26 @@ public class MdSupplier extends BaseEntity
     public void setSupplierName(String supplierName)
     {
         this.supplierName = supplierName;
+    }
+
+    public String getSupplierLevel()
+    {
+        return supplierLevel;
+    }
+
+    public void setSupplierLevel(String supplierLevel)
+    {
+        this.supplierLevel = supplierLevel;
+    }
+
+    public Integer getPayableDays()
+    {
+        return payableDays;
+    }
+
+    public void setPayableDays(Integer payableDays)
+    {
+        this.payableDays = payableDays;
     }
 
     public String getContactPerson()
@@ -123,6 +147,8 @@ public class MdSupplier extends BaseEntity
             .append("supplierId", getSupplierId())
             .append("supplierCode", getSupplierCode())
             .append("supplierName", getSupplierName())
+            .append("supplierLevel", getSupplierLevel())
+            .append("payableDays", getPayableDays())
             .append("contactPerson", getContactPerson())
             .append("contactPhone", getContactPhone())
             .append("contactEmail", getContactEmail())

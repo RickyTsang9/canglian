@@ -1,10 +1,12 @@
 package com.canglian.business.service.impl;
 
+import java.math.BigDecimal;
 import java.util.List;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import com.canglian.business.domain.MdProduct;
 import com.canglian.business.mapper.MdProductMapper;
+import com.canglian.business.mapper.WmsStockMapper;
 import com.canglian.business.service.IMdProductService;
 
 /**
@@ -17,6 +19,9 @@ public class MdProductServiceImpl implements IMdProductService
 {
     @Autowired
     private MdProductMapper mdProductMapper;
+
+    @Autowired
+    private WmsStockMapper wmsStockMapper;
 
     /**
      * 查询商品档案信息
@@ -51,6 +56,7 @@ public class MdProductServiceImpl implements IMdProductService
     @Override
     public int insertMdProduct(MdProduct mdProduct)
     {
+        fillDefaultWarningQty(mdProduct);
         return mdProductMapper.insertMdProduct(mdProduct);
     }
 
@@ -63,7 +69,14 @@ public class MdProductServiceImpl implements IMdProductService
     @Override
     public int updateMdProduct(MdProduct mdProduct)
     {
-        return mdProductMapper.updateMdProduct(mdProduct);
+        MdProduct originalMdProduct = mdProductMapper.selectMdProductById(mdProduct.getProductId());
+        fillDefaultWarningQty(mdProduct);
+        int updateRows = mdProductMapper.updateMdProduct(mdProduct);
+        if (updateRows > 0 && originalMdProduct != null)
+        {
+            syncStockWarningQty(mdProduct, originalMdProduct);
+        }
+        return updateRows;
     }
 
     /**
@@ -88,6 +101,49 @@ public class MdProductServiceImpl implements IMdProductService
     public int deleteMdProductByIds(Long[] productIds)
     {
         return mdProductMapper.deleteMdProductByIds(productIds);
+    }
+
+    /**
+     * 填充默认预警阈值
+     * 
+     * @param mdProduct 商品档案
+     */
+    private void fillDefaultWarningQty(MdProduct mdProduct)
+    {
+        if (mdProduct.getWarningMinQty() == null)
+        {
+            mdProduct.setWarningMinQty(BigDecimal.ZERO);
+        }
+        if (mdProduct.getWarningMaxQty() == null)
+        {
+            mdProduct.setWarningMaxQty(BigDecimal.ZERO);
+        }
+    }
+
+    /**
+     * 同步商品预警阈值到库存
+     * 
+     * @param mdProduct 最新商品档案
+     * @param originalMdProduct 原商品档案
+     */
+    private void syncStockWarningQty(MdProduct mdProduct, MdProduct originalMdProduct)
+    {
+        wmsStockMapper.updateWarningQtyByProductId(mdProduct.getProductId(),
+            defaultWarningQty(originalMdProduct.getWarningMinQty()),
+            defaultWarningQty(originalMdProduct.getWarningMaxQty()),
+            defaultWarningQty(mdProduct.getWarningMinQty()),
+            defaultWarningQty(mdProduct.getWarningMaxQty()));
+    }
+
+    /**
+     * 空预警阈值转默认值
+     * 
+     * @param warningQty 预警阈值
+     * @return 默认值
+     */
+    private BigDecimal defaultWarningQty(BigDecimal warningQty)
+    {
+        return warningQty == null ? BigDecimal.ZERO : warningQty;
     }
 }
 

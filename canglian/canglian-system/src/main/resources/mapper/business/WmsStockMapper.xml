@@ -135,6 +135,22 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         where stock_id = #{stockId}
     </update>
 
+    <update id="updateWarningQtyByProductId">
+        update wms_stock
+        <set>
+            warning_min_qty = case
+                when warning_min_qty is null or warning_min_qty = #{originalWarningMinQty} then #{warningMinQty}
+                else warning_min_qty
+            end,
+            warning_max_qty = case
+                when warning_max_qty is null or warning_max_qty = #{originalWarningMaxQty} then #{warningMaxQty}
+                else warning_max_qty
+            end,
+            update_time = sysdate()
+        </set>
+        where product_id = #{productId}
+    </update>
+
     <delete id="deleteWmsStockById" parameterType="Long">
         delete from wms_stock where stock_id = #{stockId}
     </delete>

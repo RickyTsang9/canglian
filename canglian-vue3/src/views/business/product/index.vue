@@ -79,6 +79,10 @@
         </template>
       </el-table-column>
       <el-table-column label="单位" align="center" prop="unitName" />
+      <el-table-column label="采购单位" align="center" prop="purchaseUnit" />
+      <el-table-column label="销售单位" align="center" prop="saleUnit" />
+      <el-table-column label="最小库存" align="center" prop="warningMinQty" />
+      <el-table-column label="最大库存" align="center" prop="warningMaxQty" />
       <el-table-column label="成本价" align="center" prop="costPrice" />
       <el-table-column label="售价" align="center" prop="salePrice" />
       <el-table-column label="状态" align="center" prop="status">
@@ -159,8 +163,67 @@
         </el-row>
         <el-row>
           <el-col :span="12">
+            <el-form-item label="采购单位" prop="purchaseUnit">
+              <el-input v-model="form.purchaseUnit" placeholder="请输入采购单位" />
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="销售单位" prop="saleUnit">
+              <el-input v-model="form.saleUnit" placeholder="请输入销售单位" />
+            </el-form-item>
+          </el-col>
+        </el-row>
+        <el-row>
+          <el-col :span="12">
+            <el-form-item label="基础单位" prop="baseUnit">
+              <el-input v-model="form.baseUnit" placeholder="请输入基础单位" />
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="换算比例" prop="unitConvertRatio">
+              <el-input-number v-model="form.unitConvertRatio" controls-position="right" :min="0" :step="0.01" />
+            </el-form-item>
+          </el-col>
+        </el-row>
+        <el-row>
+          <el-col :span="12">
+            <el-form-item label="启用批次" prop="enableBatch">
+              <el-radio-group v-model="form.enableBatch">
+                <el-radio value="1">是</el-radio>
+                <el-radio value="0">否</el-radio>
+              </el-radio-group>
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="启用序列号" prop="enableSerial">
+              <el-radio-group v-model="form.enableSerial">
+                <el-radio value="1">是</el-radio>
+                <el-radio value="0">否</el-radio>
+              </el-radio-group>
+            </el-form-item>
+          </el-col>
+        </el-row>
+        <el-row>
+          <el-col :span="12">
+            <el-form-item label="保质天数" prop="shelfLifeDays">
+              <el-input-number v-model="form.shelfLifeDays" controls-position="right" :min="0" />
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
             <el-form-item label="成本价" prop="costPrice">
               <el-input-number v-model="form.costPrice" controls-position="right" :min="0" />
+            </el-form-item>
+          </el-col>
+        </el-row>
+        <el-row>
+          <el-col :span="12">
+            <el-form-item label="最小库存" prop="warningMinQty">
+              <el-input-number v-model="form.warningMinQty" controls-position="right" :min="0" />
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="最大库存" prop="warningMaxQty">
+              <el-input-number v-model="form.warningMaxQty" controls-position="right" :min="0" />
             </el-form-item>
           </el-col>
         </el-row>
@@ -253,6 +316,15 @@ function reset() {
     productName: undefined,
     productSpec: undefined,
     unitName: undefined,
+    purchaseUnit: undefined,
+    saleUnit: undefined,
+    baseUnit: undefined,
+    unitConvertRatio: 1,
+    enableBatch: "1",
+    shelfLifeDays: 0,
+    enableSerial: "0",
+    warningMinQty: 0,
+    warningMaxQty: 0,
     barCode: undefined,
     categoryName: undefined,
     brandName: undefined,
@@ -297,6 +369,10 @@ function handleUpdate(row) {
   const productId = row.productId || selectedIds.value
   getProduct(productId).then(response => {
     form.value = response.data
+    form.value.enableBatch = form.value.enableBatch ?? "1"
+    form.value.enableSerial = form.value.enableSerial ?? "0"
+    form.value.warningMinQty = form.value.warningMinQty ?? 0
+    form.value.warningMaxQty = form.value.warningMaxQty ?? 0
     open.value = true
     title.value = "修改商品档案"
   })

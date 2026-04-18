@@ -45,10 +45,14 @@
 
 按顺序执行 `sql` 目录脚本：
 
-1. `ry_20250522.sql`
+1. `canglian_20250522.sql`
 2. `quartz.sql`
 3. `sample_data.sql`
 4. `ec_core_20260125.sql`（如需电商扩展能力）
+
+如当前环境是较早版本升级上来的旧库，还需要补执行：
+
+5. `upgrade_20260417_schema_alignment.sql`（补齐财务扩展表、收款/应收单号字段、仓库联系人字段）
 
 ### 开发与打包
 
@@ -66,7 +70,9 @@ mvn clean package -Dmaven.test.skip=true
 
 - `canglian-admin/src/main/resources/application.yml`：端口、Redis、Token、MyBatis 等基础配置。
 - `canglian-admin/src/main/resources/application-druid.yml`：MySQL 数据源与 Druid 连接池配置。
-- 默认端口为 `8098`，请按部署环境调整数据库与 Redis 连接参数。
+- `canglian-admin/src/main/resources/logback.xml`：系统日志输出目录与日志格式配置。
+- 默认端口为 `7565`，请按部署环境调整数据库与 Redis 连接参数。
+- 当前版本已支持通过环境变量覆盖关键连接配置，例如 `SERVER_PORT`、`CANGLIAN_PROFILE`、`REDIS_HOST`、`REDIS_PORT`、`REDIS_PASSWORD`、`MYSQL_URL`、`MYSQL_USERNAME`、`MYSQL_PASSWORD`、`LOG_HOME`。
 
 ## 内置功能
 

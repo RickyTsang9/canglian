@@ -140,12 +140,12 @@
         <el-row>
           <el-col :span="12">
             <el-form-item label="总数量" prop="totalQty">
-              <el-input v-model="form.totalQty" placeholder="请输入总数量" />
+              <el-input v-model="form.totalQty" placeholder="审核后自动计算" disabled />
             </el-form-item>
           </el-col>
           <el-col :span="12">
             <el-form-item label="总金额" prop="totalAmount">
-              <el-input v-model="form.totalAmount" placeholder="请输入总金额" />
+              <el-input v-model="form.totalAmount" placeholder="审核后自动计算" disabled />
             </el-form-item>
           </el-col>
         </el-row>

@@ -15,6 +15,7 @@ import com.canglian.business.mapper.FinReceivableMapper;
 import com.canglian.business.mapper.FinWriteOffMapper;
 import com.canglian.business.service.IFinReceiptService;
 import com.canglian.common.exception.ServiceException;
+import com.canglian.common.utils.SecurityUtils;
 import com.canglian.common.utils.StringUtils;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -109,7 +110,7 @@ public class FinReceiptServiceImpl implements IFinReceiptService
     {
         FinReceipt finReceipt = getExistingReceipt(receiptId);
         checkReceiptDeletable(finReceipt);
-        rollbackReceivableReceivedAmount(finReceipt, finReceipt.getUpdateBy());
+        rollbackReceivableReceivedAmount(finReceipt, resolveOperator(finReceipt.getUpdateBy()));
         return finReceiptMapper.deleteFinReceiptById(receiptId);
     }
 
@@ -127,7 +128,7 @@ public class FinReceiptServiceImpl implements IFinReceiptService
         {
             FinReceipt finReceipt = getExistingReceipt(receiptId);
             checkReceiptDeletable(finReceipt);
-            rollbackReceivableReceivedAmount(finReceipt, finReceipt.getUpdateBy());
+            rollbackReceivableReceivedAmount(finReceipt, resolveOperator(finReceipt.getUpdateBy()));
         }
         return finReceiptMapper.deleteFinReceiptByIds(receiptIds);
     }
@@ -263,7 +264,7 @@ public class FinReceiptServiceImpl implements IFinReceiptService
      */
     private void validateReceivableRelation(FinReceivable finReceivable, FinReceipt finReceipt)
     {
-        if (!"1".equals(finReceivable.getStatus()))
+        if (!"confirmed".equals(finReceivable.getBizStatus()))
         {
             throw new ServiceException("仅已审核的应收单允许登记收款");
         }
@@ -298,6 +299,7 @@ public class FinReceiptServiceImpl implements IFinReceiptService
             throw new ServiceException("收款金额不能大于应收单未收金额");
         }
         finReceivable.setReceivedAmount(updatedReceivedAmount);
+        finReceivable.setStatus(calculateCollectionStatus(updatedReceivedAmount, totalReceivableAmount));
         finReceivable.setUpdateBy(operator);
         finReceivableMapper.updateFinReceivable(finReceivable);
     }
@@ -362,6 +364,44 @@ public class FinReceiptServiceImpl implements IFinReceiptService
     private BigDecimal defaultAmount(BigDecimal amount)
     {
         return amount == null ? BigDecimal.ZERO : amount;
+    }
+
+    /**
+     * 计算收款状态
+     * 
+     * @param receivedAmount 已收金额
+     * @param receivableAmount 应收金额
+     * @return 收款状态
+     */
+    private String calculateCollectionStatus(BigDecimal receivedAmount, BigDecimal receivableAmount)
+    {
+        if (defaultAmount(receivedAmount).compareTo(BigDecimal.ZERO) <= 0)
+        {
+            return "0";
+        }
+        if (defaultAmount(receivedAmount).compareTo(defaultAmount(receivableAmount)) >= 0)
+        {
+            return "2";
+        }
+        return "1";
+    }
+
+    /**
+     * 解析当前操作人
+     * 
+     * @param fallbackOperator 兜底操作人
+     * @return 当前操作人
+     */
+    private String resolveOperator(String fallbackOperator)
+    {
+        try
+        {
+            return SecurityUtils.getUsername();
+        }
+        catch (Exception exception)
+        {
+            return fallbackOperator;
+        }
     }
 }
 

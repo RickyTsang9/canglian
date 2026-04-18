@@ -10,9 +10,14 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         <result property="supplierId" column="supplier_id" />
         <result property="billType"   column="bill_type"   />
         <result property="billId"     column="bill_id"     />
+        <result property="sourceBillType" column="source_bill_type" />
+        <result property="sourceBillId" column="source_bill_id" />
+        <result property="sourceBillNo" column="source_bill_no" />
+        <result property="businessDate" column="business_date" />
         <result property="amount"     column="amount"      />
         <result property="paidAmount" column="paid_amount" />
         <result property="status"     column="status"      />
+        <result property="bizStatus"  column="biz_status"  />
         <result property="dueDate"    column="due_date"    />
         <result property="createBy"   column="create_by"   />
         <result property="createTime" column="create_time" />
@@ -22,8 +27,9 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
     </resultMap>
 
     <sql id="selectFinPayableVo">
-        select payable_id, payable_no, supplier_id, bill_type, bill_id, amount, paid_amount,
-               status, due_date, create_by, create_time, update_by, update_time, remark
+        select payable_id, payable_no, supplier_id, bill_type, bill_id, source_bill_type, source_bill_id,
+               source_bill_no, business_date, amount, paid_amount, status, biz_status, due_date,
+               create_by, create_time, update_by, update_time, remark
         from fin_payable
     </sql>
 
@@ -44,10 +50,22 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             <if test="billType != null and billType != ''">
                 and bill_type = #{billType}
             </if>
+            <if test="sourceBillNo != null and sourceBillNo != ''">
+                and source_bill_no like concat('%', #{sourceBillNo}, '%')
+            </if>
+            <if test="bizStatus != null and bizStatus != ''">
+                and biz_status = #{bizStatus}
+            </if>
             <if test="status != null and status != ''">
                 and status = #{status}
             </if>
         </where>
+    </select>
+
+    <select id="selectMaxPayableNoByPrefix" parameterType="String" resultType="String">
+        select max(payable_no)
+        from fin_payable
+        where payable_no like concat(#{payableNoPrefix}, '%')
     </select>
 
     <insert id="insertFinPayable" parameterType="FinPayable" useGeneratedKeys="true" keyProperty="payableId">
@@ -57,9 +75,14 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             <if test="supplierId != null">supplier_id,</if>
             <if test="billType != null">bill_type,</if>
             <if test="billId != null">bill_id,</if>
+            <if test="sourceBillType != null">source_bill_type,</if>
+            <if test="sourceBillId != null">source_bill_id,</if>
+            <if test="sourceBillNo != null and sourceBillNo != ''">source_bill_no,</if>
+            <if test="businessDate != null">business_date,</if>
             <if test="amount != null">amount,</if>
             <if test="paidAmount != null">paid_amount,</if>
             <if test="status != null">status,</if>
+            <if test="bizStatus != null">biz_status,</if>
             <if test="dueDate != null">due_date,</if>
             <if test="createBy != null and createBy != ''">create_by,</if>
             create_time,
@@ -71,9 +94,14 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             <if test="supplierId != null">#{supplierId},</if>
             <if test="billType != null">#{billType},</if>
             <if test="billId != null">#{billId},</if>
+            <if test="sourceBillType != null">#{sourceBillType},</if>
+            <if test="sourceBillId != null">#{sourceBillId},</if>
+            <if test="sourceBillNo != null and sourceBillNo != ''">#{sourceBillNo},</if>
+            <if test="businessDate != null">#{businessDate},</if>
             <if test="amount != null">#{amount},</if>
             <if test="paidAmount != null">#{paidAmount},</if>
             <if test="status != null">#{status},</if>
+            <if test="bizStatus != null">#{bizStatus},</if>
             <if test="dueDate != null">#{dueDate},</if>
             <if test="createBy != null and createBy != ''">#{createBy},</if>
             sysdate(),
@@ -89,9 +117,14 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             <if test="supplierId != null">supplier_id = #{supplierId},</if>
             <if test="billType != null">bill_type = #{billType},</if>
             <if test="billId != null">bill_id = #{billId},</if>
+            <if test="sourceBillType != null">source_bill_type = #{sourceBillType},</if>
+            <if test="sourceBillId != null">source_bill_id = #{sourceBillId},</if>
+            <if test="sourceBillNo != null and sourceBillNo != ''">source_bill_no = #{sourceBillNo},</if>
+            <if test="businessDate != null">business_date = #{businessDate},</if>
             <if test="amount != null">amount = #{amount},</if>
             <if test="paidAmount != null">paid_amount = #{paidAmount},</if>
             <if test="status != null">status = #{status},</if>
+            <if test="bizStatus != null">biz_status = #{bizStatus},</if>
             <if test="dueDate != null">due_date = #{dueDate},</if>
             <if test="updateBy != null and updateBy != ''">update_by = #{updateBy},</if>
             update_time = sysdate(),

@@ -14,6 +14,14 @@ public class MdCustomer extends BaseEntity
 
     private String customerName;
 
+    private String customerLevel;
+
+    private java.math.BigDecimal creditLimit;
+
+    private Integer receivableDays;
+
+    private String pricePolicyType;
+
     private String contactPerson;
 
     private String contactPhone;
@@ -54,6 +62,46 @@ public class MdCustomer extends BaseEntity
     public void setCustomerName(String customerName)
     {
         this.customerName = customerName;
+    }
+
+    public String getCustomerLevel()
+    {
+        return customerLevel;
+    }
+
+    public void setCustomerLevel(String customerLevel)
+    {
+        this.customerLevel = customerLevel;
+    }
+
+    public java.math.BigDecimal getCreditLimit()
+    {
+        return creditLimit;
+    }
+
+    public void setCreditLimit(java.math.BigDecimal creditLimit)
+    {
+        this.creditLimit = creditLimit;
+    }
+
+    public Integer getReceivableDays()
+    {
+        return receivableDays;
+    }
+
+    public void setReceivableDays(Integer receivableDays)
+    {
+        this.receivableDays = receivableDays;
+    }
+
+    public String getPricePolicyType()
+    {
+        return pricePolicyType;
+    }
+
+    public void setPricePolicyType(String pricePolicyType)
+    {
+        this.pricePolicyType = pricePolicyType;
     }
 
     public String getContactPerson()
@@ -123,6 +171,10 @@ public class MdCustomer extends BaseEntity
             .append("customerId", getCustomerId())
             .append("customerCode", getCustomerCode())
             .append("customerName", getCustomerName())
+            .append("customerLevel", getCustomerLevel())
+            .append("creditLimit", getCreditLimit())
+            .append("receivableDays", getReceivableDays())
+            .append("pricePolicyType", getPricePolicyType())
             .append("contactPerson", getContactPerson())
             .append("contactPhone", getContactPhone())
             .append("contactEmail", getContactEmail())

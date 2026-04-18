@@ -103,7 +103,7 @@
         <el-row>
           <el-col :span="12">
             <el-form-item label="盘点单号" prop="checkNo">
-              <el-input v-model="form.checkNo" placeholder="请输入盘点单号" />
+              <el-input v-model="form.checkNo" placeholder="可不填，保存后自动生成" />
             </el-form-item>
           </el-col>
           <el-col :span="12">
@@ -115,12 +115,12 @@
         <el-row>
           <el-col :span="12">
             <el-form-item label="差异数量合计" prop="totalDiffQty">
-              <el-input v-model="form.totalDiffQty" placeholder="请输入差异数量合计" />
+              <el-input v-model="form.totalDiffQty" placeholder="审核后自动计算" disabled />
             </el-form-item>
           </el-col>
           <el-col :span="12">
             <el-form-item label="差异金额合计" prop="totalDiffAmount">
-              <el-input v-model="form.totalDiffAmount" placeholder="请输入差异金额合计" />
+              <el-input v-model="form.totalDiffAmount" placeholder="审核后自动计算" disabled />
             </el-form-item>
           </el-col>
         </el-row>
@@ -172,7 +172,6 @@ const data = reactive({
     status: undefined
   },
   rules: {
-    checkNo: [{ required: true, message: "盘点单号不能为空", trigger: "blur" }]
   }
 })
 

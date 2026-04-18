@@ -75,6 +75,9 @@
       <el-table-column label="客户名称" align="center" prop="customerName" />
       <el-table-column label="联系人" align="center" prop="contactPerson" />
       <el-table-column label="联系电话" align="center" prop="contactPhone" />
+      <el-table-column label="客户等级" align="center" prop="customerLevel" />
+      <el-table-column label="信用额度" align="center" prop="creditLimit" />
+      <el-table-column label="账期天数" align="center" prop="receivableDays" />
       <el-table-column label="邮箱" align="center" prop="contactEmail" />
       <el-table-column label="地址" align="center" prop="address" />
       <el-table-column label="状态" align="center" prop="status">
@@ -126,6 +129,30 @@
           <el-col :span="12">
             <el-form-item label="联系电话" prop="contactPhone">
               <el-input v-model="form.contactPhone" placeholder="请输入联系电话" />
+            </el-form-item>
+          </el-col>
+        </el-row>
+        <el-row>
+          <el-col :span="12">
+            <el-form-item label="客户等级" prop="customerLevel">
+              <el-input v-model="form.customerLevel" placeholder="请输入客户等级" />
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="信用额度" prop="creditLimit">
+              <el-input-number v-model="form.creditLimit" controls-position="right" :min="0" />
+            </el-form-item>
+          </el-col>
+        </el-row>
+        <el-row>
+          <el-col :span="12">
+            <el-form-item label="账期天数" prop="receivableDays">
+              <el-input-number v-model="form.receivableDays" controls-position="right" :min="0" />
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="价格策略" prop="pricePolicyType">
+              <el-input v-model="form.pricePolicyType" placeholder="请输入价格策略类型" />
             </el-form-item>
           </el-col>
         </el-row>
@@ -218,6 +245,10 @@ function reset() {
     customerName: undefined,
     contactPerson: undefined,
     contactPhone: undefined,
+    customerLevel: undefined,
+    creditLimit: 0,
+    receivableDays: 30,
+    pricePolicyType: undefined,
     contactEmail: undefined,
     address: undefined,
     status: "0",

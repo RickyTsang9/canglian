@@ -6,9 +6,9 @@ spring:
         druid:
             # 主库数据源
             master:
-                url: jdbc:mysql://192.168.2.155:3307/sale_erp?characterEncoding=utf-8&useSSL=false&serverTimezone=Hongkong
-                username: root
-                password: 123456
+                url: ${MYSQL_URL:jdbc:mysql://192.168.2.155:3307/sale_erp?characterEncoding=utf-8&useSSL=false&serverTimezone=Hongkong}
+                username: ${MYSQL_USERNAME:root}
+                password: ${MYSQL_PASSWORD:123456}
             # 从库数据源
             slave:
                 # 从数据源开关/默认关闭

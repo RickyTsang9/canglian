@@ -27,6 +27,14 @@ public interface FinReceivableMapper
     public List<FinReceivable> selectFinReceivableList(FinReceivable finReceivable);
 
     /**
+     * 查询指定前缀的最大应收单号
+     * 
+     * @param receivableNoPrefix 应收单号前缀
+     * @return 最大应收单号
+     */
+    public String selectMaxReceivableNoByPrefix(String receivableNoPrefix);
+
+    /**
      * 新增应收单
      * 
      * @param finReceivable 应收单信息

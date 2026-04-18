@@ -97,7 +97,7 @@
         <el-row>
           <el-col :span="12">
             <el-form-item label="付款单号" prop="paymentNo">
-              <el-input v-model="form.paymentNo" placeholder="请输入付款单号" />
+              <el-input v-model="form.paymentNo" placeholder="可不填，保存后自动生成" />
             </el-form-item>
           </el-col>
           <el-col :span="12">
@@ -163,6 +163,35 @@ const isSingleDisabled = ref(true)
 const isMultipleDisabled = ref(true)
 const total = ref(0)
 const title = ref("")
+// 校验正整数编号
+const validatePositiveInteger = (rule, value, callback) => {
+  if (value === undefined || value === null || String(value).trim() === "") {
+    callback()
+    return
+  }
+  if (!/^[1-9]\d*$/.test(String(value).trim())) {
+    callback(new Error("编号必须为正整数"))
+    return
+  }
+  callback()
+}
+// 校验付款金额
+const validatePaymentAmount = (rule, value, callback) => {
+  if (value === undefined || value === null || String(value).trim() === "") {
+    callback(new Error("付款金额不能为空"))
+    return
+  }
+  const paymentAmountNumber = Number(String(value).trim())
+  if (!Number.isFinite(paymentAmountNumber)) {
+    callback(new Error("付款金额必须为数字"))
+    return
+  }
+  if (paymentAmountNumber <= 0) {
+    callback(new Error("付款金额必须大于0"))
+    return
+  }
+  callback()
+}
 
 const data = reactive({
   form: {},
@@ -173,8 +202,12 @@ const data = reactive({
     supplierId: undefined
   },
   rules: {
-    paymentNo: [{ required: true, message: "付款单号不能为空", trigger: "blur" }],
-    supplierId: [{ required: true, message: "供应商编号不能为空", trigger: "blur" }]
+    supplierId: [
+      { required: true, message: "供应商编号不能为空", trigger: "blur" },
+      { validator: validatePositiveInteger, trigger: "blur" }
+    ],
+    payableId: [{ validator: validatePositiveInteger, trigger: "blur" }],
+    amount: [{ validator: validatePaymentAmount, trigger: "blur" }]
   }
 })
 

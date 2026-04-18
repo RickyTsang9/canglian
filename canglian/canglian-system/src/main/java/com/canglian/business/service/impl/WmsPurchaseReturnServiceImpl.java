@@ -1,6 +1,8 @@
 package com.canglian.business.service.impl;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 import java.util.Date;
 import java.util.List;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -16,6 +18,7 @@ import com.canglian.business.mapper.WmsPurchaseReturnItemMapper;
 import com.canglian.business.mapper.WmsStockMapper;
 import com.canglian.business.mapper.WmsStockLogMapper;
 import com.canglian.business.service.IWmsPurchaseReturnService;
+import com.canglian.common.utils.StringUtils;
 
 /**
  * 采购退货 服务层实现
@@ -25,6 +28,8 @@ import com.canglian.business.service.IWmsPurchaseReturnService;
 @Service
 public class WmsPurchaseReturnServiceImpl implements IWmsPurchaseReturnService
 {
+    private static final DateTimeFormatter DOCUMENT_DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyyMMdd");
+
     @Autowired
     private WmsPurchaseReturnMapper wmsPurchaseReturnMapper;
 
@@ -70,7 +75,18 @@ public class WmsPurchaseReturnServiceImpl implements IWmsPurchaseReturnService
     @Override
     public int insertWmsPurchaseReturn(WmsPurchaseReturn wmsPurchaseReturn)
     {
+        if (StringUtils.isEmpty(wmsPurchaseReturn.getReturnNo()))
+        {
+            wmsPurchaseReturn.setReturnNo(generateReturnNo());
+        }
+        if (wmsPurchaseReturn.getBusinessDate() == null)
+        {
+            wmsPurchaseReturn.setBusinessDate(new Date());
+        }
+        wmsPurchaseReturn.setTotalQty(null);
+        wmsPurchaseReturn.setTotalAmount(null);
         wmsPurchaseReturn.setStatus("0");
+        wmsPurchaseReturn.setBizStatus("draft");
         wmsPurchaseReturn.setAuditBy(null);
         wmsPurchaseReturn.setAuditTime(null);
         return wmsPurchaseReturnMapper.insertWmsPurchaseReturn(wmsPurchaseReturn);
@@ -90,6 +106,9 @@ public class WmsPurchaseReturnServiceImpl implements IWmsPurchaseReturnService
         wmsPurchaseReturn.setStatus(purchaseReturn.getStatus());
         wmsPurchaseReturn.setAuditBy(purchaseReturn.getAuditBy());
         wmsPurchaseReturn.setAuditTime(purchaseReturn.getAuditTime());
+        wmsPurchaseReturn.setTotalQty(purchaseReturn.getTotalQty());
+        wmsPurchaseReturn.setTotalAmount(purchaseReturn.getTotalAmount());
+        wmsPurchaseReturn.setBizStatus(purchaseReturn.getBizStatus());
         return wmsPurchaseReturnMapper.updateWmsPurchaseReturn(wmsPurchaseReturn);
     }
 
@@ -218,6 +237,7 @@ public class WmsPurchaseReturnServiceImpl implements IWmsPurchaseReturnService
         purchaseReturn.setUpdateBy(operator);
         purchaseReturn.setTotalQty(totalQuantity);
         purchaseReturn.setTotalAmount(totalAmount);
+        purchaseReturn.setBizStatus("completed");
         return wmsPurchaseReturnMapper.updateWmsPurchaseReturn(purchaseReturn);
     }
 
@@ -282,6 +302,27 @@ public class WmsPurchaseReturnServiceImpl implements IWmsPurchaseReturnService
             throw new ServiceException("采购退货单不存在");
         }
         return purchaseReturn;
+    }
+
+    /**
+     * 生成采购退货单号
+     * 
+     * @return 采购退货单号
+     */
+    private String generateReturnNo()
+    {
+        String returnNoPrefix = "prt" + LocalDate.now().format(DOCUMENT_DATE_FORMATTER);
+        String currentMaxReturnNo = wmsPurchaseReturnMapper.selectMaxReturnNoByPrefix(returnNoPrefix);
+        int nextSequence = 1;
+        if (StringUtils.isNotEmpty(currentMaxReturnNo) && currentMaxReturnNo.length() > returnNoPrefix.length())
+        {
+            String sequenceText = currentMaxReturnNo.substring(returnNoPrefix.length());
+            if (StringUtils.isNumeric(sequenceText))
+            {
+                nextSequence = Integer.parseInt(sequenceText) + 1;
+            }
+        }
+        return returnNoPrefix + String.format("%03d", nextSequence);
     }
 
     /**

@@ -57,5 +57,13 @@ public interface WmsPurchaseReturnMapper
      * @return 结果
      */
     public int deleteWmsPurchaseReturnByIds(Long[] purchaseReturnIds);
+
+    /**
+     * 按前缀查询最大退货单号
+     * 
+     * @param returnNoPrefix 退货单号前缀
+     * @return 最大退货单号
+     */
+    public String selectMaxReturnNoByPrefix(String returnNoPrefix);
 }
 

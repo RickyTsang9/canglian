@@ -1,6 +1,8 @@
 package com.canglian.business.service.impl;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -8,6 +10,7 @@ import com.canglian.business.domain.FinReceivable;
 import com.canglian.business.mapper.FinReceivableMapper;
 import com.canglian.business.service.IFinReceivableService;
 import com.canglian.common.exception.ServiceException;
+import com.canglian.common.utils.StringUtils;
 
 /**
  * 应收单 服务层实现
@@ -17,6 +20,8 @@ import com.canglian.common.exception.ServiceException;
 @Service
 public class FinReceivableServiceImpl implements IFinReceivableService
 {
+    private static final DateTimeFormatter DOCUMENT_DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyyMMdd");
+
     @Autowired
     private FinReceivableMapper finReceivableMapper;
 
@@ -53,8 +58,13 @@ public class FinReceivableServiceImpl implements IFinReceivableService
     @Override
     public int insertFinReceivable(FinReceivable finReceivable)
     {
-        finReceivable.setStatus("0");
+        if (StringUtils.isEmpty(finReceivable.getReceivableNo()))
+        {
+            finReceivable.setReceivableNo(generateReceivableNo());
+        }
         finReceivable.setReceivedAmount(BigDecimal.ZERO);
+        finReceivable.setStatus(calculateCollectionStatus(finReceivable.getReceivedAmount(), finReceivable.getAmount()));
+        finReceivable.setBizStatus("draft");
         validateReceivableAmount(finReceivable);
         return finReceivableMapper.insertFinReceivable(finReceivable);
     }
@@ -69,7 +79,9 @@ public class FinReceivableServiceImpl implements IFinReceivableService
     public int updateFinReceivable(FinReceivable finReceivable)
     {
         FinReceivable existingFinReceivable = checkReceivableEditable(finReceivable.getReceivableId());
+        finReceivable.setReceivableNo(existingFinReceivable.getReceivableNo());
         finReceivable.setStatus(existingFinReceivable.getStatus());
+        finReceivable.setBizStatus(existingFinReceivable.getBizStatus());
         finReceivable.setReceivedAmount(existingFinReceivable.getReceivedAmount());
         validateReceivableAmount(finReceivable);
         return finReceivableMapper.updateFinReceivable(finReceivable);
@@ -115,12 +127,13 @@ public class FinReceivableServiceImpl implements IFinReceivableService
     public int auditFinReceivable(Long receivableId, String operator)
     {
         FinReceivable finReceivable = getExistingFinReceivable(receivableId);
-        if ("1".equals(finReceivable.getStatus()))
+        if ("confirmed".equals(finReceivable.getBizStatus()))
         {
             throw new ServiceException("应收单已审核，请勿重复操作");
         }
         validateReceivableAmount(finReceivable);
-        finReceivable.setStatus("1");
+        finReceivable.setStatus(calculateCollectionStatus(finReceivable.getReceivedAmount(), finReceivable.getAmount()));
+        finReceivable.setBizStatus("confirmed");
         finReceivable.setUpdateBy(operator);
         return finReceivableMapper.updateFinReceivable(finReceivable);
     }
@@ -167,7 +180,7 @@ public class FinReceivableServiceImpl implements IFinReceivableService
     private FinReceivable checkReceivableEditable(Long receivableId)
     {
         FinReceivable finReceivable = getExistingFinReceivable(receivableId);
-        if ("1".equals(finReceivable.getStatus()))
+        if ("confirmed".equals(finReceivable.getBizStatus()))
         {
             throw new ServiceException("应收单已审核，无法修改");
         }
@@ -182,7 +195,7 @@ public class FinReceivableServiceImpl implements IFinReceivableService
     private void checkReceivableDeletable(Long receivableId)
     {
         FinReceivable finReceivable = getExistingFinReceivable(receivableId);
-        if ("1".equals(finReceivable.getStatus()))
+        if ("confirmed".equals(finReceivable.getBizStatus()))
         {
             throw new ServiceException("应收单已审核，无法删除");
         }
@@ -201,6 +214,49 @@ public class FinReceivableServiceImpl implements IFinReceivableService
     private BigDecimal defaultAmount(BigDecimal amount)
     {
         return amount == null ? BigDecimal.ZERO : amount;
+    }
+
+    /**
+     * 生成应收单号
+     * 
+     * @return 应收单号
+     */
+    private String generateReceivableNo()
+    {
+        String receivableNoPrefix = "ar" + LocalDate.now().format(DOCUMENT_DATE_FORMATTER);
+        String currentMaxReceivableNo = finReceivableMapper.selectMaxReceivableNoByPrefix(receivableNoPrefix);
+        int nextSequence = 1;
+        if (StringUtils.isNotEmpty(currentMaxReceivableNo) && currentMaxReceivableNo.length() > receivableNoPrefix.length())
+        {
+            String sequenceText = currentMaxReceivableNo.substring(receivableNoPrefix.length());
+            if (StringUtils.isNumeric(sequenceText))
+            {
+                nextSequence = Integer.parseInt(sequenceText) + 1;
+            }
+        }
+        return receivableNoPrefix + String.format("%03d", nextSequence);
+    }
+
+    /**
+     * 计算收款状态
+     * 
+     * @param receivedAmount 已收金额
+     * @param receivableAmount 应收金额
+     * @return 收款状态
+     */
+    private String calculateCollectionStatus(BigDecimal receivedAmount, BigDecimal receivableAmount)
+    {
+        BigDecimal receivedAmountValue = defaultAmount(receivedAmount);
+        BigDecimal receivableAmountValue = defaultAmount(receivableAmount);
+        if (receivedAmountValue.compareTo(BigDecimal.ZERO) <= 0)
+        {
+            return "0";
+        }
+        if (receivedAmountValue.compareTo(receivableAmountValue) >= 0)
+        {
+            return "2";
+        }
+        return "1";
     }
 }
 

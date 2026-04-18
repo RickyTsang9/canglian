@@ -27,6 +27,14 @@ public interface FinPayableMapper
     public List<FinPayable> selectFinPayableList(FinPayable finPayable);
 
     /**
+     * 查询指定前缀的最大应付单号
+     * 
+     * @param payableNoPrefix 应付单号前缀
+     * @return 最大应付单号
+     */
+    public String selectMaxPayableNoByPrefix(String payableNoPrefix);
+
+    /**
      * 新增应付单
      * 
      * @param finPayable 应付单信息

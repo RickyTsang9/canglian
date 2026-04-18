@@ -10,9 +10,14 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         <result property="returnType"   column="return_type" />
         <result property="customerId"   column="customer_id" />
         <result property="warehouseId"  column="warehouse_id" />
+        <result property="sourceBillType" column="source_bill_type" />
+        <result property="sourceBillId" column="source_bill_id" />
+        <result property="sourceBillNo" column="source_bill_no" />
+        <result property="businessDate" column="business_date" />
         <result property="totalQty"     column="total_qty" />
         <result property="totalAmount"  column="total_amount" />
         <result property="status"       column="status" />
+        <result property="bizStatus"    column="biz_status" />
         <result property="auditBy"      column="audit_by" />
         <result property="auditTime"    column="audit_time" />
         <result property="createBy"     column="create_by" />
@@ -23,8 +28,9 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
     </resultMap>
 
     <sql id="selectWmsSaleReturnVo">
-        select sale_return_id, return_no, return_type, customer_id, warehouse_id, total_qty, total_amount,
-               status, audit_by, audit_time, create_by, create_time, update_by, update_time, remark
+        select sale_return_id, return_no, return_type, customer_id, warehouse_id, source_bill_type, source_bill_id,
+               source_bill_no, business_date, total_qty, total_amount, status, biz_status, audit_by, audit_time,
+               create_by, create_time, update_by, update_time, remark
         from wms_sale_return
     </sql>
 
@@ -48,6 +54,12 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             <if test="warehouseId != null">
                 and warehouse_id = #{warehouseId}
             </if>
+            <if test="sourceBillNo != null and sourceBillNo != ''">
+                and source_bill_no like concat('%', #{sourceBillNo}, '%')
+            </if>
+            <if test="bizStatus != null and bizStatus != ''">
+                and biz_status = #{bizStatus}
+            </if>
             <if test="status != null and status != ''">
                 and status = #{status}
             </if>
@@ -61,9 +73,14 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             <if test="returnType != null">return_type,</if>
             <if test="customerId != null">customer_id,</if>
             <if test="warehouseId != null">warehouse_id,</if>
+            <if test="sourceBillType != null">source_bill_type,</if>
+            <if test="sourceBillId != null">source_bill_id,</if>
+            <if test="sourceBillNo != null and sourceBillNo != ''">source_bill_no,</if>
+            <if test="businessDate != null">business_date,</if>
             <if test="totalQty != null">total_qty,</if>
             <if test="totalAmount != null">total_amount,</if>
             <if test="status != null">status,</if>
+            <if test="bizStatus != null">biz_status,</if>
             <if test="auditBy != null">audit_by,</if>
             <if test="auditTime != null">audit_time,</if>
             <if test="createBy != null and createBy != ''">create_by,</if>
@@ -76,9 +93,14 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             <if test="returnType != null">#{returnType},</if>
             <if test="customerId != null">#{customerId},</if>
             <if test="warehouseId != null">#{warehouseId},</if>
+            <if test="sourceBillType != null">#{sourceBillType},</if>
+            <if test="sourceBillId != null">#{sourceBillId},</if>
+            <if test="sourceBillNo != null and sourceBillNo != ''">#{sourceBillNo},</if>
+            <if test="businessDate != null">#{businessDate},</if>
             <if test="totalQty != null">#{totalQty},</if>
             <if test="totalAmount != null">#{totalAmount},</if>
             <if test="status != null">#{status},</if>
+            <if test="bizStatus != null">#{bizStatus},</if>
             <if test="auditBy != null">#{auditBy},</if>
             <if test="auditTime != null">#{auditTime},</if>
             <if test="createBy != null and createBy != ''">#{createBy},</if>
@@ -95,9 +117,14 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             <if test="returnType != null">return_type = #{returnType},</if>
             <if test="customerId != null">customer_id = #{customerId},</if>
             <if test="warehouseId != null">warehouse_id = #{warehouseId},</if>
+            <if test="sourceBillType != null">source_bill_type = #{sourceBillType},</if>
+            <if test="sourceBillId != null">source_bill_id = #{sourceBillId},</if>
+            <if test="sourceBillNo != null and sourceBillNo != ''">source_bill_no = #{sourceBillNo},</if>
+            <if test="businessDate != null">business_date = #{businessDate},</if>
             <if test="totalQty != null">total_qty = #{totalQty},</if>
             <if test="totalAmount != null">total_amount = #{totalAmount},</if>
             <if test="status != null">status = #{status},</if>
+            <if test="bizStatus != null">biz_status = #{bizStatus},</if>
             <if test="auditBy != null">audit_by = #{auditBy},</if>
             <if test="auditTime != null">audit_time = #{auditTime},</if>
             <if test="updateBy != null and updateBy != ''">update_by = #{updateBy},</if>
@@ -117,5 +144,9 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             #{saleReturnId}
         </foreach>
     </delete>
+
+    <select id="selectMaxReturnNoByPrefix" parameterType="String" resultType="String">
+        select max(return_no) from wms_sale_return where return_no like concat(#{returnNoPrefix}, '%')
+    </select>
 </mapper>
 

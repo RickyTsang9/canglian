@@ -1,0 +1,100 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.canglian.business.mapper.PriceRecentTransactionMapper">
+
+    <resultMap type="PriceRecentTransaction" id="PriceRecentTransactionResult">
+        <id property="recentPriceId" column="recent_price_id" />
+        <result property="customerId" column="customer_id" />
+        <result property="productId" column="product_id" />
+        <result property="salePrice" column="sale_price" />
+        <result property="sourceBillType" column="source_bill_type" />
+        <result property="sourceBillId" column="source_bill_id" />
+        <result property="businessDate" column="business_date" />
+        <result property="createBy" column="create_by" />
+        <result property="createTime" column="create_time" />
+        <result property="updateBy" column="update_by" />
+        <result property="updateTime" column="update_time" />
+        <result property="remark" column="remark" />
+    </resultMap>
+
+    <sql id="selectPriceRecentTransactionVo">
+        select recent_price_id, customer_id, product_id, sale_price, source_bill_type, source_bill_id, business_date,
+               create_by, create_time, update_by, update_time, remark
+        from price_recent_transaction
+    </sql>
+
+    <select id="selectPriceRecentTransactionById" parameterType="Long" resultMap="PriceRecentTransactionResult">
+        <include refid="selectPriceRecentTransactionVo"/>
+        where recent_price_id = #{recentPriceId}
+    </select>
+
+    <select id="selectPriceRecentTransactionList" parameterType="PriceRecentTransaction" resultMap="PriceRecentTransactionResult">
+        <include refid="selectPriceRecentTransactionVo"/>
+        <where>
+            <if test="customerId != null">
+                and customer_id = #{customerId}
+            </if>
+            <if test="productId != null">
+                and product_id = #{productId}
+            </if>
+        </where>
+        order by business_date desc, update_time desc, create_time desc
+    </select>
+
+    <insert id="insertPriceRecentTransaction" parameterType="PriceRecentTransaction" useGeneratedKeys="true" keyProperty="recentPriceId">
+        insert into price_recent_transaction
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="customerId != null">customer_id,</if>
+            <if test="productId != null">product_id,</if>
+            <if test="salePrice != null">sale_price,</if>
+            <if test="sourceBillType != null">source_bill_type,</if>
+            <if test="sourceBillId != null">source_bill_id,</if>
+            <if test="businessDate != null">business_date,</if>
+            <if test="createBy != null and createBy != ''">create_by,</if>
+            create_time,
+            <if test="updateBy != null and updateBy != ''">update_by,</if>
+            <if test="remark != null">remark,</if>
+        </trim>
+        <trim prefix="values (" suffix=")" suffixOverrides=",">
+            <if test="customerId != null">#{customerId},</if>
+            <if test="productId != null">#{productId},</if>
+            <if test="salePrice != null">#{salePrice},</if>
+            <if test="sourceBillType != null">#{sourceBillType},</if>
+            <if test="sourceBillId != null">#{sourceBillId},</if>
+            <if test="businessDate != null">#{businessDate},</if>
+            <if test="createBy != null and createBy != ''">#{createBy},</if>
+            sysdate(),
+            <if test="updateBy != null and updateBy != ''">#{updateBy},</if>
+            <if test="remark != null">#{remark},</if>
+        </trim>
+    </insert>
+
+    <update id="updatePriceRecentTransaction" parameterType="PriceRecentTransaction">
+        update price_recent_transaction
+        <set>
+            <if test="customerId != null">customer_id = #{customerId},</if>
+            <if test="productId != null">product_id = #{productId},</if>
+            <if test="salePrice != null">sale_price = #{salePrice},</if>
+            <if test="sourceBillType != null">source_bill_type = #{sourceBillType},</if>
+            <if test="sourceBillId != null">source_bill_id = #{sourceBillId},</if>
+            <if test="businessDate != null">business_date = #{businessDate},</if>
+            <if test="updateBy != null and updateBy != ''">update_by = #{updateBy},</if>
+            update_time = sysdate(),
+            <if test="remark != null">remark = #{remark},</if>
+        </set>
+        where recent_price_id = #{recentPriceId}
+    </update>
+
+    <delete id="deletePriceRecentTransactionById" parameterType="Long">
+        delete from price_recent_transaction where recent_price_id = #{recentPriceId}
+    </delete>
+
+    <delete id="deletePriceRecentTransactionByIds" parameterType="Long">
+        delete from price_recent_transaction where recent_price_id in
+        <foreach collection="array" item="recentPriceId" open="(" separator="," close=")">
+            #{recentPriceId}
+        </foreach>
+    </delete>
+</mapper>

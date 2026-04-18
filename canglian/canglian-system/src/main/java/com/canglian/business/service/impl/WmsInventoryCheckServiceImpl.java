@@ -1,21 +1,26 @@
 package com.canglian.business.service.impl;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 import java.util.Date;
 import java.util.List;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import com.canglian.business.domain.MdProduct;
 import com.canglian.common.exception.ServiceException;
 import com.canglian.business.domain.WmsInventoryCheckItem;
 import com.canglian.business.domain.WmsStock;
 import com.canglian.business.domain.WmsStockLog;
+import com.canglian.business.mapper.MdProductMapper;
 import com.canglian.business.mapper.WmsInventoryCheckMapper;
 import com.canglian.business.mapper.WmsInventoryCheckItemMapper;
 import com.canglian.business.mapper.WmsStockMapper;
 import com.canglian.business.mapper.WmsStockLogMapper;
 import com.canglian.business.domain.WmsInventoryCheck;
 import com.canglian.business.service.IWmsInventoryCheckService;
+import com.canglian.common.utils.StringUtils;
 
 /**
  * 盘点单 服务层实现
@@ -25,6 +30,8 @@ import com.canglian.business.service.IWmsInventoryCheckService;
 @Service
 public class WmsInventoryCheckServiceImpl implements IWmsInventoryCheckService
 {
+    private static final DateTimeFormatter DOCUMENT_DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyyMMdd");
+
     @Autowired
     private WmsInventoryCheckMapper wmsInventoryCheckMapper;
 
@@ -36,6 +43,9 @@ public class WmsInventoryCheckServiceImpl implements IWmsInventoryCheckService
 
     @Autowired
     private WmsStockLogMapper wmsStockLogMapper;
+
+    @Autowired
+    private MdProductMapper mdProductMapper;
 
     /**
      * 查询盘点单信息
@@ -70,6 +80,12 @@ public class WmsInventoryCheckServiceImpl implements IWmsInventoryCheckService
     @Override
     public int insertWmsInventoryCheck(WmsInventoryCheck wmsInventoryCheck)
     {
+        if (StringUtils.isEmpty(wmsInventoryCheck.getCheckNo()))
+        {
+            wmsInventoryCheck.setCheckNo(generateCheckNo());
+        }
+        wmsInventoryCheck.setTotalDiffQty(null);
+        wmsInventoryCheck.setTotalDiffAmount(null);
         wmsInventoryCheck.setStatus("0");
         return wmsInventoryCheckMapper.insertWmsInventoryCheck(wmsInventoryCheck);
     }
@@ -85,6 +101,8 @@ public class WmsInventoryCheckServiceImpl implements IWmsInventoryCheckService
     {
         WmsInventoryCheck inventoryCheck = getExistingInventoryCheck(wmsInventoryCheck.getCheckId());
         validateInventoryCheckEditable(inventoryCheck);
+        wmsInventoryCheck.setTotalDiffQty(inventoryCheck.getTotalDiffQty());
+        wmsInventoryCheck.setTotalDiffAmount(inventoryCheck.getTotalDiffAmount());
         wmsInventoryCheck.setStatus(inventoryCheck.getStatus());
         return wmsInventoryCheckMapper.updateWmsInventoryCheck(wmsInventoryCheck);
     }
@@ -173,20 +191,22 @@ public class WmsInventoryCheckServiceImpl implements IWmsInventoryCheckService
             BigDecimal beforeQuantity;
             if (stock == null)
             {
-                stock = new WmsStock();
-                stock.setWarehouseId(inventoryCheck.getWarehouseId());
-                stock.setProductId(inventoryCheckItem.getProductId());
-                stock.setLocationId(locationId);
-                stock.setBatchNo(batchNo);
-                stock.setQuantity(actualQuantity);
-                stock.setLockedQuantity(BigDecimal.ZERO);
-                stock.setFrozenQuantity(BigDecimal.ZERO);
-                stock.setWarningMinQty(BigDecimal.ZERO);
-                stock.setWarningMaxQty(BigDecimal.ZERO);
-                stock.setVersion(0L);
-                stock.setCreateBy(operator);
-                wmsStockMapper.insertWmsStock(stock);
                 beforeQuantity = BigDecimal.ZERO;
+                if (actualQuantity.compareTo(BigDecimal.ZERO) > 0)
+                {
+                    stock = new WmsStock();
+                    stock.setWarehouseId(inventoryCheck.getWarehouseId());
+                    stock.setProductId(inventoryCheckItem.getProductId());
+                    stock.setLocationId(locationId);
+                    stock.setBatchNo(batchNo);
+                    stock.setQuantity(actualQuantity);
+                    stock.setLockedQuantity(BigDecimal.ZERO);
+                    stock.setFrozenQuantity(BigDecimal.ZERO);
+                    fillStockWarningQty(stock, inventoryCheckItem.getProductId());
+                    stock.setVersion(0L);
+                    stock.setCreateBy(operator);
+                    wmsStockMapper.insertWmsStock(stock);
+                }
             }
             else
             {
@@ -286,6 +306,19 @@ public class WmsInventoryCheckServiceImpl implements IWmsInventoryCheckService
     }
 
     /**
+     * 按商品档案填充库存预警阈值
+     * 
+     * @param stock 库存信息
+     * @param productId 商品id
+     */
+    private void fillStockWarningQty(WmsStock stock, Long productId)
+    {
+        MdProduct mdProduct = mdProductMapper.selectMdProductById(productId);
+        stock.setWarningMinQty(mdProduct == null ? BigDecimal.ZERO : defaultBigDecimal(mdProduct.getWarningMinQty()));
+        stock.setWarningMaxQty(mdProduct == null ? BigDecimal.ZERO : defaultBigDecimal(mdProduct.getWarningMaxQty()));
+    }
+
+    /**
      * 获取存在的盘点单
      * 
      * @param checkId 盘点单id
@@ -302,6 +335,27 @@ public class WmsInventoryCheckServiceImpl implements IWmsInventoryCheckService
     }
 
     /**
+     * 生成盘点单号
+     * 
+     * @return 盘点单号
+     */
+    private String generateCheckNo()
+    {
+        String checkNoPrefix = "chk" + LocalDate.now().format(DOCUMENT_DATE_FORMATTER);
+        String currentMaxCheckNo = wmsInventoryCheckMapper.selectMaxCheckNoByPrefix(checkNoPrefix);
+        int nextSequence = 1;
+        if (StringUtils.isNotEmpty(currentMaxCheckNo) && currentMaxCheckNo.length() > checkNoPrefix.length())
+        {
+            String sequenceText = currentMaxCheckNo.substring(checkNoPrefix.length());
+            if (StringUtils.isNumeric(sequenceText))
+            {
+                nextSequence = Integer.parseInt(sequenceText) + 1;
+            }
+        }
+        return checkNoPrefix + String.format("%03d", nextSequence);
+    }
+
+    /**
      * 校验盘点单是否允许修改
      * 
      * @param inventoryCheck 盘点单信息
@@ -314,6 +368,11 @@ public class WmsInventoryCheckServiceImpl implements IWmsInventoryCheckService
         }
     }
 
+    /**
+     * 校验盘点单是否允许删除
+     * 
+     * @param checkId 盘点单id
+     */
     private void checkInventoryCheckDeletable(Long checkId)
     {
         WmsInventoryCheck inventoryCheck = wmsInventoryCheckMapper.selectWmsInventoryCheckById(checkId);

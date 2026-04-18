@@ -19,6 +19,24 @@ public class MdProduct extends BaseEntity
 
     private String unitName;
 
+    private String purchaseUnit;
+
+    private String saleUnit;
+
+    private String baseUnit;
+
+    private BigDecimal unitConvertRatio;
+
+    private String enableBatch;
+
+    private Integer shelfLifeDays;
+
+    private String enableSerial;
+
+    private BigDecimal warningMinQty;
+
+    private BigDecimal warningMaxQty;
+
     private String barCode;
 
     private String categoryName;
@@ -83,6 +101,96 @@ public class MdProduct extends BaseEntity
     public void setUnitName(String unitName)
     {
         this.unitName = unitName;
+    }
+
+    public String getPurchaseUnit()
+    {
+        return purchaseUnit;
+    }
+
+    public void setPurchaseUnit(String purchaseUnit)
+    {
+        this.purchaseUnit = purchaseUnit;
+    }
+
+    public String getSaleUnit()
+    {
+        return saleUnit;
+    }
+
+    public void setSaleUnit(String saleUnit)
+    {
+        this.saleUnit = saleUnit;
+    }
+
+    public String getBaseUnit()
+    {
+        return baseUnit;
+    }
+
+    public void setBaseUnit(String baseUnit)
+    {
+        this.baseUnit = baseUnit;
+    }
+
+    public BigDecimal getUnitConvertRatio()
+    {
+        return unitConvertRatio;
+    }
+
+    public void setUnitConvertRatio(BigDecimal unitConvertRatio)
+    {
+        this.unitConvertRatio = unitConvertRatio;
+    }
+
+    public String getEnableBatch()
+    {
+        return enableBatch;
+    }
+
+    public void setEnableBatch(String enableBatch)
+    {
+        this.enableBatch = enableBatch;
+    }
+
+    public Integer getShelfLifeDays()
+    {
+        return shelfLifeDays;
+    }
+
+    public void setShelfLifeDays(Integer shelfLifeDays)
+    {
+        this.shelfLifeDays = shelfLifeDays;
+    }
+
+    public String getEnableSerial()
+    {
+        return enableSerial;
+    }
+
+    public void setEnableSerial(String enableSerial)
+    {
+        this.enableSerial = enableSerial;
+    }
+
+    public BigDecimal getWarningMinQty()
+    {
+        return warningMinQty;
+    }
+
+    public void setWarningMinQty(BigDecimal warningMinQty)
+    {
+        this.warningMinQty = warningMinQty;
+    }
+
+    public BigDecimal getWarningMaxQty()
+    {
+        return warningMaxQty;
+    }
+
+    public void setWarningMaxQty(BigDecimal warningMaxQty)
+    {
+        this.warningMaxQty = warningMaxQty;
     }
 
     public String getBarCode()
@@ -174,6 +282,15 @@ public class MdProduct extends BaseEntity
             .append("productName", getProductName())
             .append("productSpec", getProductSpec())
             .append("unitName", getUnitName())
+            .append("purchaseUnit", getPurchaseUnit())
+            .append("saleUnit", getSaleUnit())
+            .append("baseUnit", getBaseUnit())
+            .append("unitConvertRatio", getUnitConvertRatio())
+            .append("enableBatch", getEnableBatch())
+            .append("shelfLifeDays", getShelfLifeDays())
+            .append("enableSerial", getEnableSerial())
+            .append("warningMinQty", getWarningMinQty())
+            .append("warningMaxQty", getWarningMaxQty())
             .append("barCode", getBarCode())
             .append("categoryName", getCategoryName())
             .append("brandName", getBrandName())

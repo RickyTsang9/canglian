@@ -115,7 +115,7 @@
         <el-row>
           <el-col :span="12">
             <el-form-item label="退货单号" prop="returnNo">
-              <el-input v-model="form.returnNo" placeholder="请输入退货单号" />
+              <el-input v-model="form.returnNo" placeholder="可不填，保存后自动生成" />
             </el-form-item>
           </el-col>
           <el-col :span="12">
@@ -139,12 +139,12 @@
         <el-row>
           <el-col :span="12">
             <el-form-item label="总数量" prop="totalQty">
-              <el-input v-model="form.totalQty" placeholder="请输入总数量" />
+              <el-input v-model="form.totalQty" placeholder="审核后自动计算" disabled />
             </el-form-item>
           </el-col>
           <el-col :span="12">
             <el-form-item label="总金额" prop="totalAmount">
-              <el-input v-model="form.totalAmount" placeholder="请输入总金额" />
+              <el-input v-model="form.totalAmount" placeholder="审核后自动计算" disabled />
             </el-form-item>
           </el-col>
         </el-row>
@@ -215,7 +215,6 @@ const data = reactive({
     status: undefined
   },
   rules: {
-    returnNo: [{ required: true, message: "退货单号不能为空", trigger: "blur" }],
     returnType: [{ required: true, message: "退货类型不能为空", trigger: "blur" }]
   }
 })

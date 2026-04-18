@@ -1,21 +1,26 @@
 package com.canglian.business.service.impl;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 import java.util.Date;
 import java.util.List;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import com.canglian.business.domain.MdProduct;
 import com.canglian.common.exception.ServiceException;
 import com.canglian.business.domain.WmsSaleReturn;
 import com.canglian.business.domain.WmsSaleReturnItem;
 import com.canglian.business.domain.WmsStock;
 import com.canglian.business.domain.WmsStockLog;
+import com.canglian.business.mapper.MdProductMapper;
 import com.canglian.business.mapper.WmsSaleReturnMapper;
 import com.canglian.business.mapper.WmsSaleReturnItemMapper;
 import com.canglian.business.mapper.WmsStockMapper;
 import com.canglian.business.mapper.WmsStockLogMapper;
 import com.canglian.business.service.IWmsSaleReturnService;
+import com.canglian.common.utils.StringUtils;
 
 /**
  * 销售退货 服务层实现
@@ -25,6 +30,8 @@ import com.canglian.business.service.IWmsSaleReturnService;
 @Service
 public class WmsSaleReturnServiceImpl implements IWmsSaleReturnService
 {
+    private static final DateTimeFormatter DOCUMENT_DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyyMMdd");
+
     @Autowired
     private WmsSaleReturnMapper wmsSaleReturnMapper;
 
@@ -36,6 +43,9 @@ public class WmsSaleReturnServiceImpl implements IWmsSaleReturnService
 
     @Autowired
     private WmsStockLogMapper wmsStockLogMapper;
+
+    @Autowired
+    private MdProductMapper mdProductMapper;
 
     /**
      * 查询销售退货信息
@@ -70,7 +80,18 @@ public class WmsSaleReturnServiceImpl implements IWmsSaleReturnService
     @Override
     public int insertWmsSaleReturn(WmsSaleReturn wmsSaleReturn)
     {
+        if (StringUtils.isEmpty(wmsSaleReturn.getReturnNo()))
+        {
+            wmsSaleReturn.setReturnNo(generateReturnNo());
+        }
+        if (wmsSaleReturn.getBusinessDate() == null)
+        {
+            wmsSaleReturn.setBusinessDate(new Date());
+        }
+        wmsSaleReturn.setTotalQty(null);
+        wmsSaleReturn.setTotalAmount(null);
         wmsSaleReturn.setStatus("0");
+        wmsSaleReturn.setBizStatus("draft");
         wmsSaleReturn.setAuditBy(null);
         wmsSaleReturn.setAuditTime(null);
         return wmsSaleReturnMapper.insertWmsSaleReturn(wmsSaleReturn);
@@ -90,6 +111,9 @@ public class WmsSaleReturnServiceImpl implements IWmsSaleReturnService
         wmsSaleReturn.setStatus(saleReturn.getStatus());
         wmsSaleReturn.setAuditBy(saleReturn.getAuditBy());
         wmsSaleReturn.setAuditTime(saleReturn.getAuditTime());
+        wmsSaleReturn.setTotalQty(saleReturn.getTotalQty());
+        wmsSaleReturn.setTotalAmount(saleReturn.getTotalAmount());
+        wmsSaleReturn.setBizStatus(saleReturn.getBizStatus());
         return wmsSaleReturnMapper.updateWmsSaleReturn(wmsSaleReturn);
     }
 
@@ -181,8 +205,7 @@ public class WmsSaleReturnServiceImpl implements IWmsSaleReturnService
                 stock.setQuantity(itemQuantity);
                 stock.setLockedQuantity(BigDecimal.ZERO);
                 stock.setFrozenQuantity(BigDecimal.ZERO);
-                stock.setWarningMinQty(BigDecimal.ZERO);
-                stock.setWarningMaxQty(BigDecimal.ZERO);
+                fillStockWarningQty(stock, returnItem.getProductId());
                 stock.setVersion(0L);
                 stock.setCreateBy(operator);
                 wmsStockMapper.insertWmsStock(stock);
@@ -226,6 +249,7 @@ public class WmsSaleReturnServiceImpl implements IWmsSaleReturnService
         saleReturn.setUpdateBy(operator);
         saleReturn.setTotalQty(totalQuantity);
         saleReturn.setTotalAmount(totalAmount);
+        saleReturn.setBizStatus("completed");
         return wmsSaleReturnMapper.updateWmsSaleReturn(saleReturn);
     }
 
@@ -263,6 +287,19 @@ public class WmsSaleReturnServiceImpl implements IWmsSaleReturnService
     }
 
     /**
+     * 按商品档案填充库存预警阈值
+     * 
+     * @param stock 库存信息
+     * @param productId 商品id
+     */
+    private void fillStockWarningQty(WmsStock stock, Long productId)
+    {
+        MdProduct mdProduct = mdProductMapper.selectMdProductById(productId);
+        stock.setWarningMinQty(mdProduct == null ? BigDecimal.ZERO : defaultBigDecimal(mdProduct.getWarningMinQty()));
+        stock.setWarningMaxQty(mdProduct == null ? BigDecimal.ZERO : defaultBigDecimal(mdProduct.getWarningMaxQty()));
+    }
+
+    /**
      * 获取存在的销售退货单
      * 
      * @param saleReturnId 销售退货id
@@ -276,6 +313,27 @@ public class WmsSaleReturnServiceImpl implements IWmsSaleReturnService
             throw new ServiceException("销售退货单不存在");
         }
         return saleReturn;
+    }
+
+    /**
+     * 生成销售退货单号
+     * 
+     * @return 销售退货单号
+     */
+    private String generateReturnNo()
+    {
+        String returnNoPrefix = "srt" + LocalDate.now().format(DOCUMENT_DATE_FORMATTER);
+        String currentMaxReturnNo = wmsSaleReturnMapper.selectMaxReturnNoByPrefix(returnNoPrefix);
+        int nextSequence = 1;
+        if (StringUtils.isNotEmpty(currentMaxReturnNo) && currentMaxReturnNo.length() > returnNoPrefix.length())
+        {
+            String sequenceText = currentMaxReturnNo.substring(returnNoPrefix.length());
+            if (StringUtils.isNumeric(sequenceText))
+            {
+                nextSequence = Integer.parseInt(sequenceText) + 1;
+            }
+        }
+        return returnNoPrefix + String.format("%03d", nextSequence);
     }
 
     /**

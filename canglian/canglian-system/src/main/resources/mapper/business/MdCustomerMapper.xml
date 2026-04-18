@@ -8,6 +8,10 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         <id     property="customerId"     column="customer_id"    />
         <result property="customerCode"   column="customer_code"  />
         <result property="customerName"   column="customer_name"  />
+        <result property="customerLevel"  column="customer_level" />
+        <result property="creditLimit"    column="credit_limit"   />
+        <result property="receivableDays" column="receivable_days" />
+        <result property="pricePolicyType" column="price_policy_type" />
         <result property="contactPerson"  column="contact_person" />
         <result property="contactPhone"   column="contact_phone"  />
         <result property="contactEmail"   column="contact_email"  />
@@ -22,7 +26,8 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
     </resultMap>
 
     <sql id="selectMdCustomerVo">
-        select customer_id, customer_code, customer_name, contact_person, contact_phone, contact_email, address,
+        select customer_id, customer_code, customer_name, customer_level, credit_limit, receivable_days, price_policy_type,
+               contact_person, contact_phone, contact_email, address,
                status, del_flag, create_by, create_time, update_by, update_time, remark
         from md_customer
     </sql>
@@ -40,6 +45,9 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             </if>
             <if test="customerName != null and customerName != ''">
                 and customer_name like concat('%', #{customerName}, '%')
+            </if>
+            <if test="customerLevel != null and customerLevel != ''">
+                and customer_level = #{customerLevel}
             </if>
             <if test="contactPerson != null and contactPerson != ''">
                 and contact_person like concat('%', #{contactPerson}, '%')
@@ -64,6 +72,10 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         <trim prefix="(" suffix=")" suffixOverrides=",">
             <if test="customerCode != null and customerCode != ''">customer_code,</if>
             <if test="customerName != null and customerName != ''">customer_name,</if>
+            <if test="customerLevel != null">customer_level,</if>
+            <if test="creditLimit != null">credit_limit,</if>
+            <if test="receivableDays != null">receivable_days,</if>
+            <if test="pricePolicyType != null">price_policy_type,</if>
             <if test="contactPerson != null">contact_person,</if>
             <if test="contactPhone != null">contact_phone,</if>
             <if test="contactEmail != null">contact_email,</if>
@@ -78,6 +90,10 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         <trim prefix="values (" suffix=")" suffixOverrides=",">
             <if test="customerCode != null and customerCode != ''">#{customerCode},</if>
             <if test="customerName != null and customerName != ''">#{customerName},</if>
+            <if test="customerLevel != null">#{customerLevel},</if>
+            <if test="creditLimit != null">#{creditLimit},</if>
+            <if test="receivableDays != null">#{receivableDays},</if>
+            <if test="pricePolicyType != null">#{pricePolicyType},</if>
             <if test="contactPerson != null">#{contactPerson},</if>
             <if test="contactPhone != null">#{contactPhone},</if>
             <if test="contactEmail != null">#{contactEmail},</if>
@@ -96,6 +112,10 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         <set>
             <if test="customerCode != null and customerCode != ''">customer_code = #{customerCode},</if>
             <if test="customerName != null and customerName != ''">customer_name = #{customerName},</if>
+            <if test="customerLevel != null">customer_level = #{customerLevel},</if>
+            <if test="creditLimit != null">credit_limit = #{creditLimit},</if>
+            <if test="receivableDays != null">receivable_days = #{receivableDays},</if>
+            <if test="pricePolicyType != null">price_policy_type = #{pricePolicyType},</if>
             <if test="contactPerson != null">contact_person = #{contactPerson},</if>
             <if test="contactPhone != null">contact_phone = #{contactPhone},</if>
             <if test="contactEmail != null">contact_email = #{contactEmail},</if>

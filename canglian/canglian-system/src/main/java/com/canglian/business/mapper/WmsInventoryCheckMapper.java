@@ -27,6 +27,14 @@ public interface WmsInventoryCheckMapper
     public List<WmsInventoryCheck> selectWmsInventoryCheckList(WmsInventoryCheck wmsInventoryCheck);
 
     /**
+     * 查询指定前缀的最大盘点单号
+     * 
+     * @param checkNoPrefix 盘点单号前缀
+     * @return 最大盘点单号
+     */
+    public String selectMaxCheckNoByPrefix(String checkNoPrefix);
+
+    /**
      * 新增盘点单
      * 
      * @param wmsInventoryCheck 盘点单信息

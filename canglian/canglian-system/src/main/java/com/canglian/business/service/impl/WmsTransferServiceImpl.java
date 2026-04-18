@@ -8,11 +8,13 @@ import java.util.List;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import com.canglian.business.domain.MdProduct;
 import com.canglian.common.exception.ServiceException;
 import com.canglian.business.domain.WmsTransfer;
 import com.canglian.business.domain.WmsTransferItem;
 import com.canglian.business.domain.WmsStock;
 import com.canglian.business.domain.WmsStockLog;
+import com.canglian.business.mapper.MdProductMapper;
 import com.canglian.business.mapper.WmsTransferMapper;
 import com.canglian.business.mapper.WmsTransferItemMapper;
 import com.canglian.business.mapper.WmsStockMapper;
@@ -41,6 +43,9 @@ public class WmsTransferServiceImpl implements IWmsTransferService
 
     @Autowired
     private WmsStockLogMapper wmsStockLogMapper;
+
+    @Autowired
+    private MdProductMapper mdProductMapper;
 
     /**
      * 查询调拨单信息
@@ -79,6 +84,8 @@ public class WmsTransferServiceImpl implements IWmsTransferService
         {
             wmsTransfer.setTransferNo(generateTransferNo());
         }
+        wmsTransfer.setTotalQty(null);
+        wmsTransfer.setTotalAmount(null);
         wmsTransfer.setStatus("0");
         return wmsTransferMapper.insertWmsTransfer(wmsTransfer);
     }
@@ -94,6 +101,8 @@ public class WmsTransferServiceImpl implements IWmsTransferService
     {
         WmsTransfer transfer = getExistingTransfer(wmsTransfer.getTransferId());
         validateTransferEditable(transfer);
+        wmsTransfer.setTotalQty(transfer.getTotalQty());
+        wmsTransfer.setTotalAmount(transfer.getTotalAmount());
         wmsTransfer.setStatus(transfer.getStatus());
         return wmsTransferMapper.updateWmsTransfer(wmsTransfer);
     }
@@ -244,8 +253,7 @@ public class WmsTransferServiceImpl implements IWmsTransferService
                 inStock.setQuantity(itemQuantity);
                 inStock.setLockedQuantity(BigDecimal.ZERO);
                 inStock.setFrozenQuantity(BigDecimal.ZERO);
-                inStock.setWarningMinQty(BigDecimal.ZERO);
-                inStock.setWarningMaxQty(BigDecimal.ZERO);
+                fillStockWarningQty(inStock, transferItem.getProductId());
                 inStock.setVersion(0L);
                 inStock.setCreateBy(operator);
                 wmsStockMapper.insertWmsStock(inStock);
@@ -332,6 +340,19 @@ public class WmsTransferServiceImpl implements IWmsTransferService
     private String defaultBatchNo(String batchNo)
     {
         return batchNo == null ? "" : batchNo;
+    }
+
+    /**
+     * 按商品档案填充库存预警阈值
+     * 
+     * @param stock 库存信息
+     * @param productId 商品id
+     */
+    private void fillStockWarningQty(WmsStock stock, Long productId)
+    {
+        MdProduct mdProduct = mdProductMapper.selectMdProductById(productId);
+        stock.setWarningMinQty(mdProduct == null ? BigDecimal.ZERO : defaultBigDecimal(mdProduct.getWarningMinQty()));
+        stock.setWarningMaxQty(mdProduct == null ? BigDecimal.ZERO : defaultBigDecimal(mdProduct.getWarningMaxQty()));
     }
 
     /**

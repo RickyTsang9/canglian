@@ -48,6 +48,12 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         </where>
     </select>
 
+    <select id="selectMaxPaymentNoByPrefix" parameterType="String" resultType="String">
+        select max(payment_no)
+        from fin_payment
+        where payment_no like concat(#{paymentNoPrefix}, '%')
+    </select>
+
     <insert id="insertFinPayment" parameterType="FinPayment" useGeneratedKeys="true" keyProperty="paymentId">
         insert into fin_payment
         <trim prefix="(" suffix=")" suffixOverrides=",">

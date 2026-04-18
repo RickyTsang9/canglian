@@ -1,0 +1,149 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.canglian.business.mapper.PurOrderMapper">
+
+    <resultMap type="PurOrder" id="PurOrderResult">
+        <id property="purchaseOrderId" column="purchase_order_id" />
+        <result property="purchaseOrderNo" column="purchase_order_no" />
+        <result property="supplierId" column="supplier_id" />
+        <result property="warehouseId" column="warehouse_id" />
+        <result property="sourceBillType" column="source_bill_type" />
+        <result property="sourceBillId" column="source_bill_id" />
+        <result property="sourceBillNo" column="source_bill_no" />
+        <result property="businessDate" column="business_date" />
+        <result property="expectedDate" column="expected_date" />
+        <result property="totalQty" column="total_qty" />
+        <result property="totalAmount" column="total_amount" />
+        <result property="status" column="status" />
+        <result property="bizStatus" column="biz_status" />
+        <result property="approveBy" column="approve_by" />
+        <result property="approveTime" column="approve_time" />
+        <result property="createBy" column="create_by" />
+        <result property="createTime" column="create_time" />
+        <result property="updateBy" column="update_by" />
+        <result property="updateTime" column="update_time" />
+        <result property="remark" column="remark" />
+    </resultMap>
+
+    <sql id="selectPurOrderVo">
+        select purchase_order_id, purchase_order_no, supplier_id, warehouse_id, source_bill_type, source_bill_id, source_bill_no,
+               business_date, expected_date, total_qty, total_amount, status, biz_status, approve_by, approve_time,
+               create_by, create_time, update_by, update_time, remark
+        from pur_order
+    </sql>
+
+    <select id="selectPurOrderById" parameterType="Long" resultMap="PurOrderResult">
+        <include refid="selectPurOrderVo"/>
+        where purchase_order_id = #{purchaseOrderId}
+    </select>
+
+    <select id="selectPurOrderList" parameterType="PurOrder" resultMap="PurOrderResult">
+        <include refid="selectPurOrderVo"/>
+        <where>
+            <if test="purchaseOrderNo != null and purchaseOrderNo != ''">
+                and purchase_order_no like concat('%', #{purchaseOrderNo}, '%')
+            </if>
+            <if test="supplierId != null">
+                and supplier_id = #{supplierId}
+            </if>
+            <if test="warehouseId != null">
+                and warehouse_id = #{warehouseId}
+            </if>
+            <if test="sourceBillNo != null and sourceBillNo != ''">
+                and source_bill_no like concat('%', #{sourceBillNo}, '%')
+            </if>
+            <if test="bizStatus != null and bizStatus != ''">
+                and biz_status = #{bizStatus}
+            </if>
+            <if test="status != null and status != ''">
+                and status = #{status}
+            </if>
+        </where>
+        order by create_time desc
+    </select>
+
+    <insert id="insertPurOrder" parameterType="PurOrder" useGeneratedKeys="true" keyProperty="purchaseOrderId">
+        insert into pur_order
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="purchaseOrderNo != null and purchaseOrderNo != ''">purchase_order_no,</if>
+            <if test="supplierId != null">supplier_id,</if>
+            <if test="warehouseId != null">warehouse_id,</if>
+            <if test="sourceBillType != null">source_bill_type,</if>
+            <if test="sourceBillId != null">source_bill_id,</if>
+            <if test="sourceBillNo != null and sourceBillNo != ''">source_bill_no,</if>
+            <if test="businessDate != null">business_date,</if>
+            <if test="expectedDate != null">expected_date,</if>
+            <if test="totalQty != null">total_qty,</if>
+            <if test="totalAmount != null">total_amount,</if>
+            <if test="status != null">status,</if>
+            <if test="bizStatus != null">biz_status,</if>
+            <if test="approveBy != null">approve_by,</if>
+            <if test="approveTime != null">approve_time,</if>
+            <if test="createBy != null and createBy != ''">create_by,</if>
+            create_time,
+            <if test="updateBy != null and updateBy != ''">update_by,</if>
+            <if test="remark != null">remark,</if>
+        </trim>
+        <trim prefix="values (" suffix=")" suffixOverrides=",">
+            <if test="purchaseOrderNo != null and purchaseOrderNo != ''">#{purchaseOrderNo},</if>
+            <if test="supplierId != null">#{supplierId},</if>
+            <if test="warehouseId != null">#{warehouseId},</if>
+            <if test="sourceBillType != null">#{sourceBillType},</if>
+            <if test="sourceBillId != null">#{sourceBillId},</if>
+            <if test="sourceBillNo != null and sourceBillNo != ''">#{sourceBillNo},</if>
+            <if test="businessDate != null">#{businessDate},</if>
+            <if test="expectedDate != null">#{expectedDate},</if>
+            <if test="totalQty != null">#{totalQty},</if>
+            <if test="totalAmount != null">#{totalAmount},</if>
+            <if test="status != null">#{status},</if>
+            <if test="bizStatus != null">#{bizStatus},</if>
+            <if test="approveBy != null">#{approveBy},</if>
+            <if test="approveTime != null">#{approveTime},</if>
+            <if test="createBy != null and createBy != ''">#{createBy},</if>
+            sysdate(),
+            <if test="updateBy != null and updateBy != ''">#{updateBy},</if>
+            <if test="remark != null">#{remark},</if>
+        </trim>
+    </insert>
+
+    <update id="updatePurOrder" parameterType="PurOrder">
+        update pur_order
+        <set>
+            <if test="purchaseOrderNo != null and purchaseOrderNo != ''">purchase_order_no = #{purchaseOrderNo},</if>
+            <if test="supplierId != null">supplier_id = #{supplierId},</if>
+            <if test="warehouseId != null">warehouse_id = #{warehouseId},</if>
+            <if test="sourceBillType != null">source_bill_type = #{sourceBillType},</if>
+            <if test="sourceBillId != null">source_bill_id = #{sourceBillId},</if>
+            <if test="sourceBillNo != null and sourceBillNo != ''">source_bill_no = #{sourceBillNo},</if>
+            <if test="businessDate != null">business_date = #{businessDate},</if>
+            <if test="expectedDate != null">expected_date = #{expectedDate},</if>
+            <if test="totalQty != null">total_qty = #{totalQty},</if>
+            <if test="totalAmount != null">total_amount = #{totalAmount},</if>
+            <if test="status != null">status = #{status},</if>
+            <if test="bizStatus != null">biz_status = #{bizStatus},</if>
+            <if test="approveBy != null">approve_by = #{approveBy},</if>
+            <if test="approveTime != null">approve_time = #{approveTime},</if>
+            <if test="updateBy != null and updateBy != ''">update_by = #{updateBy},</if>
+            update_time = sysdate(),
+            <if test="remark != null">remark = #{remark},</if>
+        </set>
+        where purchase_order_id = #{purchaseOrderId}
+    </update>
+
+    <delete id="deletePurOrderById" parameterType="Long">
+        delete from pur_order where purchase_order_id = #{purchaseOrderId}
+    </delete>
+
+    <delete id="deletePurOrderByIds" parameterType="Long">
+        delete from pur_order where purchase_order_id in
+        <foreach collection="array" item="purchaseOrderId" open="(" separator="," close=")">
+            #{purchaseOrderId}
+        </foreach>
+    </delete>
+
+    <select id="selectMaxPurchaseOrderNoByPrefix" parameterType="String" resultType="String">
+        select max(purchase_order_no) from pur_order where purchase_order_no like concat(#{purchaseOrderNoPrefix}, '%')
+    </select>
+</mapper>
