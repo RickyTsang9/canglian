@@ -126,5 +126,108 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         where expense_date between #{startDate} and #{endDate}
         group by expense_type
     </select>
+
+    <select id="selectSalesGrossProfitReport" resultType="map">
+        select
+            p.product_id as productId,
+            p.product_code as productCode,
+            p.product_name as productName,
+            ifnull(sum(i.quantity), 0) as saleQty,
+            ifnull(sum(i.amount), 0) as saleAmount,
+            ifnull(sum(i.quantity * ifnull(p.cost_price, 0)), 0) as costAmount,
+            ifnull(sum(i.amount - i.quantity * ifnull(p.cost_price, 0)), 0) as grossProfit
+        from sal_order o
+        inner join sal_order_item i on o.order_id = i.order_id
+        left join md_product p on i.product_id = p.product_id
+        where o.order_type = 'sale'
+          and o.business_date between #{startDate} and #{endDate}
+        group by p.product_id, p.product_code, p.product_name
+        order by grossProfit desc
+    </select>
+
+    <select id="selectCustomerContributionReport" resultType="map">
+        select
+            c.customer_id as customerId,
+            c.customer_code as customerCode,
+            c.customer_name as customerName,
+            ifnull(sum(o.total_amount), 0) as saleAmount,
+            count(o.order_id) as orderCount,
+            ifnull(sum(o.total_amount), 0) - ifnull(sum(r.unpaid_amount), 0) as receivedContribution,
+            ifnull(sum(r.unpaid_amount), 0) as unpaidAmount
+        from sal_order o
+        left join md_customer c on o.customer_id = c.customer_id
+        left join (
+            select source_bill_id, sum(amount - received_amount) as unpaid_amount
+            from fin_receivable
+            where source_bill_type = 'sale_order'
+            group by source_bill_id
+        ) r on r.source_bill_id = o.order_id
+        where o.order_type = 'sale'
+          and o.business_date between #{startDate} and #{endDate}
+        group by c.customer_id, c.customer_code, c.customer_name
+        order by saleAmount desc
+    </select>
+
+    <select id="selectProductTurnoverReport" resultType="map">
+        select
+            p.product_id as productId,
+            p.product_code as productCode,
+            p.product_name as productName,
+            ifnull(l.outbound_qty, 0) as outboundQty,
+            ifnull(l.inbound_qty, 0) as inboundQty,
+            ifnull(s.stock_qty, 0) as stockQty,
+            case when ifnull(s.stock_qty, 0) = 0 then 0
+                 else round(ifnull(l.outbound_qty, 0) / ifnull(s.stock_qty, 0), 4)
+            end as turnoverRate
+        from md_product p
+        left join (
+            select
+                product_id,
+                sum(case when in_out = 'out' then quantity else 0 end) as outbound_qty,
+                sum(case when in_out = 'in' then quantity else 0 end) as inbound_qty
+            from wms_stock_log
+            where create_time between #{startDate} and #{endDate}
+            group by product_id
+        ) l on p.product_id = l.product_id
+        left join (
+            select product_id, sum(quantity) as stock_qty
+            from wms_stock
+            group by product_id
+        ) s on p.product_id = s.product_id
+        group by p.product_id, p.product_code, p.product_name
+        order by turnoverRate desc
+    </select>
+
+    <select id="selectStockBalanceReport" resultType="map">
+        select
+            s.warehouse_id as warehouseId,
+            s.location_id as locationId,
+            p.product_id as productId,
+            p.product_code as productCode,
+            p.product_name as productName,
+            s.batch_no as batchNo,
+            ifnull(sum(s.quantity), 0) as stockQty,
+            ifnull(sum(s.locked_quantity), 0) as lockedQty,
+            ifnull(sum(s.available_quantity), 0) as availableQty,
+            ifnull(sum(s.quantity * ifnull(p.cost_price, 0)), 0) as stockAmount
+        from wms_stock s
+        left join md_product p on s.product_id = p.product_id
+        group by s.warehouse_id, s.location_id, p.product_id, p.product_code, p.product_name, s.batch_no
+        order by stockAmount desc
+    </select>
+
+    <select id="selectFundAnalysisReport" resultType="map">
+        select 'receipt' as fundType, ifnull(sum(amount), 0) as amount
+        from fin_receipt
+        where receipt_date between #{startDate} and #{endDate}
+        union all
+        select 'payment' as fundType, ifnull(sum(amount), 0) as amount
+        from fin_payment
+        where payment_date between #{startDate} and #{endDate}
+        union all
+        select 'expense' as fundType, ifnull(sum(amount), 0) as amount
+        from fin_expense
+        where expense_date between #{startDate} and #{endDate}
+    </select>
 </mapper>
 

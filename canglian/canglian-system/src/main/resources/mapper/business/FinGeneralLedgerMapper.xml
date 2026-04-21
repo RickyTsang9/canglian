@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.canglian.business.mapper.FinGeneralLedgerMapper">
+
+    <select id="selectAccountSubjectList" resultType="map">
+        select subject_id as subjectId, subject_code as subjectCode, subject_name as subjectName,
+               subject_type as subjectType, balance_direction as balanceDirection, status,
+               create_by as createBy, create_time as createTime, update_by as updateBy, update_time as updateTime, remark
+        from fin_account_subject
+        <where>
+            <if test="status != null and status != ''">
+                and status = #{status}
+            </if>
+        </where>
+        order by subject_code asc
+    </select>
+
+    <select id="selectAuxiliaryItemList" resultType="map">
+        select auxiliary_id as auxiliaryId, auxiliary_type as auxiliaryType, item_code as itemCode,
+               item_name as itemName, relation_id as relationId, status,
+               create_by as createBy, create_time as createTime, update_by as updateBy, update_time as updateTime, remark
+        from fin_auxiliary_item
+        <where>
+            <if test="auxiliaryType != null and auxiliaryType != ''">
+                and auxiliary_type = #{auxiliaryType}
+            </if>
+        </where>
+        order by auxiliary_type asc, item_code asc
+    </select>
+
+    <select id="selectFiscalPeriodList" resultType="map">
+        select period_id as periodId, period_code as periodCode, start_date as startDate, end_date as endDate,
+               close_status as closeStatus, close_by as closeBy, close_time as closeTime,
+               create_by as createBy, create_time as createTime, update_by as updateBy, update_time as updateTime, remark
+        from fin_fiscal_period
+        <where>
+            <if test="closeStatus != null and closeStatus != ''">
+                and close_status = #{closeStatus}
+            </if>
+        </where>
+        order by period_code desc
+    </select>
+
+    <update id="updateFiscalPeriodCloseStatus">
+        update fin_fiscal_period
+        set close_status = #{closeStatus},
+            close_by = case when #{closeStatus} = 'closed' then #{operator} else null end,
+            close_time = case when #{closeStatus} = 'closed' then sysdate() else null end,
+            update_by = #{operator},
+            update_time = sysdate()
+        where period_id = #{periodId}
+    </update>
+</mapper>

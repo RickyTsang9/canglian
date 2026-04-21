@@ -16,3 +16,27 @@ export function getVoucherEvent(voucherEventId) {
     method: 'get'
   })
 }
+
+// 生成凭证
+export function generateVoucher(voucherEventId) {
+  return request({
+    url: '/business/voucherEvent/generate/' + voucherEventId,
+    method: 'put'
+  })
+}
+
+// 回写凭证
+export function writebackVoucher(voucherEventId) {
+  return request({
+    url: '/business/voucherEvent/writeback/' + voucherEventId,
+    method: 'put'
+  })
+}
+
+// 冲销凭证
+export function reverseVoucher(voucherEventId) {
+  return request({
+    url: '/business/voucherEvent/reverse/' + voucherEventId,
+    method: 'put'
+  })
+}

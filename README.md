@@ -22,9 +22,10 @@ Technically, this project is a secondary development project based on the RuoYi 
 
 The latest delivery diary is available at:
 
+- [`docs/更新日记/2026-04-22_金蝶云星辰轻量升级.md`](docs/更新日记/2026-04-22_金蝶云星辰轻量升级.md)
 - [`docs/更新日记/2026-04-19_精斗云轻量化升级.md`](docs/更新日记/2026-04-19_精斗云轻量化升级.md)
 
-This update moves the system from "warehouse execution + basic AR/AP finance" toward a light order-driven ERP model aligned with Kingdee Jingdou Cloud scenarios.
+This update moves the system from "order-driven light ERP" toward a light Kingdee Cloud Xingchen-style trade management model with voucher lifecycle, accounting interface, invoice-finance linkage, and operation analysis.
 
 ## Quick Start
 
@@ -49,6 +50,7 @@ For upgraded environments, also run the upgrade scripts that match your current 
 
 1. `canglian/sql/upgrade_20260417_schema_alignment.sql`
 2. `canglian/sql/upgrade_20260418_jdy_light_erp.sql`
+3. `canglian/sql/upgrade_20260422_xingchen_light_erp.sql`
 
 ### 3. Start Backend
 
@@ -144,7 +146,17 @@ customer special price -> customer level price -> recent transaction price -> pr
 - Cost calculation
 - Finance operation logs
 - Finance reports
-- Voucher event reservation for later accounting voucher integration
+- Invoice-finance linkage for receivable and payable candidates
+- Voucher generation, voucher writeback, and voucher reversal lifecycle
+- Lightweight accounting interface for subjects, auxiliary items, and fiscal periods
+
+### Operation Analysis
+
+- Sales gross profit report
+- Customer contribution report
+- Product turnover report
+- Stock balance report
+- Fund analysis report
 
 ### Collaboration And Dashboard
 

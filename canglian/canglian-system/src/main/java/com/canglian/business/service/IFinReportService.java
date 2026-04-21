@@ -1,6 +1,7 @@
 package com.canglian.business.service;
 
 import java.util.List;
+import java.util.Map;
 import com.canglian.business.domain.FinAgingReport;
 import com.canglian.business.domain.FinReconciliationReport;
 import com.canglian.business.domain.FinProfitLossReport;
@@ -9,14 +10,14 @@ import com.canglian.business.domain.FinCostStructureReport;
 
 /**
  * 财务报表 服务层
- * 
+ *
  * @author canglian
  */
 public interface IFinReportService
 {
     /**
      * 查询应收账龄报表
-     * 
+     *
      * @param customerId 客户id
      * @return 账龄报表集合
      */
@@ -24,7 +25,7 @@ public interface IFinReportService
 
     /**
      * 查询应付账龄报表
-     * 
+     *
      * @param supplierId 供应商id
      * @return 账龄报表集合
      */
@@ -32,7 +33,7 @@ public interface IFinReportService
 
     /**
      * 查询应收对账报表
-     * 
+     *
      * @param customerId 客户id
      * @return 对账报表集合
      */
@@ -40,7 +41,7 @@ public interface IFinReportService
 
     /**
      * 查询应付对账报表
-     * 
+     *
      * @param supplierId 供应商id
      * @return 对账报表集合
      */
@@ -48,7 +49,7 @@ public interface IFinReportService
 
     /**
      * 查询利润表
-     * 
+     *
      * @param startDate 开始日期
      * @param endDate 结束日期
      * @return 利润表
@@ -57,7 +58,7 @@ public interface IFinReportService
 
     /**
      * 查询收支汇总
-     * 
+     *
      * @param startDate 开始日期
      * @param endDate 结束日期
      * @return 收支汇总
@@ -66,11 +67,54 @@ public interface IFinReportService
 
     /**
      * 查询成本结构分析
-     * 
+     *
      * @param startDate 开始日期
      * @param endDate 结束日期
      * @return 成本结构集合
      */
     public List<FinCostStructureReport> selectCostStructureReport(String startDate, String endDate);
+
+    /**
+     * 查询销售毛利报表
+     *
+     * @param startDate 开始日期
+     * @param endDate 结束日期
+     * @return 销售毛利集合
+     */
+    public List<Map<String, Object>> selectSalesGrossProfitReport(String startDate, String endDate);
+
+    /**
+     * 查询客户贡献报表
+     *
+     * @param startDate 开始日期
+     * @param endDate 结束日期
+     * @return 客户贡献集合
+     */
+    public List<Map<String, Object>> selectCustomerContributionReport(String startDate, String endDate);
+
+    /**
+     * 查询商品周转报表
+     *
+     * @param startDate 开始日期
+     * @param endDate 结束日期
+     * @return 商品周转集合
+     */
+    public List<Map<String, Object>> selectProductTurnoverReport(String startDate, String endDate);
+
+    /**
+     * 查询库存余额报表
+     *
+     * @return 库存余额集合
+     */
+    public List<Map<String, Object>> selectStockBalanceReport();
+
+    /**
+     * 查询资金分析报表
+     *
+     * @param startDate 开始日期
+     * @param endDate 结束日期
+     * @return 资金分析集合
+     */
+    public List<Map<String, Object>> selectFundAnalysisReport(String startDate, String endDate);
 }
 

@@ -24,6 +24,9 @@
       <el-table-column label="单据号" align="center" prop="billNo" />
       <el-table-column label="事件类型" align="center" prop="eventType" />
       <el-table-column label="事件金额" align="center" prop="eventAmount" />
+      <el-table-column label="凭证号" align="center" prop="voucherNo" show-overflow-tooltip />
+      <el-table-column label="凭证状态" align="center" prop="voucherStatus" />
+      <el-table-column label="冲销凭证号" align="center" prop="reverseVoucherNo" show-overflow-tooltip />
       <el-table-column label="事件日期" align="center" prop="eventDate" width="180">
         <template #default="scope">
           <span>{{ parseTime(scope.row.eventDate) }}</span>
@@ -35,6 +38,13 @@
         </template>
       </el-table-column>
       <el-table-column label="备注" align="center" prop="remark" show-overflow-tooltip />
+      <el-table-column label="操作" align="center" class-name="small-padding fixed-width" width="260">
+        <template #default="scope">
+          <el-button link type="primary" icon="DocumentAdd" @click="handleGenerate(scope.row)" v-hasPermi="['business:voucherEvent:generate']">生成</el-button>
+          <el-button link type="primary" icon="Finished" @click="handleWriteback(scope.row)" v-hasPermi="['business:voucherEvent:writeback']">回写</el-button>
+          <el-button link type="danger" icon="RefreshLeft" @click="handleReverse(scope.row)" v-hasPermi="['business:voucherEvent:reverse']">冲销</el-button>
+        </template>
+      </el-table-column>
     </el-table>
 
     <pagination v-show="total > 0" :total="total" v-model:page="queryParams.pageNum" v-model:limit="queryParams.pageSize" @pagination="getList" />
@@ -42,7 +52,7 @@
 </template>
 
 <script setup name="VoucherEvent">
-import { listVoucherEvent } from "@/api/business/voucherEvent"
+import { listVoucherEvent, generateVoucher, writebackVoucher, reverseVoucher } from "@/api/business/voucherEvent"
 
 const { proxy } = getCurrentInstance()
 const { sys_normal_disable } = proxy.useDict("sys_normal_disable")
@@ -70,6 +80,7 @@ function getList() {
   listVoucherEvent(queryParams.value).then(response => {
     voucherEventList.value = response.rows
     total.value = response.total
+  }).finally(() => {
     loading.value = false
   })
 }
@@ -84,6 +95,32 @@ function handleQuery() {
 function resetQuery() {
   proxy.resetForm("queryRef")
   handleQuery()
+}
+
+// 生成凭证
+function handleGenerate(row) {
+  generateVoucher(row.voucherEventId).then(() => {
+    proxy.$modal.msgSuccess("凭证生成成功")
+    getList()
+  })
+}
+
+// 回写凭证
+function handleWriteback(row) {
+  writebackVoucher(row.voucherEventId).then(() => {
+    proxy.$modal.msgSuccess("凭证回写成功")
+    getList()
+  })
+}
+
+// 冲销凭证
+function handleReverse(row) {
+  proxy.$modal.confirm('是否确认冲销凭证事件编号为"' + row.voucherEventId + '"的数据项？').then(() => {
+    return reverseVoucher(row.voucherEventId)
+  }).then(() => {
+    proxy.$modal.msgSuccess("凭证冲销成功")
+    getList()
+  }).catch(() => {})
 }
 
 getList()

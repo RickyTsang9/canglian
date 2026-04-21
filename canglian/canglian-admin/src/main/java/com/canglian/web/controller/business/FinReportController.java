@@ -104,5 +104,55 @@ public class FinReportController extends BaseController
         List<FinCostStructureReport> list = finReportService.selectCostStructureReport(startDate, endDate);
         return success(list);
     }
+
+    /**
+     * 查询销售毛利报表
+     */
+    @PreAuthorize("@ss.hasPermi('business:report:query')")
+    @GetMapping("/operation/salesGrossProfit")
+    public AjaxResult salesGrossProfit(@RequestParam String startDate, @RequestParam String endDate)
+    {
+        return success(finReportService.selectSalesGrossProfitReport(startDate, endDate));
+    }
+
+    /**
+     * 查询客户贡献报表
+     */
+    @PreAuthorize("@ss.hasPermi('business:report:query')")
+    @GetMapping("/operation/customerContribution")
+    public AjaxResult customerContribution(@RequestParam String startDate, @RequestParam String endDate)
+    {
+        return success(finReportService.selectCustomerContributionReport(startDate, endDate));
+    }
+
+    /**
+     * 查询商品周转报表
+     */
+    @PreAuthorize("@ss.hasPermi('business:report:query')")
+    @GetMapping("/operation/productTurnover")
+    public AjaxResult productTurnover(@RequestParam String startDate, @RequestParam String endDate)
+    {
+        return success(finReportService.selectProductTurnoverReport(startDate, endDate));
+    }
+
+    /**
+     * 查询库存余额报表
+     */
+    @PreAuthorize("@ss.hasPermi('business:report:query')")
+    @GetMapping("/operation/stockBalance")
+    public AjaxResult stockBalance()
+    {
+        return success(finReportService.selectStockBalanceReport());
+    }
+
+    /**
+     * 查询资金分析报表
+     */
+    @PreAuthorize("@ss.hasPermi('business:report:query')")
+    @GetMapping("/operation/fundAnalysis")
+    public AjaxResult fundAnalysis(@RequestParam String startDate, @RequestParam String endDate)
+    {
+        return success(finReportService.selectFundAnalysisReport(startDate, endDate));
+    }
 }
 

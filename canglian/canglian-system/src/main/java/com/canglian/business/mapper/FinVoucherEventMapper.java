@@ -5,7 +5,7 @@ import com.canglian.business.domain.FinVoucherEvent;
 
 /**
  * 凭证事件数据层
- * 
+ *
  * @author canglian
  */
 public interface FinVoucherEventMapper
@@ -21,4 +21,12 @@ public interface FinVoucherEventMapper
     public int deleteFinVoucherEventById(Long voucherEventId);
 
     public int deleteFinVoucherEventByIds(Long[] voucherEventIds);
+
+    /**
+     * 查询最大凭证号
+     *
+     * @param voucherNoPrefix 凭证号前缀
+     * @return 最大凭证号
+     */
+    public String selectMaxVoucherNoByPrefix(String voucherNoPrefix);
 }
