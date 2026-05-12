@@ -4,6 +4,7 @@ import java.math.BigDecimal;
 import org.apache.commons.lang3.builder.ToStringBuilder;
 import org.apache.commons.lang3.builder.ToStringStyle;
 import com.canglian.common.core.domain.BaseEntity;
+import com.canglian.common.annotation.Excel;
 
 public class MdProduct extends BaseEntity
 {
@@ -11,44 +12,63 @@ public class MdProduct extends BaseEntity
 
     private Long productId;
 
+    @Excel(name = "商品编码")
     private String productCode;
 
+    @Excel(name = "商品名称")
     private String productName;
 
+    @Excel(name = "规格型号")
     private String productSpec;
 
+    @Excel(name = "计量单位")
     private String unitName;
 
+    @Excel(name = "采购单位")
     private String purchaseUnit;
 
+    @Excel(name = "销售单位")
     private String saleUnit;
 
+    @Excel(name = "基础单位")
     private String baseUnit;
 
+    @Excel(name = "单位换算比")
     private BigDecimal unitConvertRatio;
 
+    @Excel(name = "启用批次")
     private String enableBatch;
 
+    @Excel(name = "保质期天数")
     private Integer shelfLifeDays;
 
+    @Excel(name = "启用序列号")
     private String enableSerial;
 
+    @Excel(name = "最小库存")
     private BigDecimal warningMinQty;
 
+    @Excel(name = "最大库存")
     private BigDecimal warningMaxQty;
 
+    @Excel(name = "条码")
     private String barCode;
 
+    @Excel(name = "商品分类")
     private String categoryName;
 
+    @Excel(name = "品牌")
     private String brandName;
 
     private String productImage;
 
+    @Excel(name = "成本价")
     private BigDecimal costPrice;
 
+    @Excel(name = "销售价")
     private BigDecimal salePrice;
 
+    @Excel(name = "状态")
     private String status;
 
     private String delFlag;

@@ -37,6 +37,12 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         where customer_id = #{customerId}
     </select>
 
+    <select id="selectMdCustomerByCode" parameterType="String" resultMap="MdCustomerResult">
+        <include refid="selectMdCustomerVo"/>
+        where customer_code = #{customerCode}
+        limit 1
+    </select>
+
     <select id="selectMdCustomerList" parameterType="MdCustomer" resultMap="MdCustomerResult">
         <include refid="selectMdCustomerVo"/>
         <where>

@@ -1,6 +1,7 @@
 package com.canglian.web.controller.business;
 
 import java.util.List;
+import javax.servlet.http.HttpServletResponse;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
@@ -12,17 +13,19 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 import com.canglian.common.annotation.Log;
 import com.canglian.common.core.controller.BaseController;
 import com.canglian.common.core.domain.AjaxResult;
 import com.canglian.common.core.page.TableDataInfo;
 import com.canglian.common.enums.BusinessType;
+import com.canglian.common.utils.poi.ExcelUtil;
 import com.canglian.business.domain.MdSupplier;
 import com.canglian.business.service.IMdSupplierService;
 
 /**
  * 供应商档案 信息操作处理
- * 
+ *
  * @author canglian
  */
 @RestController
@@ -42,6 +45,37 @@ public class MdSupplierController extends BaseController
         startPage();
         List<MdSupplier> list = mdSupplierService.selectMdSupplierList(mdSupplier);
         return getDataTable(list);
+    }
+
+    /**
+     * 导入供应商档案
+     *
+     * @param file 导入文件
+     * @param updateSupport 是否更新已存在数据
+     * @return 导入结果
+     * @throws Exception 导入异常
+     */
+    @Log(title = "供应商档案", businessType = BusinessType.IMPORT)
+    @PreAuthorize("@ss.hasPermi('business:supplier:import')")
+    @PostMapping("/importData")
+    public AjaxResult importData(MultipartFile file, boolean updateSupport) throws Exception
+    {
+        ExcelUtil<MdSupplier> excelUtil = new ExcelUtil<MdSupplier>(MdSupplier.class);
+        List<MdSupplier> supplierList = excelUtil.importExcel(file.getInputStream());
+        String message = mdSupplierService.importMdSupplier(supplierList, updateSupport, getUsername());
+        return success(message);
+    }
+
+    /**
+     * 下载供应商导入模板
+     *
+     * @param response 响应对象
+     */
+    @PostMapping("/importTemplate")
+    public void importTemplate(HttpServletResponse response)
+    {
+        ExcelUtil<MdSupplier> excelUtil = new ExcelUtil<MdSupplier>(MdSupplier.class);
+        excelUtil.importTemplateExcel(response, "供应商数据");
     }
 
     /**

@@ -1,6 +1,7 @@
 package com.canglian.web.controller.business;
 
 import java.util.List;
+import javax.servlet.http.HttpServletResponse;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
@@ -12,17 +13,19 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 import com.canglian.common.annotation.Log;
 import com.canglian.common.core.controller.BaseController;
 import com.canglian.common.core.domain.AjaxResult;
 import com.canglian.common.core.page.TableDataInfo;
 import com.canglian.common.enums.BusinessType;
+import com.canglian.common.utils.poi.ExcelUtil;
 import com.canglian.business.domain.WmsStock;
 import com.canglian.business.service.IWmsStockService;
 
 /**
  * 库存 信息操作处理
- * 
+ *
  * @author canglian
  */
 @RestController
@@ -44,12 +47,43 @@ public class WmsStockController extends BaseController
         return getDataTable(list);
     }
 
+    /**
+     * 导入期初库存
+     *
+     * @param file 导入文件
+     * @param updateSupport 是否更新已存在数据
+     * @return 导入结果
+     * @throws Exception 导入异常
+     */
+    @Log(title = "库存", businessType = BusinessType.IMPORT)
+    @PreAuthorize("@ss.hasPermi('business:stock:import')")
+    @PostMapping("/importData")
+    public AjaxResult importData(MultipartFile file, boolean updateSupport) throws Exception
+    {
+        ExcelUtil<WmsStock> excelUtil = new ExcelUtil<WmsStock>(WmsStock.class);
+        List<WmsStock> stockList = excelUtil.importExcel(file.getInputStream());
+        String message = wmsStockService.importWmsStock(stockList, updateSupport, getUsername());
+        return success(message);
+    }
+
+    /**
+     * 下载期初库存导入模板
+     *
+     * @param response 响应对象
+     */
+    @PostMapping("/importTemplate")
+    public void importTemplate(HttpServletResponse response)
+    {
+        ExcelUtil<WmsStock> excelUtil = new ExcelUtil<WmsStock>(WmsStock.class);
+        excelUtil.importTemplateExcel(response, "期初库存数据");
+    }
+
     @PreAuthorize("@ss.hasPermi('business:stock:list')")
     @GetMapping("/warning")
     public TableDataInfo warning(WmsStock wmsStock)
     {
         startPage();
-        List<WmsStock> list = wmsStockService.selectWmsStockWarningList(wmsStock);
+        List<WmsStock> list = wmsStockService.selectWmsStockRiskList(wmsStock);
         return getDataTable(list);
     }
 

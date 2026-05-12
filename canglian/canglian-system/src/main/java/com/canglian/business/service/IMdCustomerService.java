@@ -5,14 +5,14 @@ import com.canglian.business.domain.MdCustomer;
 
 /**
  * 客户档案 服务层
- * 
+ *
  * @author canglian
  */
 public interface IMdCustomerService
 {
     /**
      * 查询客户档案信息
-     * 
+     *
      * @param customerId 客户id
      * @return 客户档案信息
      */
@@ -20,15 +20,25 @@ public interface IMdCustomerService
 
     /**
      * 查询客户档案列表
-     * 
+     *
      * @param mdCustomer 客户档案
      * @return 客户档案集合
      */
     public List<MdCustomer> selectMdCustomerList(MdCustomer mdCustomer);
 
     /**
+     * 导入客户档案
+     *
+     * @param customerList 客户档案集合
+     * @param updateSupport 是否更新已存在数据
+     * @param operator 操作人
+     * @return 导入结果
+     */
+    public String importMdCustomer(List<MdCustomer> customerList, Boolean updateSupport, String operator);
+
+    /**
      * 新增客户档案
-     * 
+     *
      * @param mdCustomer 客户档案
      * @return 结果
      */
@@ -36,7 +46,7 @@ public interface IMdCustomerService
 
     /**
      * 修改客户档案
-     * 
+     *
      * @param mdCustomer 客户档案
      * @return 结果
      */
@@ -44,7 +54,7 @@ public interface IMdCustomerService
 
     /**
      * 删除客户档案
-     * 
+     *
      * @param customerId 客户id
      * @return 结果
      */
@@ -52,7 +62,7 @@ public interface IMdCustomerService
 
     /**
      * 批量删除客户档案
-     * 
+     *
      * @param customerIds 需要删除的客户id
      * @return 结果
      */

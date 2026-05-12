@@ -1,0 +1,274 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.canglian.business.mapper.BusinessTraceMapper">
+
+    <resultMap type="BusinessTraceNode" id="BusinessTraceNodeResult">
+        <result property="nodeType" column="node_type" />
+        <result property="nodeName" column="node_name" />
+        <result property="billType" column="bill_type" />
+        <result property="billId" column="bill_id" />
+        <result property="billNo" column="bill_no" />
+        <result property="businessDate" column="business_date" />
+        <result property="amount" column="amount" />
+        <result property="status" column="status" />
+        <result property="bizStatus" column="biz_status" />
+        <result property="sourceBillType" column="source_bill_type" />
+        <result property="sourceBillId" column="source_bill_id" />
+        <result property="sourceBillNo" column="source_bill_no" />
+        <result property="relationLabel" column="relation_label" />
+        <result property="createBy" column="create_by" />
+        <result property="createTime" column="create_time" />
+    </resultMap>
+
+    <sql id="selectTraceNodeUnion">
+        select 'order' as node_type,
+               case when order_type = 'quote' then '报价单' else '销货订单' end as node_name,
+               'sale_order' as bill_type,
+               order_id as bill_id,
+               order_no as bill_no,
+               business_date,
+               total_amount as amount,
+               status,
+               biz_status,
+               source_bill_type,
+               source_bill_id,
+               source_bill_no,
+               '销售源单' as relation_label,
+               create_by,
+               create_time
+        from sal_order
+        union all
+        select 'order' as node_type,
+               '购货订单' as node_name,
+               'pur_order' as bill_type,
+               purchase_order_id as bill_id,
+               purchase_order_no as bill_no,
+               business_date,
+               total_amount as amount,
+               status,
+               biz_status,
+               source_bill_type,
+               source_bill_id,
+               source_bill_no,
+               '采购源单' as relation_label,
+               create_by,
+               create_time
+        from pur_order
+        union all
+        select 'warehouse' as node_type,
+               '出库单' as node_name,
+               'outbound' as bill_type,
+               outbound_id as bill_id,
+               outbound_no as bill_no,
+               business_date,
+               total_amount as amount,
+               status,
+               biz_status,
+               source_bill_type,
+               source_bill_id,
+               source_bill_no,
+               '下游出库' as relation_label,
+               create_by,
+               create_time
+        from wms_outbound
+        union all
+        select 'warehouse' as node_type,
+               '入库单' as node_name,
+               'inbound' as bill_type,
+               inbound_id as bill_id,
+               inbound_no as bill_no,
+               business_date,
+               total_amount as amount,
+               status,
+               biz_status,
+               source_bill_type,
+               source_bill_id,
+               source_bill_no,
+               '下游入库' as relation_label,
+               create_by,
+               create_time
+        from wms_inbound
+        union all
+        select 'invoice' as node_type,
+               case when invoice_type = 'purchase' then '采购发票' else '销售发票' end as node_name,
+               'invoice' as bill_type,
+               invoice_id as bill_id,
+               invoice_no as bill_no,
+               business_date,
+               invoice_amount as amount,
+               status,
+               biz_status,
+               source_bill_type,
+               source_bill_id,
+               source_bill_no,
+               '发票登记' as relation_label,
+               create_by,
+               create_time
+        from fin_invoice
+        union all
+        select 'finance' as node_type,
+               '应收单' as node_name,
+               'receivable' as bill_type,
+               receivable_id as bill_id,
+               receivable_no as bill_no,
+               business_date,
+               amount,
+               status,
+               biz_status,
+               source_bill_type,
+               source_bill_id,
+               source_bill_no,
+               '应收往来' as relation_label,
+               create_by,
+               create_time
+        from fin_receivable
+        union all
+        select 'finance' as node_type,
+               '应付单' as node_name,
+               'payable' as bill_type,
+               payable_id as bill_id,
+               payable_no as bill_no,
+               business_date,
+               amount,
+               status,
+               biz_status,
+               source_bill_type,
+               source_bill_id,
+               source_bill_no,
+               '应付往来' as relation_label,
+               create_by,
+               create_time
+        from fin_payable
+        union all
+        select 'finance' as node_type,
+               '收款单' as node_name,
+               'receipt' as bill_type,
+               receipt_id as bill_id,
+               receipt_no as bill_no,
+               receipt_date as business_date,
+               amount,
+               null as status,
+               null as biz_status,
+               'receivable' as source_bill_type,
+               receivable_id as source_bill_id,
+               null as source_bill_no,
+               '收款' as relation_label,
+               create_by,
+               create_time
+        from fin_receipt
+        union all
+        select 'finance' as node_type,
+               '付款单' as node_name,
+               'payment' as bill_type,
+               payment_id as bill_id,
+               payment_no as bill_no,
+               payment_date as business_date,
+               amount,
+               null as status,
+               null as biz_status,
+               'payable' as source_bill_type,
+               payable_id as source_bill_id,
+               null as source_bill_no,
+               '付款' as relation_label,
+               create_by,
+               create_time
+        from fin_payment
+        union all
+        select 'finance' as node_type,
+               '核销单' as node_name,
+               'write_off' as bill_type,
+               write_off_id as bill_id,
+               write_off_no as bill_no,
+               write_off_date as business_date,
+               amount,
+               status,
+               null as biz_status,
+               write_off_type as source_bill_type,
+               coalesce(receivable_id, payable_id) as source_bill_id,
+               null as source_bill_no,
+               '核销' as relation_label,
+               create_by,
+               create_time
+        from fin_write_off
+        union all
+        select 'voucher' as node_type,
+               '凭证事件' as node_name,
+               'voucher_event' as bill_type,
+               voucher_event_id as bill_id,
+               bill_no,
+               event_date as business_date,
+               event_amount as amount,
+               status,
+               voucher_status as biz_status,
+               bill_type as source_bill_type,
+               bill_id as source_bill_id,
+               bill_no as source_bill_no,
+               '凭证' as relation_label,
+               create_by,
+               create_time
+        from fin_voucher_event
+    </sql>
+
+    <select id="selectBusinessTraceRootNode" resultMap="BusinessTraceNodeResult">
+        select *
+        from (
+            <include refid="selectTraceNodeUnion"/>
+        ) trace_node
+        where trace_node.bill_type = #{billType}
+          and trace_node.bill_id = #{billId}
+        limit 1
+    </select>
+
+    <select id="selectBusinessTraceNodeList" resultMap="BusinessTraceNodeResult">
+        select *
+        from (
+            <include refid="selectTraceNodeUnion"/>
+        ) trace_node
+        where (trace_node.bill_type = #{rootBillType} and trace_node.bill_id = #{rootBillId})
+           or (trace_node.source_bill_type = #{rootBillType} and trace_node.source_bill_id = #{rootBillId})
+           or (trace_node.source_bill_no is not null and trace_node.source_bill_no = #{rootBillNo})
+           or (
+                trace_node.bill_type in ('receipt', 'write_off')
+                and trace_node.source_bill_type in ('receivable', 'receive')
+                and trace_node.source_bill_id in (
+                    select receivable_id
+                    from fin_receivable
+                    where (source_bill_type = #{rootBillType} and source_bill_id = #{rootBillId})
+                       or (source_bill_no is not null and source_bill_no = #{rootBillNo})
+                )
+           )
+           or (
+                trace_node.bill_type in ('payment', 'write_off')
+                and trace_node.source_bill_type in ('payable', 'payment')
+                and trace_node.source_bill_id in (
+                    select payable_id
+                    from fin_payable
+                    where (source_bill_type = #{rootBillType} and source_bill_id = #{rootBillId})
+                       or (source_bill_no is not null and source_bill_no = #{rootBillNo})
+                )
+           )
+           or (
+                trace_node.bill_type = 'voucher_event'
+                and trace_node.source_bill_type in ('outbound', 'inbound', 'invoice')
+                and trace_node.source_bill_id in (
+                    select outbound_id
+                    from wms_outbound
+                    where source_bill_type = #{rootBillType}
+                      and source_bill_id = #{rootBillId}
+                    union all
+                    select inbound_id
+                    from wms_inbound
+                    where source_bill_type = #{rootBillType}
+                      and source_bill_id = #{rootBillId}
+                    union all
+                    select invoice_id
+                    from fin_invoice
+                    where (source_bill_type = #{rootBillType} and source_bill_id = #{rootBillId})
+                       or (source_bill_no is not null and source_bill_no = #{rootBillNo})
+                )
+           )
+        order by trace_node.business_date asc, trace_node.create_time asc, trace_node.bill_id asc
+    </select>
+</mapper>

@@ -15,6 +15,11 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         <result property="frozenQuantity" column="frozen_quantity" />
         <result property="warningMinQty"  column="warning_min_qty" />
         <result property="warningMaxQty"  column="warning_max_qty" />
+        <result property="warningType"    column="warning_type"    />
+        <result property="warningMessage" column="warning_message" />
+        <result property="unsoldDays"     column="unsold_days"     />
+        <result property="warningDays"    column="warning_days"    />
+        <result property="lastOutboundTime" column="last_outbound_time" />
         <result property="version"        column="version"         />
         <result property="createBy"       column="create_by"       />
         <result property="createTime"     column="create_time"     />
@@ -62,6 +67,79 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
                 (warning_max_qty is not null and quantity &gt; warning_max_qty)
             )
         </where>
+    </select>
+
+    <select id="selectWmsStockRiskList" parameterType="WmsStock" resultMap="WmsStockResult">
+        select *
+        from (
+            select stock.stock_id,
+                   stock.warehouse_id,
+                   stock.product_id,
+                   stock.location_id,
+                   stock.batch_no,
+                   stock.quantity,
+                   stock.locked_quantity,
+                   stock.frozen_quantity,
+                   stock.warning_min_qty,
+                   stock.warning_max_qty,
+                   stock.version,
+                   stock.create_by,
+                   stock.create_time,
+                   stock.update_by,
+                   stock.update_time,
+                   recent_outbound.last_outbound_time,
+                   timestampdiff(day, coalesce(recent_outbound.last_outbound_time, stock.create_time), sysdate()) as unsold_days,
+                   #{warningDays} as warning_days,
+                   case
+                       when stock.quantity - ifnull(stock.locked_quantity, 0) - ifnull(stock.frozen_quantity, 0) &lt; 0 then 'negative_available'
+                       when stock.warning_min_qty is not null and stock.quantity &lt; stock.warning_min_qty then 'low_stock'
+                       when stock.warning_max_qty is not null and stock.warning_max_qty &gt; 0 and stock.quantity &gt; stock.warning_max_qty then 'over_stock'
+                       when stock.quantity &gt; 0 and timestampdiff(day, coalesce(recent_outbound.last_outbound_time, stock.create_time), sysdate()) &gt;= #{warningDays} then 'unsold'
+                       else 'normal'
+                   end as warning_type,
+                   case
+                       when stock.quantity - ifnull(stock.locked_quantity, 0) - ifnull(stock.frozen_quantity, 0) &lt; 0 then '可用库存小于0，请检查锁定、冻结和库存流水'
+                       when stock.warning_min_qty is not null and stock.quantity &lt; stock.warning_min_qty then '当前库存低于最小预警库存'
+                       when stock.warning_max_qty is not null and stock.warning_max_qty &gt; 0 and stock.quantity &gt; stock.warning_max_qty then '当前库存高于最大预警库存'
+                       when stock.quantity &gt; 0 and timestampdiff(day, coalesce(recent_outbound.last_outbound_time, stock.create_time), sysdate()) &gt;= #{warningDays} then '超过预警天数未发生出库'
+                       else '库存正常'
+                   end as warning_message
+            from wms_stock stock
+            left join (
+                select warehouse_id, product_id, location_id, batch_no, max(create_time) as last_outbound_time
+                from wms_stock_log
+                where in_out = '2'
+                group by warehouse_id, product_id, location_id, batch_no
+            ) recent_outbound on recent_outbound.warehouse_id = stock.warehouse_id
+                and recent_outbound.product_id = stock.product_id
+                and recent_outbound.location_id = stock.location_id
+                and ifnull(recent_outbound.batch_no, '') = ifnull(stock.batch_no, '')
+            <where>
+                <if test="warehouseId != null">
+                    and stock.warehouse_id = #{warehouseId}
+                </if>
+                <if test="productId != null">
+                    and stock.product_id = #{productId}
+                </if>
+                <if test="locationId != null">
+                    and stock.location_id = #{locationId}
+                </if>
+                <if test="batchNo != null and batchNo != ''">
+                    and stock.batch_no = #{batchNo}
+                </if>
+            </where>
+        ) risk_stock
+        where risk_stock.warning_type != 'normal'
+        <if test="warningType != null and warningType != ''">
+            and risk_stock.warning_type = #{warningType}
+        </if>
+        order by case risk_stock.warning_type
+            when 'negative_available' then 1
+            when 'low_stock' then 2
+            when 'over_stock' then 3
+            when 'unsold' then 4
+            else 9
+        end, risk_stock.create_time desc
     </select>
 
     <select id="selectWmsStockList" parameterType="WmsStock" resultMap="WmsStockResult">

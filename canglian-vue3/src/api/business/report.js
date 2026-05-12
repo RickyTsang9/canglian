@@ -4,7 +4,8 @@ export function receivableAging(query) {
   return request({
     url: '/business/report/receivable/aging',
     method: 'get',
-    params: query
+    params: query,
+    headers: { hideError: true }
   })
 }
 
@@ -12,7 +13,8 @@ export function payableAging(query) {
   return request({
     url: '/business/report/payable/aging',
     method: 'get',
-    params: query
+    params: query,
+    headers: { hideError: true }
   })
 }
 
@@ -36,7 +38,8 @@ export function profitLoss(query) {
   return request({
     url: '/business/report/profitLoss',
     method: 'get',
-    params: query
+    params: query,
+    headers: { hideError: true }
   })
 }
 
@@ -44,7 +47,8 @@ export function revenueExpense(query) {
   return request({
     url: '/business/report/revenueExpense',
     method: 'get',
-    params: query
+    params: query,
+    headers: { hideError: true }
   })
 }
 
@@ -52,7 +56,8 @@ export function costStructure(query) {
   return request({
     url: '/business/report/costStructure',
     method: 'get',
-    params: query
+    params: query,
+    headers: { hideError: true }
   })
 }
 

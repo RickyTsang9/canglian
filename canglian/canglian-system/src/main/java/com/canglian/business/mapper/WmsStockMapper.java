@@ -39,6 +39,14 @@ public interface WmsStockMapper
     public List<WmsStock> selectWmsStockWarningList(WmsStock wmsStock);
 
     /**
+     * 查询库存风险列表
+     *
+     * @param wmsStock 库存信息
+     * @return 库存风险集合
+     */
+    public List<WmsStock> selectWmsStockRiskList(WmsStock wmsStock);
+
+    /**
      * 新增库存
      * 
      * @param wmsStock 库存信息

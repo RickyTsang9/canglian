@@ -34,6 +34,12 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         where supplier_id = #{supplierId}
     </select>
 
+    <select id="selectMdSupplierByCode" parameterType="String" resultMap="MdSupplierResult">
+        <include refid="selectMdSupplierVo"/>
+        where supplier_code = #{supplierCode}
+        limit 1
+    </select>
+
     <select id="selectMdSupplierList" parameterType="MdSupplier" resultMap="MdSupplierResult">
         <include refid="selectMdSupplierVo"/>
         <where>

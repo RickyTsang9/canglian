@@ -5,22 +5,30 @@ import com.canglian.business.domain.MdSupplier;
 
 /**
  * 供应商档案 数据层
- * 
+ *
  * @author canglian
  */
 public interface MdSupplierMapper
 {
     /**
      * 查询供应商档案信息
-     * 
+     *
      * @param supplierId 供应商id
      * @return 供应商档案信息
      */
     public MdSupplier selectMdSupplierById(Long supplierId);
 
     /**
+     * 根据供应商编码查询供应商档案
+     *
+     * @param supplierCode 供应商编码
+     * @return 供应商档案信息
+     */
+    public MdSupplier selectMdSupplierByCode(String supplierCode);
+
+    /**
      * 查询供应商档案列表
-     * 
+     *
      * @param mdSupplier 供应商档案
      * @return 供应商档案集合
      */
@@ -28,7 +36,7 @@ public interface MdSupplierMapper
 
     /**
      * 新增供应商档案
-     * 
+     *
      * @param mdSupplier 供应商档案
      * @return 结果
      */
@@ -36,7 +44,7 @@ public interface MdSupplierMapper
 
     /**
      * 修改供应商档案
-     * 
+     *
      * @param mdSupplier 供应商档案
      * @return 结果
      */
@@ -44,7 +52,7 @@ public interface MdSupplierMapper
 
     /**
      * 删除供应商档案
-     * 
+     *
      * @param supplierId 供应商id
      * @return 结果
      */
@@ -52,7 +60,7 @@ public interface MdSupplierMapper
 
     /**
      * 批量删除供应商档案
-     * 
+     *
      * @param supplierIds 需要删除的供应商id
      * @return 结果
      */

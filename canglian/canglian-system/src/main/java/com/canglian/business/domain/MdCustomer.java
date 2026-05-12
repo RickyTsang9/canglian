@@ -3,6 +3,7 @@ package com.canglian.business.domain;
 import org.apache.commons.lang3.builder.ToStringBuilder;
 import org.apache.commons.lang3.builder.ToStringStyle;
 import com.canglian.common.core.domain.BaseEntity;
+import com.canglian.common.annotation.Excel;
 
 public class MdCustomer extends BaseEntity
 {
@@ -10,26 +11,37 @@ public class MdCustomer extends BaseEntity
 
     private Long customerId;
 
+    @Excel(name = "客户编码")
     private String customerCode;
 
+    @Excel(name = "客户名称")
     private String customerName;
 
+    @Excel(name = "客户等级")
     private String customerLevel;
 
+    @Excel(name = "信用额度")
     private java.math.BigDecimal creditLimit;
 
+    @Excel(name = "账期天数")
     private Integer receivableDays;
 
+    @Excel(name = "价格策略")
     private String pricePolicyType;
 
+    @Excel(name = "联系人")
     private String contactPerson;
 
+    @Excel(name = "联系电话")
     private String contactPhone;
 
+    @Excel(name = "联系邮箱")
     private String contactEmail;
 
+    @Excel(name = "地址")
     private String address;
 
+    @Excel(name = "状态")
     private String status;
 
     private String delFlag;

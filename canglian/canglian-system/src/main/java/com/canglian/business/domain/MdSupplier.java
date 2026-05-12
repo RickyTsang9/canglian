@@ -3,6 +3,7 @@ package com.canglian.business.domain;
 import org.apache.commons.lang3.builder.ToStringBuilder;
 import org.apache.commons.lang3.builder.ToStringStyle;
 import com.canglian.common.core.domain.BaseEntity;
+import com.canglian.common.annotation.Excel;
 
 public class MdSupplier extends BaseEntity
 {
@@ -10,22 +11,31 @@ public class MdSupplier extends BaseEntity
 
     private Long supplierId;
 
+    @Excel(name = "供应商编码")
     private String supplierCode;
 
+    @Excel(name = "供应商名称")
     private String supplierName;
 
+    @Excel(name = "供应商等级")
     private String supplierLevel;
 
+    @Excel(name = "付款账期")
     private Integer payableDays;
 
+    @Excel(name = "联系人")
     private String contactPerson;
 
+    @Excel(name = "联系电话")
     private String contactPhone;
 
+    @Excel(name = "联系邮箱")
     private String contactEmail;
 
+    @Excel(name = "地址")
     private String address;
 
+    @Excel(name = "状态")
     private String status;
 
     private String delFlag;

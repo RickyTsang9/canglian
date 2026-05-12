@@ -58,6 +58,7 @@
           <el-button link type="primary" icon="CircleCheck" :disabled="!canApproveRow(scope.row)" @click="handleApprove(scope.row)" v-hasPermi="['business:saleOrder:approve']">审批</el-button>
           <el-button v-if="isQuotePage" link type="primary" icon="Right" :disabled="!canPushRow(scope.row)" @click="handlePushSale(scope.row)" v-hasPermi="['business:saleOrder:pushSale']">下推销货</el-button>
           <el-button v-else link type="primary" icon="Right" :disabled="!canPushRow(scope.row)" @click="handlePushOutbound(scope.row)" v-hasPermi="['business:saleOrder:pushOutbound']">下推出库</el-button>
+          <el-button link type="primary" icon="Connection" @click="handleTrace(scope.row)" v-hasPermi="['business:trace:query']">链路</el-button>
           <el-button link type="primary" icon="Printer" @click="handlePrint(scope.row)" v-hasPermi="['business:saleOrder:print']">打印</el-button>
         </template>
       </el-table-column>
@@ -147,12 +148,14 @@
         </div>
       </template>
     </el-dialog>
+    <business-trace-dialog ref="businessTraceRef" />
   </div>
 </template>
 
 <script setup name="SaleOrder">
 import { useRoute } from "vue-router"
 import { listSaleOrder, getSaleOrder, addSaleOrder, updateSaleOrder, approveSaleOrder, pushQuoteToSale, pushSaleOrderToOutbound, printSaleOrder, delSaleOrder } from "@/api/business/saleOrder"
+import BusinessTraceDialog from "@/components/Canglian/BusinessTraceDialog.vue"
 
 const route = useRoute()
 const orderType = computed(() => route.query.orderType || "sale")
@@ -170,6 +173,7 @@ const isSingleDisabled = ref(true)
 const isMultipleDisabled = ref(true)
 const total = ref(0)
 const title = ref("")
+const businessTraceRef = ref(null)
 
 const bizStatusOptions = [
   { label: "草稿", value: "draft" },
@@ -318,6 +322,11 @@ function handlePushOutbound(row) {
     proxy.$modal.msgSuccess("下推成功")
     getList()
   }).catch(() => {})
+}
+
+// 查看业务链路
+function handleTrace(row) {
+  businessTraceRef.value.open("sale_order", row.orderId)
 }
 
 // 打印按钮操作

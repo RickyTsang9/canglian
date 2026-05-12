@@ -47,6 +47,12 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         where product_id = #{productId}
     </select>
 
+    <select id="selectMdProductByCode" parameterType="String" resultMap="MdProductResult">
+        <include refid="selectMdProductVo"/>
+        where product_code = #{productCode}
+        limit 1
+    </select>
+
     <select id="selectMdProductList" parameterType="MdProduct" resultMap="MdProductResult">
         <include refid="selectMdProductVo"/>
         <where>

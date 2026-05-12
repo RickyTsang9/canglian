@@ -9,6 +9,15 @@ export function listStock(query) {
   })
 }
 
+// 查询库存预警列表
+export function listStockWarning(query) {
+  return request({
+    url: '/business/stock/warning',
+    method: 'get',
+    params: query
+  })
+}
+
 // 查询库存详细
 export function getStock(stockId) {
   return request({

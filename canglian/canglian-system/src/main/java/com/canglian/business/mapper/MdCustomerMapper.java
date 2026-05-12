@@ -5,22 +5,30 @@ import com.canglian.business.domain.MdCustomer;
 
 /**
  * 客户档案 数据层
- * 
+ *
  * @author canglian
  */
 public interface MdCustomerMapper
 {
     /**
      * 查询客户档案信息
-     * 
+     *
      * @param customerId 客户id
      * @return 客户档案信息
      */
     public MdCustomer selectMdCustomerById(Long customerId);
 
     /**
+     * 根据客户编码查询客户档案
+     *
+     * @param customerCode 客户编码
+     * @return 客户档案信息
+     */
+    public MdCustomer selectMdCustomerByCode(String customerCode);
+
+    /**
      * 查询客户档案列表
-     * 
+     *
      * @param mdCustomer 客户档案
      * @return 客户档案集合
      */
@@ -28,7 +36,7 @@ public interface MdCustomerMapper
 
     /**
      * 新增客户档案
-     * 
+     *
      * @param mdCustomer 客户档案
      * @return 结果
      */
@@ -36,7 +44,7 @@ public interface MdCustomerMapper
 
     /**
      * 修改客户档案
-     * 
+     *
      * @param mdCustomer 客户档案
      * @return 结果
      */
@@ -44,7 +52,7 @@ public interface MdCustomerMapper
 
     /**
      * 删除客户档案
-     * 
+     *
      * @param customerId 客户id
      * @return 结果
      */
@@ -52,7 +60,7 @@ public interface MdCustomerMapper
 
     /**
      * 批量删除客户档案
-     * 
+     *
      * @param customerIds 需要删除的客户id
      * @return 结果
      */

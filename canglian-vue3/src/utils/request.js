@@ -78,6 +78,7 @@ service.interceptors.response.use(res => {
     const code = res.data.code || 200
     // 获取错误信息
     const msg = errorCode[code] || res.data.msg || errorCode['default']
+    const hideError = (res.config.headers || {}).hideError === true
     // 二进制数据则直接返回
     if (res.request.responseType ===  'blob' || res.request.responseType ===  'arraybuffer') {
       return res.data
@@ -96,13 +97,19 @@ service.interceptors.response.use(res => {
     }
       return Promise.reject('无效的会话，或者会话已过期，请重新登录。')
     } else if (code === 500) {
-      ElMessage({ message: msg, type: 'error' })
+      if (!hideError) {
+        ElMessage({ message: msg, type: 'error' })
+      }
       return Promise.reject(new Error(msg))
     } else if (code === 601) {
-      ElMessage({ message: msg, type: 'warning' })
+      if (!hideError) {
+        ElMessage({ message: msg, type: 'warning' })
+      }
       return Promise.reject(new Error(msg))
     } else if (code !== 200) {
-      ElNotification.error({ title: msg })
+      if (!hideError) {
+        ElNotification.error({ title: msg })
+      }
       return Promise.reject('error')
     } else {
       return  Promise.resolve(res.data)
@@ -118,7 +125,9 @@ service.interceptors.response.use(res => {
     } else if (message.includes('Request failed with status code')) {
       message = '系统接口' + message.slice(-3) + '异常'
     }
-    ElMessage({ message: message, type: 'error', duration: 5 * 1000 })
+    if (!(error.config && error.config.headers && error.config.headers.hideError === true)) {
+      ElMessage({ message: message, type: 'error', duration: 5 * 1000 })
+    }
     return Promise.reject(error)
   }
 )

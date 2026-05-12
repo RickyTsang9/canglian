@@ -56,6 +56,7 @@
           <el-button link type="primary" icon="Delete" :disabled="!canEditRow(scope.row)" @click="handleDelete(scope.row)" v-hasPermi="['business:purOrder:remove']">删除</el-button>
           <el-button link type="primary" icon="CircleCheck" :disabled="!canApproveRow(scope.row)" @click="handleApprove(scope.row)" v-hasPermi="['business:purOrder:approve']">审批</el-button>
           <el-button link type="primary" icon="Right" :disabled="!canPushRow(scope.row)" @click="handlePushInbound(scope.row)" v-hasPermi="['business:purOrder:pushInbound']">下推入库</el-button>
+          <el-button link type="primary" icon="Connection" @click="handleTrace(scope.row)" v-hasPermi="['business:trace:query']">链路</el-button>
           <el-button link type="primary" icon="Printer" @click="handlePrint(scope.row)" v-hasPermi="['business:purOrder:print']">打印</el-button>
         </template>
       </el-table-column>
@@ -145,11 +146,13 @@
         </div>
       </template>
     </el-dialog>
+    <business-trace-dialog ref="businessTraceRef" />
   </div>
 </template>
 
 <script setup name="PurOrder">
 import { listPurOrder, getPurOrder, addPurOrder, updatePurOrder, approvePurOrder, pushPurOrderToInbound, printPurOrder, delPurOrder } from "@/api/business/purOrder"
+import BusinessTraceDialog from "@/components/Canglian/BusinessTraceDialog.vue"
 
 const { proxy } = getCurrentInstance()
 
@@ -162,6 +165,7 @@ const isSingleDisabled = ref(true)
 const isMultipleDisabled = ref(true)
 const total = ref(0)
 const title = ref("")
+const businessTraceRef = ref(null)
 
 const bizStatusOptions = [
   { label: "草稿", value: "draft" },
@@ -296,6 +300,11 @@ function handlePushInbound(row) {
     proxy.$modal.msgSuccess("下推成功")
     getList()
   }).catch(() => {})
+}
+
+// 查看业务链路
+function handleTrace(row) {
+  businessTraceRef.value.open("pur_order", row.purchaseOrderId)
 }
 
 // 打印按钮操作

@@ -1,35 +1,13 @@
 <template>
   <div class="app-container home" v-loading="loading">
-    <el-row :gutter="16" class="summary-row">
-      <el-col :xs="24" :sm="12" :md="6">
-        <el-card class="summary-card">
-          <div class="summary-title">收入金额</div>
-          <div class="summary-value">{{ formatAmount(revenueExpenseData?.incomeAmount) }}</div>
-        </el-card>
-      </el-col>
-      <el-col :xs="24" :sm="12" :md="6">
-        <el-card class="summary-card">
-          <div class="summary-title">支出金额</div>
-          <div class="summary-value">{{ formatAmount(revenueExpenseData?.expenseAmount) }}</div>
-        </el-card>
-      </el-col>
-      <el-col :xs="24" :sm="12" :md="6">
-        <el-card class="summary-card">
-          <div class="summary-title">净额</div>
-          <div class="summary-value">{{ formatAmount(revenueExpenseData?.netAmount) }}</div>
-        </el-card>
-      </el-col>
-      <el-col :xs="24" :sm="12" :md="6">
-        <el-card class="summary-card">
-          <div class="summary-title">利润金额</div>
-          <div class="summary-value">{{ formatAmount(profitLossData?.profitAmount) }}</div>
-        </el-card>
-      </el-col>
-    </el-row>
-
-    <el-card class="filter-card">
-      <el-row :gutter="16" align="middle">
-        <el-col :xs="24" :sm="12" :md="10">
+    <section class="dashboard-header">
+      <div>
+        <h2>经营驾驶舱</h2>
+        <p>汇总当前周期内的收支、利润、成本结构和往来账龄。</p>
+      </div>
+      <div class="dashboard-filter">
+        <span v-if="dateRangeText">统计周期：{{ dateRangeText }}</span>
+        <div class="date-picker-wrap">
           <el-date-picker
             v-model="dateRange"
             value-format="YYYY-MM-DD"
@@ -38,48 +16,75 @@
             start-placeholder="开始日期"
             end-placeholder="结束日期"
           />
-        </el-col>
-        <el-col :xs="24" :sm="12" :md="14" class="range-text">
-          <span v-if="dateRangeText">统计周期：{{ dateRangeText }}</span>
-        </el-col>
-      </el-row>
-    </el-card>
+        </div>
+      </div>
+    </section>
+
+    <el-alert
+      v-if="dashboardError"
+      class="dashboard-alert"
+      title="首页报表暂时无法加载"
+      :description="dashboardError"
+      type="warning"
+      show-icon
+      :closable="false"
+    />
+
+    <el-row :gutter="16" class="summary-row">
+      <el-col v-for="summaryItem in summaryList" :key="summaryItem.title" :xs="24" :sm="12" :md="6">
+        <div class="summary-card">
+          <div class="summary-card-top">
+            <div class="summary-icon" :class="summaryItem.type">{{ summaryItem.icon }}</div>
+            <div>
+              <div class="summary-title">{{ summaryItem.title }}</div>
+              <div class="summary-subtitle">{{ summaryItem.subtitle }}</div>
+            </div>
+          </div>
+          <div class="summary-value">{{ formatAmount(summaryItem.value) }}</div>
+        </div>
+      </el-col>
+    </el-row>
 
     <el-row :gutter="16" class="chart-row">
       <el-col :xs="24" :lg="12">
-        <el-card>
+        <el-card class="chart-card">
           <template #header><span>利润表</span></template>
-          <div ref="profitLossChartRef" class="chart-panel"></div>
+          <div v-if="profitLossData" ref="profitLossChartRef" class="chart-panel"></div>
+          <el-empty v-else class="chart-empty" description="暂无利润表数据" />
         </el-card>
       </el-col>
       <el-col :xs="24" :lg="12">
-        <el-card>
+        <el-card class="chart-card">
           <template #header><span>收支汇总</span></template>
-          <div ref="revenueExpenseChartRef" class="chart-panel"></div>
+          <div v-if="revenueExpenseData" ref="revenueExpenseChartRef" class="chart-panel"></div>
+          <el-empty v-else class="chart-empty" description="暂无收支汇总数据" />
         </el-card>
       </el-col>
     </el-row>
 
     <el-row :gutter="16" class="chart-row">
       <el-col :xs="24" :lg="12">
-        <el-card>
+        <el-card class="chart-card">
           <template #header><span>成本结构</span></template>
-          <div ref="costStructureChartRef" class="chart-panel"></div>
+          <div v-if="costStructureList.length > 0" ref="costStructureChartRef" class="chart-panel"></div>
+          <el-empty v-else class="chart-empty" description="暂无成本结构数据" />
         </el-card>
       </el-col>
       <el-col :xs="24" :lg="12">
-        <el-card>
+        <el-card class="chart-card">
           <template #header><span>应收账龄</span></template>
-          <div ref="receivableAgingChartRef" class="chart-panel"></div>
+          <div v-if="receivableAgingList.length > 0" ref="receivableAgingChartRef" class="chart-panel"></div>
+          <el-empty v-else class="chart-empty" description="暂无应收账龄数据" />
         </el-card>
       </el-col>
     </el-row>
 
     <el-row :gutter="16" class="chart-row">
       <el-col :xs="24">
-        <el-card>
+        <el-card class="chart-card">
           <template #header><span>应付账龄</span></template>
-          <div ref="payableAgingChartRef" class="chart-panel"></div>
+          <div v-if="payableAgingList.length > 0" ref="payableAgingChartRef" class="chart-panel"></div>
+          <el-empty v-else class="chart-empty" description="暂无应付账龄数据" />
         </el-card>
       </el-col>
     </el-row>
@@ -92,6 +97,7 @@ import { receivableAging, payableAging, profitLoss, revenueExpense, costStructur
 
 const loading = ref(false)
 const dateRange = ref([])
+const dashboardError = ref("")
 const dateRangeText = computed(() => {
   if (Array.isArray(dateRange.value) && dateRange.value.length === 2) {
     return `${dateRange.value[0]} - ${dateRange.value[1]}`
@@ -122,6 +128,37 @@ let costStructureChartInstance = null
 let receivableAgingChartInstance = null
 let payableAgingChartInstance = null
 
+const summaryList = computed(() => [
+  {
+    title: "收入金额",
+    subtitle: "收款合计",
+    value: revenueExpenseData.value?.incomeAmount,
+    icon: "收",
+    type: "income"
+  },
+  {
+    title: "支出金额",
+    subtitle: "付款与费用",
+    value: revenueExpenseData.value?.expenseAmount,
+    icon: "支",
+    type: "expense"
+  },
+  {
+    title: "净额",
+    subtitle: "收支结余",
+    value: revenueExpenseData.value?.netAmount,
+    icon: "净",
+    type: "net"
+  },
+  {
+    title: "利润金额",
+    subtitle: "收入减成本",
+    value: profitLossData.value?.profitAmount,
+    icon: "利",
+    type: "profit"
+  }
+])
+
 function formatDateValue(dateValue) {
   const year = dateValue.getFullYear()
   const month = String(dateValue.getMonth() + 1).padStart(2, "0")
@@ -129,6 +166,7 @@ function formatDateValue(dateValue) {
   return `${year}-${month}-${day}`
 }
 
+// 初始化首页默认统计周期
 function initializeDateRange() {
   const currentDate = new Date()
   const previousYear = currentDate.getFullYear() - 1
@@ -141,16 +179,19 @@ function initializeDateRange() {
   dashboardQuery.endDate = formattedEndDate
 }
 
+// 格式化首页金额展示
 function formatAmount(value) {
   const numberValue = Number(value || 0)
   return numberValue.toLocaleString("zh-CN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 }
 
+// 加载首页驾驶舱报表
 function loadDashboardData() {
   if (!dashboardQuery.startDate || !dashboardQuery.endDate) {
     return
   }
   loading.value = true
+  dashboardError.value = ""
   Promise.all([
     profitLoss({ startDate: dashboardQuery.startDate, endDate: dashboardQuery.endDate }),
     revenueExpense({ startDate: dashboardQuery.startDate, endDate: dashboardQuery.endDate }),
@@ -170,9 +211,41 @@ function loadDashboardData() {
       renderReceivableAgingChart()
       renderPayableAgingChart()
     })
+  }).catch(() => {
+    clearDashboardData()
+    dashboardError.value = "请检查报表相关数据表字段是否已升级到最新结构，重点确认 fin_receipt、fin_payment、fin_expense 是否包含 amount 字段。"
   }).finally(() => {
     loading.value = false
   })
+}
+
+// 清空首页报表数据
+function clearDashboardData() {
+  profitLossData.value = null
+  revenueExpenseData.value = null
+  costStructureList.value = []
+  receivableAgingList.value = []
+  payableAgingList.value = []
+  clearChartInstances()
+}
+
+// 清空图表实例
+function clearChartInstances() {
+  if (profitLossChartInstance) {
+    profitLossChartInstance.clear()
+  }
+  if (revenueExpenseChartInstance) {
+    revenueExpenseChartInstance.clear()
+  }
+  if (costStructureChartInstance) {
+    costStructureChartInstance.clear()
+  }
+  if (receivableAgingChartInstance) {
+    receivableAgingChartInstance.clear()
+  }
+  if (payableAgingChartInstance) {
+    payableAgingChartInstance.clear()
+  }
 }
 
 function renderProfitLossChart() {
@@ -195,6 +268,7 @@ function renderProfitLossChart() {
   })
 }
 
+// 渲染收支汇总图表
 function renderRevenueExpenseChart() {
   if (!revenueExpenseChartRef.value || !revenueExpenseData.value) {
     return
@@ -215,6 +289,7 @@ function renderRevenueExpenseChart() {
   })
 }
 
+// 渲染成本结构图表
 function renderCostStructureChart() {
   if (!costStructureChartRef.value) {
     return
@@ -238,6 +313,7 @@ function renderCostStructureChart() {
   })
 }
 
+// 渲染应收账龄图表
 function renderReceivableAgingChart() {
   if (!receivableAgingChartRef.value) {
     return
@@ -272,6 +348,7 @@ function renderReceivableAgingChart() {
   })
 }
 
+// 渲染应付账龄图表
 function renderPayableAgingChart() {
   if (!payableAgingChartRef.value) {
     return
@@ -306,6 +383,7 @@ function renderPayableAgingChart() {
   })
 }
 
+// 重新计算首页图表尺寸
 function resizeCharts() {
   if (profitLossChartInstance) {
     profitLossChartInstance.resize()
@@ -363,25 +441,116 @@ onBeforeUnmount(() => {
   display: flex;
   flex-direction: column;
   gap: 16px;
+  background: #f5f7fb;
+}
+
+.dashboard-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 16px;
+  padding: 20px 22px;
+  border: 1px solid #e8edf5;
+  border-radius: 8px;
+  background: linear-gradient(135deg, #ffffff 0%, #f5fbff 100%);
+}
+
+.dashboard-header h2 {
+  margin: 0;
+  color: #1f2d3d;
+  font-size: 22px;
+  font-weight: 650;
+}
+
+.dashboard-header p {
+  margin: 8px 0 0;
+  color: #7a8599;
+  font-size: 14px;
+}
+
+.dashboard-filter {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: #7a8599;
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.date-picker-wrap {
+  max-width: 100%;
+}
+
+.dashboard-alert {
+  border-radius: 8px;
 }
 
 .summary-row {
-  margin-bottom: 8px;
+  row-gap: 16px;
 }
 
 .summary-card {
-  text-align: center;
+  min-height: 128px;
+  padding: 18px;
+  border: 1px solid #e8edf5;
+  border-radius: 8px;
+  background: #ffffff;
+  box-shadow: 0 10px 24px rgba(31, 45, 61, 0.04);
+}
+
+.summary-card-top {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.summary-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 8px;
+  color: #ffffff;
+  font-size: 15px;
+  font-weight: 650;
+}
+
+.summary-icon.income {
+  background: #1677ff;
+}
+
+.summary-icon.expense {
+  background: #f59e0b;
+}
+
+.summary-icon.net {
+  background: #0f8f8f;
+}
+
+.summary-icon.profit {
+  background: #22a06b;
 }
 
 .summary-title {
   font-size: 14px;
-  color: #909399;
+  color: #303846;
+  font-weight: 600;
+}
+
+.summary-subtitle {
+  margin-top: 4px;
+  color: #8a94a6;
+  font-size: 12px;
 }
 
 .summary-value {
-  font-size: 22px;
-  font-weight: 600;
-  margin-top: 6px;
+  margin-top: 20px;
+  color: #152033;
+  font-size: 24px;
+  font-weight: 700;
+  line-height: 1.2;
+  word-break: break-all;
 }
 
 .chart-row {
@@ -393,12 +562,60 @@ onBeforeUnmount(() => {
   height: 320px;
 }
 
-.filter-card {
-  margin-top: 4px;
+.chart-card {
+  min-height: 402px;
 }
 
-.range-text {
-  text-align: right;
-  color: #909399;
+.chart-empty {
+  height: 320px;
+}
+
+@media (max-width: 900px) {
+  .dashboard-header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .dashboard-filter {
+    align-items: flex-start;
+    flex-direction: column;
+    width: 100%;
+  }
+
+  .date-picker-wrap {
+    width: 100%;
+  }
+
+  .date-picker-wrap :deep(.el-date-editor) {
+    width: 100%;
+  }
+}
+
+@media (max-width: 560px) {
+  .home {
+    gap: 12px;
+  }
+
+  .dashboard-header {
+    padding: 16px;
+  }
+
+  .dashboard-header h2 {
+    font-size: 20px;
+  }
+
+  .summary-card {
+    min-height: 112px;
+    padding: 16px;
+  }
+
+  .chart-card {
+    min-height: 360px;
+  }
+
+  .chart-panel,
+  .chart-empty {
+    height: 280px;
+  }
 }
 </style>
