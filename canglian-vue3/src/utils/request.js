@@ -20,6 +20,24 @@ const service = axios.create({
   timeout: 10000
 })
 
+// 格式化后端错误提示，避免页面直接展示数据库表结构或SQL细节
+function formatBackendErrorMessage(messageText) {
+  const backendMessage = messageText || '系统接口异常'
+  const schemaErrorKeywords = [
+    'SQLSyntaxErrorException',
+    'bad SQL grammar',
+    'Unknown column',
+    "doesn't exist",
+    'The error may exist in file',
+    '### SQL:'
+  ]
+  const isSchemaError = schemaErrorKeywords.some(errorKeyword => backendMessage.includes(errorKeyword))
+  if (isSchemaError) {
+    return '当前数据库结构未完成升级，请执行最新数据库升级脚本后刷新页面。'
+  }
+  return backendMessage
+}
+
 // request拦截器
 service.interceptors.request.use(config => {
   // 是否需要设置 token
@@ -77,7 +95,7 @@ service.interceptors.response.use(res => {
     // 未设置状态码则默认成功状态
     const code = res.data.code || 200
     // 获取错误信息
-    const msg = errorCode[code] || res.data.msg || errorCode['default']
+    const msg = formatBackendErrorMessage(errorCode[code] || res.data.msg || errorCode['default'])
     const hideError = (res.config.headers || {}).hideError === true
     // 二进制数据则直接返回
     if (res.request.responseType ===  'blob' || res.request.responseType ===  'arraybuffer') {

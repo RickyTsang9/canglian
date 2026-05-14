@@ -92,7 +92,7 @@ const activeMenu = computed(() => {
       
       &.is-active {
         color: var(--menu-active-text, #409eff);
-        background-color: var(--menu-hover, rgba(0, 0, 0, 0.06)) !important;
+        background-color: var(--menu-active-bg, rgba(22, 119, 255, 0.16)) !important;
       }
     }
 

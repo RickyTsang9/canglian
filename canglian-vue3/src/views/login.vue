@@ -314,7 +314,7 @@ getCookie()
 
 .form-heading h3 {
   margin: 0;
-  color: #172033;
+  color: var(--login-heading, #172033);
   font-size: 24px;
   font-weight: 650;
 }
@@ -322,16 +322,16 @@ getCookie()
 .form-heading span {
   display: block;
   margin-top: 8px;
-  color: #7b8494;
+  color: var(--login-muted, #7b8494);
   font-size: 14px;
 }
 
 .login-form {
   width: 100%;
   padding: 34px 32px 18px;
-  border: 1px solid rgba(255, 255, 255, 0.72);
+  border: 1px solid var(--login-card-border, rgba(255, 255, 255, 0.72));
   border-radius: 12px;
-  background: rgba(255, 255, 255, 0.94);
+  background: var(--login-card-bg, rgba(255, 255, 255, 0.94));
   box-shadow: 0 24px 60px rgba(6, 22, 39, 0.24);
   backdrop-filter: blur(14px);
 }
@@ -365,9 +365,9 @@ getCookie()
   height: 44px;
   padding: 0;
   overflow: hidden;
-  border: 1px solid #dcdfe6;
+  border: 1px solid var(--login-code-border, #dcdfe6);
   border-radius: 4px;
-  background: #f7fafc;
+  background: var(--login-code-bg, #f7fafc);
   cursor: pointer;
 }
 

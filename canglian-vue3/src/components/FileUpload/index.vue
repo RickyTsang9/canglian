@@ -265,7 +265,7 @@ onMounted(() => {
   margin-right: 10px;
 }
 .upload-file-user {
-  color: #909399;
+  color: var(--panel-muted, #909399);
   margin-left: 8px;
 }
 </style>

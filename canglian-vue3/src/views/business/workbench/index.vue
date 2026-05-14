@@ -108,14 +108,14 @@ getSummary()
 <style scoped>
 .summary-title {
   font-size: 14px;
-  color: #606266;
+  color: var(--panel-muted, #606266);
 }
 
 .summary-value {
   margin-top: 12px;
   font-size: 30px;
   font-weight: 600;
-  color: #303133;
+  color: var(--panel-heading, #303133);
 }
 
 .mb16 {

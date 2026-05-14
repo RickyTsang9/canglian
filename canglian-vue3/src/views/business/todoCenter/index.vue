@@ -211,14 +211,14 @@ getSummary()
 }
 
 .page-title {
-  color: #1f2d3d;
+  color: var(--panel-heading, #1f2d3d);
   font-size: 20px;
   font-weight: 650;
 }
 
 .page-subtitle {
   margin-top: 6px;
-  color: #6b7280;
+  color: var(--panel-muted, #6b7280);
   font-size: 13px;
 }
 
@@ -230,17 +230,17 @@ getSummary()
   min-height: 118px;
   margin-bottom: 16px;
   padding: 18px;
-  border: 1px solid #e5eaf3;
+  border: 1px solid var(--panel-border, #e5eaf3);
   border-left: 4px solid #409eff;
   border-radius: 8px;
-  background: #ffffff;
+  background: var(--panel-bg, #ffffff);
   cursor: pointer;
   transition: border-color 0.2s, box-shadow 0.2s, transform 0.2s;
 }
 
 .summary-panel:hover {
   border-color: #c6e2ff;
-  box-shadow: 0 8px 18px rgba(31, 45, 61, 0.08);
+  box-shadow: var(--panel-shadow, 0 8px 18px rgba(31, 45, 61, 0.08));
   transform: translateY(-1px);
 }
 
@@ -261,13 +261,13 @@ getSummary()
 }
 
 .summary-label {
-  color: #606266;
+  color: var(--panel-text, #606266);
   font-size: 14px;
 }
 
 .summary-value {
   margin-top: 12px;
-  color: #1f2d3d;
+  color: var(--panel-heading, #1f2d3d);
   font-size: 30px;
   font-weight: 700;
   line-height: 1;
@@ -275,16 +275,16 @@ getSummary()
 
 .summary-desc {
   margin-top: 12px;
-  color: #909399;
+  color: var(--panel-muted, #909399);
   font-size: 13px;
 }
 
 .todo-panel {
   margin-bottom: 16px;
   padding: 16px;
-  border: 1px solid #e5eaf3;
+  border: 1px solid var(--panel-border, #e5eaf3);
   border-radius: 8px;
-  background: #ffffff;
+  background: var(--panel-bg, #ffffff);
 }
 
 .finance-panel {
@@ -296,7 +296,7 @@ getSummary()
   align-items: center;
   justify-content: space-between;
   margin-bottom: 12px;
-  color: #1f2d3d;
+  color: var(--panel-heading, #1f2d3d);
   font-size: 15px;
   font-weight: 650;
 }

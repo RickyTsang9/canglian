@@ -173,39 +173,39 @@ onMounted(() => {
 <style lang="scss">
 .topmenu-container.el-menu--horizontal > .el-menu-item {
   float: left;
-  height: 50px !important;
-  line-height: 50px !important;
-  color: #303133 !important;
+  height: 56px !important;
+  line-height: 56px !important;
+  color: var(--topmenu-text, #303133) !important;
   padding: 0 5px !important;
   margin: 0 10px !important;
 }
 
-.topmenu-container.el-menu--horizontal > .el-menu-item.is-active, .el-menu--horizontal > .el-sub-menu.is-active .el-submenu__title {
+.topmenu-container.el-menu--horizontal > .el-menu-item.is-active, .el-menu--horizontal > .el-sub-menu.is-active .el-sub-menu__title {
   border-bottom: 2px solid #{'var(--theme)'} !important;
-  color: #303133;
+  color: var(--topmenu-text, #303133);
 }
 
-/* sub-menu item */
+// sub-menu item
 .topmenu-container.el-menu--horizontal > .el-sub-menu .el-sub-menu__title {
   float: left;
-  height: 50px !important;
-  line-height: 50px !important;
-  color: #303133 !important;
+  height: 56px !important;
+  line-height: 56px !important;
+  color: var(--topmenu-text, #303133) !important;
   padding: 0 5px !important;
   margin: 0 10px !important;
 }
 
-/* 背景色隐藏 */
-.topmenu-container.el-menu--horizontal>.el-menu-item:not(.is-disabled):focus, .topmenu-container.el-menu--horizontal>.el-menu-item:not(.is-disabled):hover, .topmenu-container.el-menu--horizontal>.el-submenu .el-submenu__title:hover {
-  background-color: #ffffff;
+// 背景色隐藏
+.topmenu-container.el-menu--horizontal>.el-menu-item:not(.is-disabled):focus, .topmenu-container.el-menu--horizontal>.el-menu-item:not(.is-disabled):hover, .topmenu-container.el-menu--horizontal>.el-sub-menu .el-sub-menu__title:hover {
+  background-color: var(--topmenu-hover-bg, #ffffff);
 }
 
-/* 图标右间距 */
+// 图标右间距
 .topmenu-container .svg-icon {
   margin-right: 4px;
 }
 
-/* topmenu more arrow */
+// topmenu more arrow
 .topmenu-container .el-sub-menu .el-sub-menu__icon-arrow {
   position: static;
   vertical-align: middle;

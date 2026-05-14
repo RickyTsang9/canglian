@@ -150,18 +150,20 @@ async function toggleTheme(event) {
 }
 
 .navbar {
-  height: 50px;
+  height: 56px;
   overflow: hidden;
   position: relative;
   background: var(--navbar-bg);
-  box-shadow: 0 1px 4px rgba(0, 21, 41, 0.08);
+  border-bottom: 1px solid var(--navbar-border, #e6ecf4);
+  box-shadow: none;
   display: flex;
   align-items: center;
+  backdrop-filter: blur(12px);
   // padding: 0 8px;
   box-sizing: border-box;
 
   .hamburger-container {
-    line-height: 46px;
+    line-height: 56px;
     height: 100%;
     cursor: pointer;
     transition: background 0.3s;
@@ -172,7 +174,7 @@ async function toggleTheme(event) {
     margin-right: 8px;
 
     &:hover {
-      background: rgba(0, 0, 0, 0.025);
+      background: var(--primary-soft-bg, #edf5ff);
     }
   }
 
@@ -201,10 +203,11 @@ async function toggleTheme(event) {
 
   .right-menu {
     height: 100%;
-    line-height: 50px;
+    line-height: 56px;
     display: flex;
     align-items: center;
     margin-left: auto;
+    padding-right: 12px;
 
     &:focus {
       outline: none;
@@ -215,7 +218,7 @@ async function toggleTheme(event) {
       padding: 0 8px;
       height: 100%;
       font-size: 18px;
-      color: #5a5e66;
+      color: var(--navbar-text, #263447);
       vertical-align: text-bottom;
 
       &.hover-effect {
@@ -223,7 +226,7 @@ async function toggleTheme(event) {
         transition: background 0.3s;
 
         &:hover {
-          background: rgba(0, 0, 0, 0.025);
+          background: var(--primary-soft-bg, #edf5ff);
         }
       }
 
@@ -246,24 +249,30 @@ async function toggleTheme(event) {
       padding-right: 0px;
 
       .avatar-wrapper {
-        margin-top: 10px;
-        right: 8px;
-        position: relative;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        height: 36px;
+        margin-top: 0;
+        padding: 0 12px 0 8px;
+        border: 1px solid var(--navbar-border, #e6ecf4);
+        border-radius: 999px;
+        background: var(--navbar-avatar-bg, rgba(255, 255, 255, 0.72));
 
         .user-avatar {
           cursor: pointer;
-          width: 30px;
-          height: 30px;
-          margin-right: 8px;
+          width: 28px;
+          height: 28px;
+          margin-right: 0;
           border-radius: 50%;
         }
 
         .user-nickname{
-          position: relative;
-          left: 0px;
-          bottom: 10px;
+          position: static;
           font-size: 14px;
-          font-weight: bold;
+          font-weight: 650;
+          line-height: 1;
+          color: var(--navbar-text, #263447);
         }
 
         i {

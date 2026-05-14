@@ -263,9 +263,10 @@ function handleScroll() {
 .tags-view-container {
   height: 34px;
   width: 100%;
-  background: var(--tags-bg, #fff);
-  border-bottom: 1px solid var(--tags-item-border, #d8dce5);
-  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, .12), 0 0 3px 0 rgba(0, 0, 0, .04);
+  background: var(--tags-bg, rgba(255, 255, 255, 0.86));
+  border-bottom: 1px solid var(--navbar-border, #e6ecf4);
+  box-shadow: none;
+  backdrop-filter: blur(12px);
 
   .tags-view-wrapper {
     .tags-view-item {
@@ -274,13 +275,15 @@ function handleScroll() {
       cursor: pointer;
       height: 26px;
       line-height: 26px;
-      border: 1px solid var(--tags-item-border, #d8dce5);
-      color: var(--tags-item-text, #495060);
-      background: var(--tags-item-bg, #fff);
-      padding: 0 8px;
+      border: 1px solid transparent;
+      border-radius: 999px;
+      color: var(--tags-item-text, #526171);
+      background: var(--tags-item-bg, #f2f6fb);
+      padding: 0 10px;
       font-size: 12px;
       margin-left: 5px;
       margin-top: 4px;
+      transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease;
 
       &:first-of-type {
         margin-left: 15px;
@@ -294,6 +297,7 @@ function handleScroll() {
         background-color: #42b983;
         color: #fff;
         border-color: #42b983;
+        box-shadow: 0 8px 18px rgba(22, 119, 255, 0.18);
 
         &::before {
           content: '';
@@ -320,11 +324,11 @@ function handleScroll() {
     position: absolute;
     list-style-type: none;
     padding: 5px 0;
-    border-radius: 4px;
+    border-radius: 8px;
     font-size: 12px;
     font-weight: 400;
     color: var(--tags-item-text, #333);
-    box-shadow: 2px 2px 3px 0 rgba(0, 0, 0, .3);
+    box-shadow: 0 16px 36px rgba(15, 35, 67, 0.18);
     border: 1px solid var(--el-border-color-light, #e4e7ed);
 
     li {

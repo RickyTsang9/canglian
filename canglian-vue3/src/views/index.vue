@@ -94,8 +94,10 @@
 <script setup name="Index">
 import * as echarts from "echarts"
 import { receivableAging, payableAging, profitLoss, revenueExpense, costStructure } from "@/api/business/report"
+import useSettingsStore from "@/store/modules/settings"
 
 const loading = ref(false)
+const settingsStore = useSettingsStore()
 const dateRange = ref([])
 const dashboardError = ref("")
 const dateRangeText = computed(() => {
@@ -158,6 +160,26 @@ const summaryList = computed(() => [
     type: "profit"
   }
 ])
+
+const chartTextColor = computed(() => settingsStore.isDark ? "#d6deeb" : "#526171")
+const chartAxisLineColor = computed(() => settingsStore.isDark ? "#314057" : "#d8e1ec")
+const chartSplitLineColor = computed(() => settingsStore.isDark ? "#263449" : "#edf1f7")
+
+// 获取首页图表坐标轴通用样式
+function getChartAxisStyle() {
+  return {
+    axisLabel: { color: chartTextColor.value },
+    axisLine: { lineStyle: { color: chartAxisLineColor.value } },
+    splitLine: { lineStyle: { color: chartSplitLineColor.value } }
+  }
+}
+
+// 获取首页图表图例通用样式
+function getChartLegendStyle() {
+  return {
+    textStyle: { color: chartTextColor.value }
+  }
+}
 
 function formatDateValue(dateValue) {
   const year = dateValue.getFullYear()
@@ -248,6 +270,7 @@ function clearChartInstances() {
   }
 }
 
+// 渲染利润表图表
 function renderProfitLossChart() {
   if (!profitLossChartRef.value || !profitLossData.value) {
     return
@@ -262,8 +285,8 @@ function renderProfitLossChart() {
   ]
   profitLossChartInstance.setOption({
     tooltip: { trigger: "axis" },
-    xAxis: { type: "category", data: ["收入金额", "成本费用", "利润金额"] },
-    yAxis: { type: "value" },
+    xAxis: { type: "category", data: ["收入金额", "成本费用", "利润金额"], ...getChartAxisStyle() },
+    yAxis: { type: "value", ...getChartAxisStyle() },
     series: [{ type: "bar", data: profitLossChartData }]
   })
 }
@@ -283,8 +306,8 @@ function renderRevenueExpenseChart() {
   ]
   revenueExpenseChartInstance.setOption({
     tooltip: { trigger: "axis" },
-    xAxis: { type: "category", data: ["收入金额", "支出金额", "净额"] },
-    yAxis: { type: "value" },
+    xAxis: { type: "category", data: ["收入金额", "支出金额", "净额"], ...getChartAxisStyle() },
+    yAxis: { type: "value", ...getChartAxisStyle() },
     series: [{ type: "bar", data: revenueExpenseChartData }]
   })
 }
@@ -302,7 +325,7 @@ function renderCostStructureChart() {
   })
   costStructureChartInstance.setOption({
     tooltip: { trigger: "item" },
-    legend: { top: "bottom" },
+    legend: { top: "bottom", ...getChartLegendStyle() },
     series: [
       {
         type: "pie",
@@ -335,9 +358,9 @@ function renderReceivableAgingChart() {
   const days90AboveAmounts = receivableAgingList.value.map(item => Number(item.days90AboveAmount || 0))
   receivableAgingChartInstance.setOption({
     tooltip: { trigger: "axis", axisPointer: { type: "shadow" } },
-    legend: { data: ["未逾期", "0-30天", "31-60天", "61-90天", "90天以上"] },
-    xAxis: { type: "category", data: labels },
-    yAxis: { type: "value" },
+    legend: { data: ["未逾期", "0-30天", "31-60天", "61-90天", "90天以上"], ...getChartLegendStyle() },
+    xAxis: { type: "category", data: labels, ...getChartAxisStyle() },
+    yAxis: { type: "value", ...getChartAxisStyle() },
     series: [
       { name: "未逾期", type: "bar", stack: "total", data: notDueAmounts },
       { name: "0-30天", type: "bar", stack: "total", data: days0To30Amounts },
@@ -370,9 +393,9 @@ function renderPayableAgingChart() {
   const days90AboveAmounts = payableAgingList.value.map(item => Number(item.days90AboveAmount || 0))
   payableAgingChartInstance.setOption({
     tooltip: { trigger: "axis", axisPointer: { type: "shadow" } },
-    legend: { data: ["未逾期", "0-30天", "31-60天", "61-90天", "90天以上"] },
-    xAxis: { type: "category", data: labels },
-    yAxis: { type: "value" },
+    legend: { data: ["未逾期", "0-30天", "31-60天", "61-90天", "90天以上"], ...getChartLegendStyle() },
+    xAxis: { type: "category", data: labels, ...getChartAxisStyle() },
+    yAxis: { type: "value", ...getChartAxisStyle() },
     series: [
       { name: "未逾期", type: "bar", stack: "total", data: notDueAmounts },
       { name: "0-30天", type: "bar", stack: "total", data: days0To30Amounts },
@@ -410,6 +433,16 @@ watch(dateRange, () => {
   }
 })
 
+watch(() => settingsStore.isDark, () => {
+  nextTick(() => {
+    renderProfitLossChart()
+    renderRevenueExpenseChart()
+    renderCostStructureChart()
+    renderReceivableAgingChart()
+    renderPayableAgingChart()
+  })
+})
+
 onMounted(() => {
   initializeDateRange()
   loadDashboardData()
@@ -441,7 +474,7 @@ onBeforeUnmount(() => {
   display: flex;
   flex-direction: column;
   gap: 16px;
-  background: #f5f7fb;
+  background: var(--page-bg, #f5f7fb);
 }
 
 .dashboard-header {
@@ -450,21 +483,21 @@ onBeforeUnmount(() => {
   align-items: flex-end;
   gap: 16px;
   padding: 20px 22px;
-  border: 1px solid #e8edf5;
+  border: 1px solid var(--panel-border, #e8edf5);
   border-radius: 8px;
-  background: linear-gradient(135deg, #ffffff 0%, #f5fbff 100%);
+  background: var(--home-header-bg, linear-gradient(135deg, #ffffff 0%, #f5fbff 100%));
 }
 
 .dashboard-header h2 {
   margin: 0;
-  color: #1f2d3d;
+  color: var(--panel-heading, #1f2d3d);
   font-size: 22px;
   font-weight: 650;
 }
 
 .dashboard-header p {
   margin: 8px 0 0;
-  color: #7a8599;
+  color: var(--panel-muted, #7a8599);
   font-size: 14px;
 }
 
@@ -472,7 +505,7 @@ onBeforeUnmount(() => {
   display: flex;
   align-items: center;
   gap: 12px;
-  color: #7a8599;
+  color: var(--panel-muted, #7a8599);
   font-size: 13px;
   white-space: nowrap;
 }
@@ -492,10 +525,10 @@ onBeforeUnmount(() => {
 .summary-card {
   min-height: 128px;
   padding: 18px;
-  border: 1px solid #e8edf5;
+  border: 1px solid var(--panel-border, #e8edf5);
   border-radius: 8px;
-  background: #ffffff;
-  box-shadow: 0 10px 24px rgba(31, 45, 61, 0.04);
+  background: var(--panel-bg, #ffffff);
+  box-shadow: var(--panel-shadow, 0 10px 24px rgba(31, 45, 61, 0.04));
 }
 
 .summary-card-top {
@@ -534,19 +567,19 @@ onBeforeUnmount(() => {
 
 .summary-title {
   font-size: 14px;
-  color: #303846;
+  color: var(--panel-text, #303846);
   font-weight: 600;
 }
 
 .summary-subtitle {
   margin-top: 4px;
-  color: #8a94a6;
+  color: var(--panel-muted, #8a94a6);
   font-size: 12px;
 }
 
 .summary-value {
   margin-top: 20px;
-  color: #152033;
+  color: var(--panel-heading, #152033);
   font-size: 24px;
   font-weight: 700;
   line-height: 1.2;

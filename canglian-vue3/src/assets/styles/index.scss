@@ -11,7 +11,9 @@ body {
   -moz-osx-font-smoothing: grayscale;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
-  font-family: Helvetica Neue, Helvetica, PingFang SC, Hiragino Sans GB, Microsoft YaHei, Arial, sans-serif;
+  background: var(--page-bg, #f4f7fb);
+  color: var(--panel-text, #263447);
+  font-family: Inter, "Segoe UI", Helvetica Neue, Helvetica, PingFang SC, Hiragino Sans GB, Microsoft YaHei, Arial, sans-serif;
 }
 
 label {
@@ -25,6 +27,7 @@ html {
 
 #app {
   height: 100%;
+  background: var(--page-bg, #f4f7fb);
 }
 
 *,
@@ -120,9 +123,10 @@ aside {
   }
 }
 
-//main-container全局样式
+// main-container全局样式
 .app-container {
-  padding: 20px;
+  padding: 20px 22px;
+  background: var(--page-bg, #f4f7fb);
 }
 
 .components-container {
@@ -176,5 +180,64 @@ aside {
     vertical-align: middle;
     margin-bottom: 10px;
   }
+}
+
+.el-button,
+.el-input__wrapper,
+.el-select__wrapper,
+.el-textarea__inner,
+.el-date-editor,
+.el-card,
+.el-dialog {
+  border-radius: 8px;
+}
+
+.el-button {
+  font-weight: 600;
+  letter-spacing: 0;
+}
+
+.el-button--primary {
+  --el-button-bg-color: #1677ff;
+  --el-button-border-color: #1677ff;
+  --el-button-hover-bg-color: #4096ff;
+  --el-button-hover-border-color: #4096ff;
+}
+
+.el-card {
+  border: 1px solid var(--panel-border, #e5ebf3) !important;
+  box-shadow: var(--panel-shadow, 0 12px 32px rgba(15, 35, 67, 0.06)) !important;
+}
+
+.el-card__header {
+  border-bottom-color: var(--panel-border, #e5ebf3) !important;
+}
+
+.el-table {
+  --el-table-header-bg-color: var(--table-header-bg, #f7f9fc);
+  --el-table-header-text-color: var(--table-header-text, #4b5a6c);
+  --el-table-row-hover-bg-color: var(--table-row-hover-bg, #f3f8ff);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.el-table th.el-table__cell {
+  font-weight: 650;
+}
+
+.el-form--inline {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 8px;
+  align-items: flex-start;
+}
+
+.search-form,
+.query-form {
+  padding: 16px 16px 6px;
+  border: 1px solid var(--panel-border, #e5ebf3);
+  border-radius: 8px;
+  background: var(--panel-bg, #ffffff);
+  box-shadow: var(--panel-shadow, 0 12px 32px rgba(15, 35, 67, 0.06));
 }
 

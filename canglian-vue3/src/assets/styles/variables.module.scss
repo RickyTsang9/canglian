@@ -1,6 +1,6 @@
 // base color
-$blue: #324157;
-$light-blue: #333c46;
+$blue: #1b3a57;
+$light-blue: #3f5f7d;
 $red: #C03639;
 $pink: #E65D6E;
 $green: #30B08F;
@@ -9,30 +9,30 @@ $yellow: #FEC171;
 $panGreen: #30B08F;
 
 // 默认主题变量
-$menuText: #bfcbd9;
-$menuActiveText: #409eff;
-$menuBg: #304156;
-$menuHover: #263445;
+$menuText: #b8c4d6;
+$menuActiveText: #ffffff;
+$menuBg: #102033;
+$menuHover: #182b42;
 
 // 浅色主题theme-light
 $menuLightBg: #ffffff;
-$menuLightHover: #f0f1f5;
-$menuLightText: #303133;
-$menuLightActiveText: #409EFF;
+$menuLightHover: #eef4ff;
+$menuLightText: #263447;
+$menuLightActiveText: #1677ff;
 
 // 基础变量
-$base-sidebar-width: 200px;
-$sideBarWidth: 200px;
+$base-sidebar-width: 216px;
+$sideBarWidth: 216px;
 
 // 菜单暗色变量
-$base-menu-color: #bfcbd9;
-$base-menu-color-active: #f4f4f5;
-$base-menu-background: #304156;
-$base-sub-menu-background: #1f2d3d;
-$base-sub-menu-hover: #001528;
+$base-menu-color: #b8c4d6;
+$base-menu-color-active: #ffffff;
+$base-menu-background: #102033;
+$base-sub-menu-background: #0b1726;
+$base-sub-menu-hover: #162a42;
 
 // 组件变量
-$--color-primary: #409EFF;
+$--color-primary: #1677ff;
 $--color-success: #67C23A;
 $--color-warning: #E6A23C;
 $--color-danger: #F56C6C;
@@ -71,9 +71,33 @@ $--color-info: #909399;
   --sidebar-bg: #{$menuBg};
   --sidebar-text: #{$menuText};
   --menu-hover: #{$menuHover};
+  --menu-active-bg: rgba(22, 119, 255, 0.16);
+  --menu-active-border: #3aa0ff;
   
-  --navbar-bg: #ffffff;
-  --navbar-text: #303133;
+  --page-bg: #f4f7fb;
+  --panel-bg: #ffffff;
+  --panel-border: #e5ebf3;
+  --panel-text: #263447;
+  --panel-heading: #172033;
+  --panel-muted: #7a8599;
+  --table-header-bg: #f7f9fc;
+  --table-header-text: #4b5a6c;
+  --table-row-hover-bg: #f3f8ff;
+  --panel-shadow: 0 12px 32px rgba(15, 35, 67, 0.06);
+  --navbar-bg: rgba(255, 255, 255, 0.9);
+  --navbar-text: #263447;
+  --navbar-border: #e6ecf4;
+  --navbar-avatar-bg: rgba(255, 255, 255, 0.72);
+  --topmenu-text: #303133;
+  --topmenu-hover-bg: #ffffff;
+  --home-header-bg: linear-gradient(135deg, #ffffff 0%, #f5fbff 100%);
+  --primary-soft-bg: #edf5ff;
+  --login-card-bg: rgba(255, 255, 255, 0.94);
+  --login-card-border: rgba(255, 255, 255, 0.72);
+  --login-heading: #172033;
+  --login-muted: #7b8494;
+  --login-code-bg: #f7fafc;
+  --login-code-border: #dcdfe6;
   
   /* splitpanes default-theme 变量 */
   --splitpanes-default-bg: #ffffff;
@@ -91,18 +115,42 @@ html.dark {
   --el-border-color-light: #434343;
   
   /* primary */
-  --primary-bg: #18212b;
+  --primary-bg: #16243a;
+  --page-bg: #101721;
+  --panel-bg: #171f2b;
+  --panel-border: #263449;
+  --panel-text: #d6deeb;
+  --panel-heading: #ffffff;
+  --panel-muted: #8d9bb0;
+  --table-header-bg: #1d2735;
+  --table-header-text: #d6deeb;
+  --table-row-hover-bg: #1d2a3d;
+  --panel-shadow: 0 12px 32px rgba(0, 0, 0, 0.26);
 
   /* 侧边栏 */
   --sidebar-bg: #141414;
   --sidebar-text: #ffffff;
-  --menu-hover: #2d2d2d;
+  --menu-hover: #1d2a3d;
+  --menu-active-bg: rgba(22, 119, 255, 0.2);
+  --menu-active-border: #4fa3ff;
   --menu-active-text: #{$menuActiveText};
 
   /* 顶部导航栏 */
-  --navbar-bg: #141414;
+  --navbar-bg: rgba(20, 20, 20, 0.92);
   --navbar-text: #ffffff;
-  --navbar-hover: #141414;
+  --navbar-hover: #1d2a3d;
+  --navbar-border: #273245;
+  --navbar-avatar-bg: rgba(29, 42, 61, 0.86);
+  --topmenu-text: #d6deeb;
+  --topmenu-hover-bg: #1d2a3d;
+  --home-header-bg: linear-gradient(135deg, #171f2b 0%, #121c2a 100%);
+  --primary-soft-bg: #14243d;
+  --login-card-bg: rgba(23, 31, 43, 0.94);
+  --login-card-border: rgba(77, 94, 121, 0.72);
+  --login-heading: #ffffff;
+  --login-muted: #9aa7bb;
+  --login-code-bg: #121a25;
+  --login-code-border: #344155;
 
   /* 标签栏 */
   --tags-bg: #141414;

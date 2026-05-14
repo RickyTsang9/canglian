@@ -830,22 +830,22 @@ watch(() => overviewData.productRankList, () => {
   }
 
   .product-filter-panel {
-    background: #f8fbff;
-    border: 1px solid #ebf3ff;
+    background: var(--primary-soft-bg, #f8fbff);
+    border: 1px solid var(--panel-border, #ebf3ff);
     border-radius: 8px;
     padding: 12px;
   }
 
   .stock-summary-card {
     border-radius: 8px;
-    background: #fff;
-    border: 1px solid #edf2fb;
+    background: var(--panel-bg, #fff);
+    border: 1px solid var(--panel-border, #edf2fb);
     padding: 10px 12px;
     margin-top: 10px;
   }
 
   .stock-summary-title {
-    color: #5e6b85;
+    color: var(--panel-muted, #5e6b85);
     font-size: 13px;
     margin-bottom: 4px;
   }
@@ -861,11 +861,11 @@ watch(() => overviewData.productRankList, () => {
   }
 
   .rank-panel {
-    border: 1px solid #edf2fb;
+    border: 1px solid var(--panel-border, #edf2fb);
     border-radius: 8px;
     padding: 12px;
     min-height: 480px;
-    background: #fff;
+    background: var(--panel-bg, #fff);
   }
 
   .rank-header {
@@ -883,7 +883,7 @@ watch(() => overviewData.productRankList, () => {
   }
 
   .rank-count {
-    color: #8c98ae;
+    color: var(--panel-muted, #8c98ae);
     font-size: 13px;
   }
 }
