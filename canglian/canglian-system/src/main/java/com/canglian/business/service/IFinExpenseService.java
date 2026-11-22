@@ -51,6 +51,9 @@ public interface IFinExpenseService
      */
     public int confirmFinExpense(Long expenseId, String operator);
 
+    /** 反确认费用单（开放账期、未生成凭证，退回资金账户并恢复草稿） */
+    public int unconfirmFinExpense(Long expenseId, String operator);
+
     /**
      * 删除费用
      * 

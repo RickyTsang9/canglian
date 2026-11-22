@@ -5,38 +5,39 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
 <mapper namespace="com.canglian.business.mapper.MdProductMapper">
 
     <resultMap type="MdProduct" id="MdProductResult">
-        <id     property="productId"      column="product_id"     />
-        <result property="productCode"    column="product_code"   />
-        <result property="productName"    column="product_name"   />
-        <result property="productSpec"    column="product_spec"   />
-        <result property="unitName"       column="unit_name"      />
-        <result property="purchaseUnit"   column="purchase_unit"  />
-        <result property="saleUnit"       column="sale_unit"      />
-        <result property="baseUnit"       column="base_unit"      />
-        <result property="unitConvertRatio" column="unit_convert_ratio" />
-        <result property="enableBatch"    column="enable_batch"   />
-        <result property="shelfLifeDays"  column="shelf_life_days" />
-        <result property="enableSerial"   column="enable_serial"  />
-        <result property="warningMinQty"  column="warning_min_qty" />
-        <result property="warningMaxQty"  column="warning_max_qty" />
-        <result property="barCode"        column="bar_code"       />
-        <result property="categoryName"   column="category_name"  />
-        <result property="brandName"      column="brand_name"     />
-        <result property="productImage"   column="product_image"  />
-        <result property="costPrice"      column="cost_price"     />
-        <result property="salePrice"      column="sale_price"     />
-        <result property="status"         column="status"         />
-        <result property="delFlag"        column="del_flag"       />
-        <result property="createBy"       column="create_by"      />
-        <result property="createTime"     column="create_time"    />
-        <result property="updateBy"       column="update_by"      />
-        <result property="updateTime"     column="update_time"    />
-        <result property="remark"         column="remark"         />
+        <id     property="productId"         column="product_id"          />
+        <result property="productCode"       column="product_code"        />
+        <result property="productName"       column="product_name"        />
+        <result property="productSpec"       column="product_spec"        />
+        <result property="unitName"          column="unit_name"           />
+        <result property="purchaseUnit"      column="purchase_unit"       />
+        <result property="saleUnit"          column="sale_unit"           />
+        <result property="baseUnit"          column="base_unit"           />
+        <result property="unitConvertRatio"  column="unit_convert_ratio"  />
+        <result property="enableBatch"       column="enable_batch"        />
+        <result property="shelfLifeDays"     column="shelf_life_days"     />
+        <result property="warningBeforeDays" column="warning_before_days" />
+        <result property="enableSerial"      column="enable_serial"       />
+        <result property="warningMinQty"     column="warning_min_qty"     />
+        <result property="warningMaxQty"     column="warning_max_qty"     />
+        <result property="barCode"           column="bar_code"            />
+        <result property="categoryName"      column="category_name"       />
+        <result property="brandName"         column="brand_name"          />
+        <result property="productImage"      column="product_image"       />
+        <result property="costPrice"         column="cost_price"          />
+        <result property="salePrice"         column="sale_price"          />
+        <result property="status"            column="status"              />
+        <result property="delFlag"           column="del_flag"            />
+        <result property="createBy"          column="create_by"           />
+        <result property="createTime"        column="create_time"         />
+        <result property="updateBy"          column="update_by"           />
+        <result property="updateTime"        column="update_time"         />
+        <result property="remark"            column="remark"              />
     </resultMap>
 
     <sql id="selectMdProductVo">
         select product_id, product_code, product_name, product_spec, unit_name, purchase_unit, sale_unit, base_unit,
-               unit_convert_ratio, enable_batch, shelf_life_days, enable_serial, warning_min_qty, warning_max_qty,
+               unit_convert_ratio, enable_batch, shelf_life_days, warning_before_days, enable_serial, warning_min_qty, warning_max_qty,
                bar_code, category_name, brand_name,
                product_image, cost_price, sale_price, status, del_flag, create_by, create_time, update_by, update_time, remark
         from md_product
@@ -93,6 +94,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             <if test="unitConvertRatio != null">unit_convert_ratio,</if>
             <if test="enableBatch != null">enable_batch,</if>
             <if test="shelfLifeDays != null">shelf_life_days,</if>
+            <if test="warningBeforeDays != null">warning_before_days,</if>
             <if test="enableSerial != null">enable_serial,</if>
             <if test="warningMinQty != null">warning_min_qty,</if>
             <if test="warningMaxQty != null">warning_max_qty,</if>
@@ -120,6 +122,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             <if test="unitConvertRatio != null">#{unitConvertRatio},</if>
             <if test="enableBatch != null">#{enableBatch},</if>
             <if test="shelfLifeDays != null">#{shelfLifeDays},</if>
+            <if test="warningBeforeDays != null">#{warningBeforeDays},</if>
             <if test="enableSerial != null">#{enableSerial},</if>
             <if test="warningMinQty != null">#{warningMinQty},</if>
             <if test="warningMaxQty != null">#{warningMaxQty},</if>
@@ -151,6 +154,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             <if test="unitConvertRatio != null">unit_convert_ratio = #{unitConvertRatio},</if>
             <if test="enableBatch != null">enable_batch = #{enableBatch},</if>
             <if test="shelfLifeDays != null">shelf_life_days = #{shelfLifeDays},</if>
+            <if test="warningBeforeDays != null">warning_before_days = #{warningBeforeDays},</if>
             <if test="enableSerial != null">enable_serial = #{enableSerial},</if>
             <if test="warningMinQty != null">warning_min_qty = #{warningMinQty},</if>
             <if test="warningMaxQty != null">warning_max_qty = #{warningMaxQty},</if>
@@ -179,5 +183,23 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             #{productId}
         </foreach>
     </delete>
-</mapper>
 
+    <select id="countProductReferences" parameterType="Long" resultType="int">
+        select
+            (select count(1) from wms_stock where product_id = #{productId})
+          + (select count(1) from pur_order_item where product_id = #{productId})
+          + (select count(1) from sal_order_item where product_id = #{productId})
+          + (select count(1) from wms_inbound_item where product_id = #{productId})
+          + (select count(1) from wms_outbound_item where product_id = #{productId})
+          + (select count(1) from wms_transfer_item where product_id = #{productId})
+          + (select count(1) from wms_inventory_check_item where product_id = #{productId})
+          + (select count(1) from wms_purchase_return_item where product_id = #{productId})
+          + (select count(1) from wms_sale_return_item where product_id = #{productId})
+          + (select count(1) from wms_stock_log where product_id = #{productId})
+          + (select count(1) from wms_serial_no where product_id = #{productId})
+          + (select count(1) from fin_cost_account where product_id = #{productId})
+          + (select count(1) from price_customer_special where product_id = #{productId})
+          + (select count(1) from price_customer_level where product_id = #{productId})
+          + (select count(1) from price_recent_transaction where product_id = #{productId})
+    </select>
+</mapper>

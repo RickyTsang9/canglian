@@ -25,6 +25,9 @@ public class MdProductServiceImpl implements IMdProductService
     @Autowired
     private WmsStockMapper wmsStockMapper;
 
+    @Autowired(required = false)
+    private com.canglian.business.service.IMdProductUnitService mdProductUnitService;
+
     /**
      * 查询商品档案信息
      *
@@ -82,6 +85,14 @@ public class MdProductServiceImpl implements IMdProductService
                 else if (Boolean.TRUE.equals(updateSupport))
                 {
                     mdProduct.setProductId(existingMdProduct.getProductId());
+                    if (mdProduct.getWarningMinQty() == null)
+                    {
+                        mdProduct.setWarningMinQty(existingMdProduct.getWarningMinQty());
+                    }
+                    if (mdProduct.getWarningMaxQty() == null)
+                    {
+                        mdProduct.setWarningMaxQty(existingMdProduct.getWarningMaxQty());
+                    }
                     mdProduct.setUpdateBy(operator);
                     updateMdProduct(mdProduct);
                     successNumber++;
@@ -108,8 +119,22 @@ public class MdProductServiceImpl implements IMdProductService
     @Override
     public int insertMdProduct(MdProduct mdProduct)
     {
+        validateProductCodeUnique(mdProduct);
         fillDefaultWarningQty(mdProduct);
-        return mdProductMapper.insertMdProduct(mdProduct);
+        if (StringUtils.isEmpty(mdProduct.getBaseUnit()) && StringUtils.isNotEmpty(mdProduct.getUnitName()))
+        {
+            mdProduct.setBaseUnit(mdProduct.getUnitName().trim());
+        }
+        else if (StringUtils.isEmpty(mdProduct.getUnitName()) && StringUtils.isNotEmpty(mdProduct.getBaseUnit()))
+        {
+            mdProduct.setUnitName(mdProduct.getBaseUnit().trim());
+        }
+        int rows = mdProductMapper.insertMdProduct(mdProduct);
+        if (rows > 0 && mdProductUnitService != null)
+        {
+            mdProductUnitService.syncBaseUnitForProduct(mdProduct);
+        }
+        return rows;
     }
 
     /**
@@ -121,12 +146,25 @@ public class MdProductServiceImpl implements IMdProductService
     @Override
     public int updateMdProduct(MdProduct mdProduct)
     {
+        validateProductCodeUnique(mdProduct);
         MdProduct originalMdProduct = mdProductMapper.selectMdProductById(mdProduct.getProductId());
         fillDefaultWarningQty(mdProduct);
+        if (StringUtils.isEmpty(mdProduct.getBaseUnit()) && StringUtils.isNotEmpty(mdProduct.getUnitName()))
+        {
+            mdProduct.setBaseUnit(mdProduct.getUnitName().trim());
+        }
+        else if (StringUtils.isEmpty(mdProduct.getUnitName()) && StringUtils.isNotEmpty(mdProduct.getBaseUnit()))
+        {
+            mdProduct.setUnitName(mdProduct.getBaseUnit().trim());
+        }
         int updateRows = mdProductMapper.updateMdProduct(mdProduct);
         if (updateRows > 0 && originalMdProduct != null)
         {
             syncStockWarningQty(mdProduct, originalMdProduct);
+        }
+        if (updateRows > 0 && mdProductUnitService != null)
+        {
+            mdProductUnitService.syncBaseUnitForProduct(mdProduct);
         }
         return updateRows;
     }
@@ -140,6 +178,7 @@ public class MdProductServiceImpl implements IMdProductService
     @Override
     public int deleteMdProductById(Long productId)
     {
+        validateProductDeletable(productId);
         return mdProductMapper.deleteMdProductById(productId);
     }
 
@@ -152,7 +191,39 @@ public class MdProductServiceImpl implements IMdProductService
     @Override
     public int deleteMdProductByIds(Long[] productIds)
     {
+        if (productIds != null)
+        {
+            for (Long productId : productIds)
+            {
+                validateProductDeletable(productId);
+            }
+        }
         return mdProductMapper.deleteMdProductByIds(productIds);
+    }
+
+    private void validateProductCodeUnique(MdProduct mdProduct)
+    {
+        if (mdProduct == null || StringUtils.isEmpty(mdProduct.getProductCode()))
+        {
+            throw new ServiceException("商品编码不能为空");
+        }
+        MdProduct existing = mdProductMapper.selectMdProductByCode(mdProduct.getProductCode());
+        if (existing != null && !existing.getProductId().equals(mdProduct.getProductId()))
+        {
+            throw new ServiceException("商品编码[" + mdProduct.getProductCode() + "]已存在，请勿重复");
+        }
+    }
+
+    private void validateProductDeletable(Long productId)
+    {
+        if (productId == null)
+        {
+            return;
+        }
+        if (mdProductMapper.countProductReferences(productId) > 0)
+        {
+            throw new ServiceException("商品[" + productId + "]已存在关联库存、价格、序列号或业务单据记录，不允许删除，请改为停用");
+        }
     }
 
     /**

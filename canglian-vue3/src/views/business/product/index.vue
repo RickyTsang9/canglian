@@ -78,36 +78,45 @@
     </el-row>
 
     <el-table v-loading="loading" :data="productList" @selection-change="handleSelectionChange">
-      <el-table-column type="selection" width="55" align="center" />
-      <el-table-column label="商品编号" align="center" prop="productId" />
-      <el-table-column label="商品编码" align="center" prop="productCode" />
-      <el-table-column label="商品名称" align="center" prop="productName" />
-      <el-table-column label="图片" align="center" prop="productImage" width="100">
+      <el-table-column type="selection" width="50" align="center" />
+      <el-table-column label="商品编码" align="center" prop="productCode" min-width="110" show-overflow-tooltip />
+      <el-table-column label="商品名称" align="center" prop="productName" min-width="140" show-overflow-tooltip />
+      <el-table-column label="规格" align="center" prop="productSpec" width="100" show-overflow-tooltip />
+      <el-table-column label="条码" align="center" prop="barCode" width="120" show-overflow-tooltip />
+      <el-table-column label="图片" align="center" prop="productImage" width="76">
         <template #default="scope">
-          <image-preview :src="scope.row.productImage" :width="60" :height="60" />
+          <image-preview :src="scope.row.productImage" :width="44" :height="44" />
         </template>
       </el-table-column>
-      <el-table-column label="单位" align="center" prop="unitName" />
-      <el-table-column label="采购单位" align="center" prop="purchaseUnit" />
-      <el-table-column label="销售单位" align="center" prop="saleUnit" />
-      <el-table-column label="最小库存" align="center" prop="warningMinQty" />
-      <el-table-column label="最大库存" align="center" prop="warningMaxQty" />
-      <el-table-column label="成本价" align="center" prop="costPrice" />
-      <el-table-column label="售价" align="center" prop="salePrice" />
-      <el-table-column label="状态" align="center" prop="status">
+      <el-table-column label="基础单位" align="center" prop="unitName" width="80" />
+      <el-table-column label="采/销单位" align="center" width="95">
+        <template #default="scope">{{ scope.row.purchaseUnit || scope.row.unitName || '-' }} / {{ scope.row.saleUnit || scope.row.unitName || '-' }}</template>
+      </el-table-column>
+      <el-table-column label="管控属性" align="center" width="120">
+        <template #default="scope">
+          <el-tag v-if="scope.row.enableBatch === '1'" size="small" type="info" style="margin-right: 4px">批次</el-tag>
+          <el-tag v-if="scope.row.enableSerial === '1'" size="small" type="warning">SN</el-tag>
+          <span v-if="scope.row.enableBatch !== '1' && scope.row.enableSerial !== '1'">-</span>
+        </template>
+      </el-table-column>
+      <el-table-column label="保质期(天)" align="center" prop="shelfLifeDays" width="90">
+        <template #default="scope">{{ scope.row.shelfLifeDays > 0 ? scope.row.shelfLifeDays : '-' }}</template>
+      </el-table-column>
+      <el-table-column label="预警区间" align="center" width="100">
+        <template #default="scope">{{ scope.row.warningMinQty || 0 }} ~ {{ scope.row.warningMaxQty || '-' }}</template>
+      </el-table-column>
+      <el-table-column label="成本价" align="right" prop="costPrice" width="85" />
+      <el-table-column label="售价" align="right" prop="salePrice" width="85" />
+      <el-table-column label="状态" align="center" prop="status" width="75">
         <template #default="scope">
           <dict-tag :options="sys_normal_disable" :value="scope.row.status" />
         </template>
       </el-table-column>
-      <el-table-column label="创建时间" align="center" prop="createTime" width="180">
+      <el-table-column label="操作" width="210" align="center" class-name="small-padding fixed-width">
         <template #default="scope">
-          <span>{{ parseTime(scope.row.createTime) }}</span>
-        </template>
-      </el-table-column>
-      <el-table-column label="操作" width="180" align="center" class-name="small-padding fixed-width">
-        <template #default="scope">
+          <el-button link type="success" icon="ScaleToOriginal" @click="openUnitDrawer(scope.row)" v-hasPermi="['business:product:edit']">多单位</el-button>
           <el-button link type="primary" icon="Edit" @click="handleUpdate(scope.row)" v-hasPermi="['business:product:edit']">修改</el-button>
-          <el-button link type="primary" icon="Delete" @click="handleDelete(scope.row)" v-hasPermi="['business:product:remove']">删除</el-button>
+          <el-button link type="danger" icon="Delete" @click="handleDelete(scope.row)" v-hasPermi="['business:product:remove']">删除</el-button>
         </template>
       </el-table-column>
     </el-table>
@@ -141,8 +150,8 @@
             </el-form-item>
           </el-col>
           <el-col :span="12">
-            <el-form-item label="单位" prop="unitName">
-              <el-input v-model="form.unitName" placeholder="请输入单位" />
+            <el-form-item label="基础单位" prop="unitName">
+              <el-input v-model="form.unitName" placeholder="如：瓶/件/台（库存核算基准单位）" />
             </el-form-item>
           </el-col>
         </el-row>
@@ -172,25 +181,13 @@
         </el-row>
         <el-row>
           <el-col :span="12">
-            <el-form-item label="采购单位" prop="purchaseUnit">
-              <el-input v-model="form.purchaseUnit" placeholder="请输入采购单位" />
+            <el-form-item label="采购默认单位" prop="purchaseUnit">
+              <el-input v-model="form.purchaseUnit" placeholder="默认同基础单位，可在多单位中配置箱/盒" />
             </el-form-item>
           </el-col>
           <el-col :span="12">
-            <el-form-item label="销售单位" prop="saleUnit">
-              <el-input v-model="form.saleUnit" placeholder="请输入销售单位" />
-            </el-form-item>
-          </el-col>
-        </el-row>
-        <el-row>
-          <el-col :span="12">
-            <el-form-item label="基础单位" prop="baseUnit">
-              <el-input v-model="form.baseUnit" placeholder="请输入基础单位" />
-            </el-form-item>
-          </el-col>
-          <el-col :span="12">
-            <el-form-item label="换算比例" prop="unitConvertRatio">
-              <el-input-number v-model="form.unitConvertRatio" controls-position="right" :min="0" :step="0.01" />
+            <el-form-item label="销售默认单位" prop="saleUnit">
+              <el-input v-model="form.saleUnit" placeholder="默认同基础单位，可在多单位中配置箱/盒" />
             </el-form-item>
           </el-col>
         </el-row>
@@ -219,8 +216,20 @@
             </el-form-item>
           </el-col>
           <el-col :span="12">
+            <el-form-item label="临期预警天" prop="warningBeforeDays">
+              <el-input-number v-model="form.warningBeforeDays" controls-position="right" :min="0" />
+            </el-form-item>
+          </el-col>
+        </el-row>
+        <el-row>
+          <el-col :span="12">
             <el-form-item label="成本价" prop="costPrice">
               <el-input-number v-model="form.costPrice" controls-position="right" :min="0" />
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="售价" prop="salePrice">
+              <el-input-number v-model="form.salePrice" controls-position="right" :min="0" />
             </el-form-item>
           </el-col>
         </el-row>
@@ -237,12 +246,7 @@
           </el-col>
         </el-row>
         <el-row>
-          <el-col :span="12">
-            <el-form-item label="售价" prop="salePrice">
-              <el-input-number v-model="form.salePrice" controls-position="right" :min="0" />
-            </el-form-item>
-          </el-col>
-          <el-col :span="12">
+          <el-col :span="24">
             <el-form-item label="状态" prop="status">
               <el-radio-group v-model="form.status">
                 <el-radio
@@ -267,7 +271,7 @@
     </el-dialog>
 
     <el-dialog :title="upload.title" v-model="upload.open" width="420px" append-to-body>
-      <el-upload ref="uploadRef" :limit="1" accept=".xlsx, .xls" :headers="upload.headers" :action="upload.url + '?updateSupport=' + upload.updateSupport" :disabled="upload.isUploading" :on-progress="handleFileUploadProgress" :on-success="handleFileSuccess" :on-change="handleFileChange" :on-remove="handleFileRemove" :auto-upload="false" drag>
+      <el-upload ref="uploadRef" :limit="1" accept=".xlsx, .xls" :headers="upload.headers" :action="upload.url + '?updateSupport=' + upload.updateSupport" :disabled="upload.isUploading" :on-progress="handleFileUploadProgress" :on-success="handleFileSuccess" :on-error="handleFileError" :on-change="handleFileChange" :on-remove="handleFileRemove" :auto-upload="false" drag>
         <el-icon class="el-icon--upload"><upload-filled /></el-icon>
         <div class="el-upload__text">将文件拖到此处，或<em>点击上传</em></div>
         <template #tip>
@@ -287,12 +291,55 @@
         </div>
       </template>
     </el-dialog>
+
+    <!-- 商品多单位与条码换算抽屉 -->
+    <el-drawer v-model="unitDrawerOpen" :title="`多单位管理 - ${currentUnitProduct.productName || ''}`" size="680px">
+      <div style="margin-bottom: 12px">
+        <el-form :inline="true" :model="unitForm" size="small">
+          <el-form-item label="单位名">
+            <el-input v-model="unitForm.unitName" placeholder="如：箱/盒" style="width: 95px" />
+          </el-form-item>
+          <el-form-item label="换算率">
+            <el-input-number v-model="unitForm.convertRatio" :min="0.0001" :step="1" controls-position="right" style="width: 100px" />
+          </el-form-item>
+          <el-form-item label="条码">
+            <el-input v-model="unitForm.barCode" placeholder="包装条码" style="width: 130px" />
+          </el-form-item>
+          <el-form-item label="采/售价">
+            <el-input-number v-model="unitForm.purchasePrice" :min="0" :precision="2" placeholder="采" controls-position="right" style="width: 88px" />
+            <el-input-number v-model="unitForm.salePrice" :min="0" :precision="2" placeholder="售" controls-position="right" style="width: 88px; margin-left: 4px" />
+          </el-form-item>
+          <el-form-item>
+            <el-button type="primary" @click="submitAddUnit">新增单位</el-button>
+          </el-form-item>
+        </el-form>
+      </div>
+      <el-table :data="productUnitList" border size="small">
+        <el-table-column label="单位" prop="unitName" width="85" align="center" />
+        <el-table-column label="基准单位" width="85" align="center">
+          <template #default="scope">
+            <el-tag :type="scope.row.isBaseUnit === '1' ? 'success' : 'info'">{{ scope.row.isBaseUnit === '1' ? '是' : '否' }}</el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column label="换算率(1=N基)" prop="convertRatio" width="115" align="right" />
+        <el-table-column label="包装条码" prop="barCode" min-width="120" />
+        <el-table-column label="采购价" prop="purchasePrice" width="85" align="right" />
+        <el-table-column label="销售价" prop="salePrice" width="85" align="right" />
+        <el-table-column label="操作" width="85" align="center">
+          <template #default="scope">
+            <el-button v-if="scope.row.isBaseUnit !== '1'" link type="danger" @click="handleDeleteUnit(scope.row)">删除</el-button>
+            <el-tag v-else size="small" type="info">基准锁定</el-tag>
+          </template>
+        </el-table-column>
+      </el-table>
+    </el-drawer>
   </div>
 </template>
 
 <script setup name="Product">
 import { getToken } from "@/utils/auth"
 import { listProduct, addProduct, delProduct, getProduct, updateProduct } from "@/api/business/product"
+import { listUnitsByProduct, addProductUnit, delProductUnit } from "@/api/business/productUnit"
 
 const { proxy } = getCurrentInstance()
 const { sys_normal_disable } = proxy.useDict("sys_normal_disable")
@@ -346,6 +393,7 @@ function getList() {
   listProduct(queryParams.value).then(response => {
     productList.value = response.rows
     total.value = response.total
+  }).finally(() => {
     loading.value = false
   })
 }
@@ -370,6 +418,7 @@ function reset() {
     unitConvertRatio: 1,
     enableBatch: "1",
     shelfLifeDays: 0,
+    warningBeforeDays: 30,
     enableSerial: "0",
     warningMinQty: 0,
     warningMaxQty: 0,
@@ -430,6 +479,7 @@ function handleUpdate(row) {
 function submitForm() {
   proxy.$refs["productRef"].validate(valid => {
     if (valid) {
+      form.value.baseUnit = form.value.unitName || form.value.baseUnit || "件"
       if (form.value.productId != undefined) {
         updateProduct(form.value).then(response => {
           proxy.$modal.msgSuccess("修改成功")
@@ -494,6 +544,12 @@ const handleFileSuccess = (response, file) => {
   getList()
 }
 
+// 文件上传失败处理
+const handleFileError = () => {
+  upload.isUploading = false
+  proxy.$modal.msgError("文件导入失败，请检查文件格式或网络后重试")
+}
+
 // 提交上传文件
 function submitFileForm() {
   const selectedFile = upload.selectedFile
@@ -502,6 +558,53 @@ function submitFileForm() {
     return
   }
   proxy.$refs["uploadRef"].submit()
+}
+
+const unitDrawerOpen = ref(false)
+const currentUnitProduct = ref({})
+const productUnitList = ref([])
+const unitForm = reactive({ unitName: "", convertRatio: 1, barCode: "", purchasePrice: 0, salePrice: 0, isBaseUnit: "0" })
+
+function openUnitDrawer(row) {
+  currentUnitProduct.value = row
+  Object.assign(unitForm, { unitName: "", convertRatio: 1, barCode: "", purchasePrice: Number(row.costPrice || 0), salePrice: Number(row.salePrice || 0), isBaseUnit: "0" })
+  unitDrawerOpen.value = true
+  loadProductUnitList(row.productId)
+}
+
+function loadProductUnitList(productId) {
+  listUnitsByProduct(productId).then(res => {
+    productUnitList.value = res.data || []
+  })
+}
+
+function submitAddUnit() {
+  if (!unitForm.unitName) {
+    proxy.$modal.msgError("请输入单位名称")
+    return
+  }
+  addProductUnit({
+    productId: currentUnitProduct.value.productId,
+    unitName: unitForm.unitName,
+    convertRatio: unitForm.convertRatio,
+    barCode: unitForm.barCode,
+    purchasePrice: unitForm.purchasePrice,
+    salePrice: unitForm.salePrice,
+    isBaseUnit: productUnitList.value.length === 0 ? "1" : "0",
+    status: "0"
+  }).then(() => {
+    proxy.$modal.msgSuccess("新增单位成功")
+    unitForm.unitName = ""
+    unitForm.barCode = ""
+    loadProductUnitList(currentUnitProduct.value.productId)
+  })
+}
+
+function handleDeleteUnit(row) {
+  proxy.$modal.confirm(`确认删除单位"${row.unitName}"？`).then(() => delProductUnit(row.unitId)).then(() => {
+    proxy.$modal.msgSuccess("删除成功")
+    loadProductUnitList(currentUnitProduct.value.productId)
+  }).catch(() => {})
 }
 
 getList()

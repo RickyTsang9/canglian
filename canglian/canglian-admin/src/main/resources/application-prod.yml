@@ -1,0 +1,27 @@
+# 仓链 ERP 生产环境配置（使用 --spring.profiles.active=druid,prod 启用）
+canglian:
+  security:
+    enforceCaptcha: ${ENFORCE_CAPTCHA:true}
+    forcePasswordChange: ${FORCE_PASSWORD_CHANGE:true}
+
+logging:
+  level:
+    com.canglian: ${LOG_LEVEL:info}
+    org.springframework: warn
+
+spring:
+  devtools:
+    restart:
+      enabled: false
+  datasource:
+    druid:
+      statViewServlet:
+        enabled: ${DRUID_STAT_VIEW_ENABLED:false}
+        allow: ${DRUID_ALLOW:127.0.0.1}
+
+swagger:
+  enabled: false
+
+referer:
+  enabled: ${REFERER_ENABLED:true}
+  allowed-domains: ${ALLOWED_DOMAINS:canglian.vip,www.canglian.vip}

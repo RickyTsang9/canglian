@@ -57,5 +57,7 @@ public interface WmsInventoryCheckItemMapper
      * @return 结果
      */
     public int deleteWmsInventoryCheckItemByIds(Long[] checkItemIds);
+
+    public int deleteWmsInventoryCheckItemByCheckId(Long checkId);
 }
 

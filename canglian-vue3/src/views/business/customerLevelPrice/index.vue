@@ -2,13 +2,15 @@
   <div class="app-container">
     <el-form :model="queryParams" ref="queryRef" :inline="true" v-show="showSearch">
       <el-form-item label="客户等级" prop="customerLevel">
-        <el-input v-model="queryParams.customerLevel" placeholder="请输入客户等级" clearable style="width: 200px" @keyup.enter="handleQuery" />
+        <el-input v-model="queryParams.customerLevel" placeholder="请输入客户等级" clearable style="width: 180px" @keyup.enter="handleQuery" />
       </el-form-item>
-      <el-form-item label="商品编号" prop="productId">
-        <el-input v-model="queryParams.productId" placeholder="请输入商品编号" clearable style="width: 200px" @keyup.enter="handleQuery" />
+      <el-form-item label="商品" prop="productId">
+        <el-select v-model="queryParams.productId" placeholder="请选择商品" clearable filterable style="width: 220px">
+          <el-option v-for="p in productOptions" :key="p.productId" :label="`${p.productCode || ''} - ${p.productName}`" :value="p.productId" />
+        </el-select>
       </el-form-item>
       <el-form-item label="状态" prop="status">
-        <el-select v-model="queryParams.status" placeholder="请选择状态" clearable style="width: 200px">
+        <el-select v-model="queryParams.status" placeholder="请选择状态" clearable style="width: 140px">
           <el-option v-for="dict in sys_normal_disable" :key="dict.value" :label="dict.label" :value="dict.value" />
         </el-select>
       </el-form-item>
@@ -28,29 +30,31 @@
       <el-col :span="1.5">
         <el-button type="danger" plain icon="Delete" :disabled="isMultipleDisabled" @click="handleDelete" v-hasPermi="['business:customerLevelPrice:remove']">删除</el-button>
       </el-col>
-      <right-toolbar v-model:showSearch="showSearch" @queryTable="getList"></right-toolbar>
+      <right-toolbar v-model:showSearch="showSearch" @queryTable="getList" />
     </el-row>
 
     <el-table v-loading="loading" :data="customerLevelPriceList" @selection-change="handleSelectionChange">
-      <el-table-column type="selection" width="55" align="center" />
-      <el-table-column label="等级价编号" align="center" prop="levelPriceId" />
-      <el-table-column label="客户等级" align="center" prop="customerLevel" />
-      <el-table-column label="商品编号" align="center" prop="productId" />
-      <el-table-column label="销售单价" align="center" prop="salePrice" />
-      <el-table-column label="状态" align="center" prop="status">
-        <template #default="scope">
-          <dict-tag :options="sys_normal_disable" :value="scope.row.status" />
-        </template>
+      <el-table-column type="selection" width="50" align="center" />
+      <el-table-column label="客户等级" align="center" prop="customerLevel" width="110">
+        <template #default="scope">{{ levelLabel(scope.row.customerLevel) }}</template>
       </el-table-column>
-      <el-table-column label="创建时间" align="center" prop="createTime" width="180">
-        <template #default="scope">
-          <span>{{ parseTime(scope.row.createTime) }}</span>
-        </template>
+      <el-table-column label="商品" align="center" min-width="180" show-overflow-tooltip>
+        <template #default="scope">{{ getProductName(scope.row.productId) }}</template>
       </el-table-column>
-      <el-table-column label="操作" width="180" align="center">
+      <el-table-column label="销售单价" align="right" prop="salePrice" width="100" />
+      <el-table-column label="生效日期" align="center" width="115">
+        <template #default="scope">{{ scope.row.effectiveDate ? parseTime(scope.row.effectiveDate, '{y}-{m}-{d}') : '长期' }}</template>
+      </el-table-column>
+      <el-table-column label="失效日期" align="center" width="115">
+        <template #default="scope">{{ scope.row.expireDate ? parseTime(scope.row.expireDate, '{y}-{m}-{d}') : '长期' }}</template>
+      </el-table-column>
+      <el-table-column label="状态" align="center" prop="status" width="80">
+        <template #default="scope"><dict-tag :options="sys_normal_disable" :value="scope.row.status" /></template>
+      </el-table-column>
+      <el-table-column label="操作" width="160" align="center">
         <template #default="scope">
           <el-button link type="primary" icon="Edit" @click="handleUpdate(scope.row)" v-hasPermi="['business:customerLevelPrice:edit']">修改</el-button>
-          <el-button link type="primary" icon="Delete" @click="handleDelete(scope.row)" v-hasPermi="['business:customerLevelPrice:remove']">删除</el-button>
+          <el-button link type="danger" icon="Delete" @click="handleDelete(scope.row)" v-hasPermi="['business:customerLevelPrice:remove']">删除</el-button>
         </template>
       </el-table-column>
     </el-table>
@@ -62,19 +66,38 @@
         <el-row>
           <el-col :span="12">
             <el-form-item label="客户等级" prop="customerLevel">
-              <el-input v-model="form.customerLevel" placeholder="请输入客户等级" />
+              <el-select v-model="form.customerLevel" placeholder="请选择或输入等级" allow-create filterable style="width: 100%">
+                <el-option label="VIP" value="VIP" />
+                <el-option label="一级代理" value="L1" />
+                <el-option label="二级代理" value="L2" />
+                <el-option label="普通客户" value="NORMAL" />
+              </el-select>
             </el-form-item>
           </el-col>
           <el-col :span="12">
-            <el-form-item label="商品编号" prop="productId">
-              <el-input v-model="form.productId" placeholder="请输入商品编号" />
+            <el-form-item label="商品" prop="productId">
+              <el-select v-model="form.productId" placeholder="请选择商品" filterable style="width: 100%">
+                <el-option v-for="p in activeProductOptions" :key="p.productId" :label="`${p.productCode || ''} - ${p.productName}`" :value="p.productId" />
+              </el-select>
+            </el-form-item>
+          </el-col>
+        </el-row>
+        <el-row>
+          <el-col :span="12">
+            <el-form-item label="生效日期" prop="effectiveDate">
+              <el-date-picker v-model="form.effectiveDate" type="date" value-format="YYYY-MM-DD" placeholder="空表示立即生效" clearable style="width: 100%" />
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="失效日期" prop="expireDate">
+              <el-date-picker v-model="form.expireDate" type="date" value-format="YYYY-MM-DD" placeholder="空表示长期有效" clearable style="width: 100%" />
             </el-form-item>
           </el-col>
         </el-row>
         <el-row>
           <el-col :span="12">
             <el-form-item label="销售单价" prop="salePrice">
-              <el-input-number v-model="form.salePrice" controls-position="right" :min="0" />
+              <el-input-number v-model="form.salePrice" controls-position="right" :min="0" :precision="2" style="width: 100%" />
             </el-form-item>
           </el-col>
           <el-col :span="12">
@@ -85,15 +108,11 @@
             </el-form-item>
           </el-col>
         </el-row>
-        <el-form-item label="备注" prop="remark">
-          <el-input v-model="form.remark" type="textarea" placeholder="请输入内容" />
-        </el-form-item>
+        <el-form-item label="备注" prop="remark"><el-input v-model="form.remark" type="textarea" /></el-form-item>
       </el-form>
       <template #footer>
-        <div class="dialog-footer">
-          <el-button type="primary" @click="submitForm">确 定</el-button>
-          <el-button @click="cancel">取 消</el-button>
-        </div>
+        <el-button type="primary" @click="submitForm">确 定</el-button>
+        <el-button @click="cancel">取 消</el-button>
       </template>
     </el-dialog>
   </div>
@@ -101,9 +120,15 @@
 
 <script setup name="CustomerLevelPrice">
 import { listCustomerLevelPrice, getCustomerLevelPrice, addCustomerLevelPrice, updateCustomerLevelPrice, delCustomerLevelPrice } from "@/api/business/customerLevelPrice"
+import { useBusinessOptions } from "@/utils/businessOptions"
 
 const { proxy } = getCurrentInstance()
 const { sys_normal_disable } = proxy.useDict("sys_normal_disable")
+const { productOptions, activeProductOptions, loadProducts, getProductName } = useBusinessOptions()
+const LEVEL_MAP = { VIP: "VIP 客户", L1: "一级代理", L2: "二级代理", NORMAL: "普通客户" }
+function levelLabel(v) { return LEVEL_MAP[v] || v || "-" }
+
+loadProducts()
 
 const customerLevelPriceList = ref([])
 const open = ref(false)
@@ -117,118 +142,48 @@ const title = ref("")
 
 const data = reactive({
   form: {},
-  queryParams: {
-    pageNum: 1,
-    pageSize: 10,
-    customerLevel: undefined,
-    productId: undefined,
-    status: undefined
-  },
+  queryParams: { pageNum: 1, pageSize: 10, customerLevel: undefined, productId: undefined, status: undefined },
   rules: {
-    customerLevel: [{ required: true, message: "客户等级不能为空", trigger: "blur" }],
-    productId: [{ required: true, message: "商品编号不能为空", trigger: "blur" }]
+    customerLevel: [{ required: true, message: "客户等级不能为空", trigger: "change" }],
+    productId: [{ required: true, message: "请选择商品", trigger: "change" }]
   }
 })
-
 const { queryParams, form, rules } = toRefs(data)
 
-// 查询客户等级价列表
 function getList() {
   loading.value = true
-  listCustomerLevelPrice(queryParams.value).then(response => {
-    customerLevelPriceList.value = response.rows
-    total.value = response.total
-    loading.value = false
-  })
+  listCustomerLevelPrice(queryParams.value).then(res => {
+    customerLevelPriceList.value = res.rows || []
+    total.value = res.total || 0
+  }).finally(() => { loading.value = false })
 }
-
-// 取消按钮
-function cancel() {
-  open.value = false
-  reset()
-}
-
-// 表单重置
+function cancel() { open.value = false; reset() }
 function reset() {
-  form.value = {
-    levelPriceId: undefined,
-    customerLevel: undefined,
-    productId: undefined,
-    salePrice: 0,
-    status: "0",
-    remark: undefined
-  }
+  form.value = { levelPriceId: undefined, customerLevel: undefined, productId: undefined, salePrice: 0, effectiveDate: undefined, expireDate: undefined, status: "0", remark: undefined }
   proxy.resetForm("customerLevelPriceRef")
 }
-
-// 搜索按钮操作
-function handleQuery() {
-  queryParams.value.pageNum = 1
-  getList()
-}
-
-// 重置按钮操作
-function resetQuery() {
-  proxy.resetForm("queryRef")
-  handleQuery()
-}
-
-// 多选框选中数据
+function handleQuery() { queryParams.value.pageNum = 1; getList() }
+function resetQuery() { proxy.resetForm("queryRef"); handleQuery() }
 function handleSelectionChange(selection) {
-  selectedIds.value = selection.map(item => item.levelPriceId)
+  selectedIds.value = selection.map(i => i.levelPriceId)
   isSingleDisabled.value = selection.length !== 1
   isMultipleDisabled.value = !selection.length
 }
-
-// 新增按钮操作
-function handleAdd() {
-  reset()
-  open.value = true
-  title.value = "添加客户等级价"
-}
-
-// 修改按钮操作
+function handleAdd() { reset(); open.value = true; title.value = "新增客户等级价" }
 function handleUpdate(row) {
   reset()
-  const levelPriceId = row.levelPriceId || selectedIds.value
-  getCustomerLevelPrice(levelPriceId).then(response => {
-    form.value = response.data
-    open.value = true
-    title.value = "修改客户等级价"
-  })
+  getCustomerLevelPrice(row.levelPriceId || selectedIds.value).then(res => { form.value = res.data; open.value = true; title.value = "修改客户等级价" })
 }
-
-// 提交按钮
 function submitForm() {
   proxy.$refs["customerLevelPriceRef"].validate(valid => {
-    if (valid) {
-      if (form.value.levelPriceId !== undefined) {
-        updateCustomerLevelPrice(form.value).then(() => {
-          proxy.$modal.msgSuccess("修改成功")
-          open.value = false
-          getList()
-        })
-      } else {
-        addCustomerLevelPrice(form.value).then(() => {
-          proxy.$modal.msgSuccess("新增成功")
-          open.value = false
-          getList()
-        })
-      }
-    }
+    if (!valid) return
+    const fn = form.value.levelPriceId ? updateCustomerLevelPrice(form.value) : addCustomerLevelPrice(form.value)
+    fn.then(() => { proxy.$modal.msgSuccess(form.value.levelPriceId ? "修改成功" : "新增成功"); open.value = false; getList() })
   })
 }
-
-// 删除按钮操作
 function handleDelete(row) {
-  const levelPriceIds = row.levelPriceId || selectedIds.value
-  proxy.$modal.confirm('是否确认删除客户等级价编号为"' + levelPriceIds + '"的数据项？').then(function() {
-    return delCustomerLevelPrice(levelPriceIds)
-  }).then(() => {
-    getList()
-    proxy.$modal.msgSuccess("删除成功")
-  }).catch(() => {})
+  const ids = row.levelPriceId || selectedIds.value
+  proxy.$modal.confirm("是否确认删除选中客户等级价？").then(() => delCustomerLevelPrice(ids)).then(() => { proxy.$modal.msgSuccess("删除成功"); getList() }).catch(() => {})
 }
-
 getList()
 </script>

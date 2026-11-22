@@ -113,20 +113,12 @@
                <span>{{ parseTime(scope.row.createTime) }}</span>
             </template>
          </el-table-column>
-         <el-table-column label="操作" align="center" class-name="small-padding fixed-width">
+         <el-table-column label="操作" align="center" width="280" class-name="small-padding fixed-width">
             <template #default="scope">
-              <el-tooltip content="修改" placement="top" v-if="scope.row.roleId !== 1">
-                <el-button link type="primary" icon="Edit" @click="handleUpdate(scope.row)" v-hasPermi="['system:role:edit']"></el-button>
-              </el-tooltip>
-              <el-tooltip content="删除" placement="top" v-if="scope.row.roleId !== 1">
-                <el-button link type="primary" icon="Delete" @click="handleDelete(scope.row)" v-hasPermi="['system:role:remove']"></el-button>
-              </el-tooltip>
-              <el-tooltip content="数据权限" placement="top" v-if="scope.row.roleId !== 1">
-                <el-button link type="primary" icon="CircleCheck" @click="handleDataScope(scope.row)" v-hasPermi="['system:role:edit']"></el-button>
-              </el-tooltip>
-              <el-tooltip content="分配用户" placement="top" v-if="scope.row.roleId !== 1">
-                <el-button link type="primary" icon="User" @click="handleAuthUser(scope.row)" v-hasPermi="['system:role:edit']"></el-button>
-              </el-tooltip>
+              <el-button link type="primary" icon="Edit" aria-label="修改角色" v-if="scope.row.roleId !== 1" @click="handleUpdate(scope.row)" v-hasPermi="['system:role:edit']">修改</el-button>
+              <el-button link type="danger" icon="Delete" aria-label="删除角色" v-if="scope.row.roleId !== 1" @click="handleDelete(scope.row)" v-hasPermi="['system:role:remove']">删除</el-button>
+              <el-button link type="primary" icon="CircleCheck" aria-label="分配数据权限" v-if="scope.row.roleId !== 1" @click="handleDataScope(scope.row)" v-hasPermi="['system:role:edit']">数据权限</el-button>
+              <el-button link type="primary" icon="User" aria-label="分配用户" v-if="scope.row.roleId !== 1" @click="handleAuthUser(scope.row)" v-hasPermi="['system:role:edit']">分配用户</el-button>
             </template>
          </el-table-column>
       </el-table>
@@ -230,6 +222,22 @@
                   :props="{ label: 'label', children: 'children' }"
                ></el-tree>
             </el-form-item>
+            <el-form-item label="仓库权限">
+               <el-radio-group v-model="form.warehouseScope">
+                  <el-radio value="1">全部仓库</el-radio>
+                  <el-radio value="2">指定仓库</el-radio>
+               </el-radio-group>
+            </el-form-item>
+            <el-form-item label="授权仓库" v-show="form.warehouseScope === '2'">
+               <el-select v-model="form.warehouseIds" multiple filterable placeholder="请选择可操作仓库" style="width: 100%">
+                  <el-option
+                     v-for="wh in warehouseOptions"
+                     :key="wh.warehouseId"
+                     :label="`${wh.warehouseCode} - ${wh.warehouseName}`"
+                     :value="wh.warehouseId"
+                  />
+               </el-select>
+            </el-form-item>
          </el-form>
          <template #footer>
             <div class="dialog-footer">
@@ -242,8 +250,9 @@
 </template>
 
 <script setup name="Role">
-import { addRole, changeRoleStatus, dataScope, delRole, getRole, listRole, updateRole, deptTreeSelect } from "@/api/system/role"
+import { addRole, changeRoleStatus, dataScope, delRole, getRole, listRole, updateRole, deptTreeSelect, warehouseScopeSelect } from "@/api/system/role"
 import { roleMenuTreeselect, treeselect as menuTreeselect } from "@/api/system/menu"
+import { listWarehouse } from "@/api/business/warehouse"
 
 const router = useRouter()
 const { proxy } = getCurrentInstance()
@@ -265,6 +274,7 @@ const menuNodeAll = ref(false)
 const deptExpand = ref(true)
 const deptNodeAll = ref(false)
 const deptOptions = ref([])
+const warehouseOptions = ref([])
 const openDataScope = ref(false)
 const menuRef = ref(null)
 const deptRef = ref(null)
@@ -409,6 +419,8 @@ function reset() {
     status: "0",
     menuIds: [],
     deptIds: [],
+    warehouseScope: "1",
+    warehouseIds: [],
     menuCheckStrictly: true,
     deptCheckStrictly: true,
     remark: undefined
@@ -545,17 +557,27 @@ function dataScopeSelectChange(value) {
 /** 分配数据权限操作 */
 function handleDataScope(row) {
   reset()
-  const deptTreeSelect = getDeptTree(row.roleId)
+  listWarehouse({ pageNum: 1, pageSize: 1000 }).then(res => {
+    warehouseOptions.value = res.rows || []
+  }).catch(() => {})
+  const deptTreePromise = getDeptTree(row.roleId)
+  const whScopePromise = warehouseScopeSelect(row.roleId).catch(() => ({ warehouseScope: "1", checkedWarehouseIds: [] }))
   getRole(row.roleId).then(response => {
     form.value = response.data
+    form.value.warehouseScope = form.value.warehouseScope || "1"
+    form.value.warehouseIds = form.value.warehouseIds || []
     openDataScope.value = true
     nextTick(() => {
-      deptTreeSelect.then(res => {
+      deptTreePromise.then(res => {
         nextTick(() => {
           if (deptRef.value) {
             deptRef.value.setCheckedKeys(res.checkedKeys)
           }
         })
+      })
+      whScopePromise.then(whRes => {
+        form.value.warehouseScope = whRes.warehouseScope || form.value.warehouseScope || "1"
+        form.value.warehouseIds = whRes.checkedKeys || whRes.checkedWarehouseIds || []
       })
     })
   })
@@ -566,6 +588,9 @@ function handleDataScope(row) {
 function submitDataScope() {
   if (form.value.roleId != undefined) {
     form.value.deptIds = getDeptAllCheckedKeys()
+    if (form.value.warehouseScope !== "2") {
+      form.value.warehouseIds = []
+    }
     dataScope(form.value).then(response => {
       proxy.$modal.msgSuccess("修改成功")
       openDataScope.value = false

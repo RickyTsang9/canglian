@@ -13,9 +13,9 @@
         @contextmenu.prevent="openMenu(tag, $event)"
       >
         <svg-icon v-if="tagsIcon && tag.meta && tag.meta.icon && tag.meta.icon !== '#'" :icon-class="tag.meta.icon" />
-        {{ tag.title }}
-        <span v-if="!isAffix(tag)" @click.prevent.stop="closeSelectedTag(tag)">
-          <close class="el-icon-close" style="width: 1em; height: 1em;vertical-align: middle;" />
+        <span>{{ tag.title }}</span>
+        <span v-if="!isAffix(tag)" class="tag-close-wrap" @click.prevent.stop="closeSelectedTag(tag)">
+          <close class="el-icon-close" style="width: 1em; height: 1em; vertical-align: middle;" />
         </span>
       </router-link>
     </scroll-pane>
@@ -90,8 +90,7 @@ function isActive(r) {
 function activeStyle(tag) {
   if (!isActive(tag)) return {}
   return {
-    "background-color": theme.value,
-    "border-color": theme.value
+    "color": theme.value
   }
 }
 
@@ -141,9 +140,8 @@ function initTags() {
   const res = filterAffixTags(routes.value)
   affixTags.value = res
   for (const tag of res) {
-    // Must have tag name
     if (tag.name) {
-       useTagsViewStore().addVisitedView(tag)
+      useTagsViewStore().addVisitedView(tag)
     }
   }
 }
@@ -160,7 +158,6 @@ function moveToCurrentTag() {
     for (const r of visitedViews.value) {
       if (r.path === route.path) {
         scrollPaneRef.value.moveToTarget(r)
-        // when query is different then update
         if (r.fullPath !== route.fullPath) {
           useTagsViewStore().updateVisitedView(route)
         }
@@ -221,10 +218,7 @@ function toLastView(visitedViews, view) {
   if (latestView) {
     router.push(latestView.fullPath)
   } else {
-    // now the default is to redirect to the home page if there is no tags-view,
-    // you can adjust it according to your needs.
     if (view.name === 'Dashboard') {
-      // to reload home page
       router.replace({ path: '/redirect' + view.fullPath })
     } else {
       router.push('/')
@@ -234,17 +228,11 @@ function toLastView(visitedViews, view) {
 
 function openMenu(tag, e) {
   const menuMinWidth = 105
-  const offsetLeft = proxy.$el.getBoundingClientRect().left // container margin left
-  const offsetWidth = proxy.$el.offsetWidth // container width
-  const maxLeft = offsetWidth - menuMinWidth // left boundary
-  const l = e.clientX - offsetLeft + 15 // 15: margin right
-
-  if (l > maxLeft) {
-    left.value = maxLeft
-  } else {
-    left.value = l
-  }
-
+  const offsetLeft = proxy.$el.getBoundingClientRect().left
+  const offsetWidth = proxy.$el.offsetWidth
+  const maxLeft = offsetWidth - menuMinWidth
+  const l = e.clientX - offsetLeft + 15
+  left.value = l > maxLeft ? maxLeft : l
   top.value = e.clientY
   visible.value = true
   selectedTag.value = tag
@@ -261,53 +249,61 @@ function handleScroll() {
 
 <style lang="scss" scoped>
 .tags-view-container {
-  height: 34px;
+  height: 38px;
   width: 100%;
-  background: var(--tags-bg, rgba(255, 255, 255, 0.86));
-  border-bottom: 1px solid var(--navbar-border, #e6ecf4);
+  background: var(--tags-bg, rgba(248, 250, 252, 0.92));
+  border-bottom: 1px solid var(--navbar-border, #e2e8f0);
   box-shadow: none;
   backdrop-filter: blur(12px);
 
   .tags-view-wrapper {
     .tags-view-item {
-      display: inline-block;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
       position: relative;
       cursor: pointer;
-      height: 26px;
-      line-height: 26px;
+      height: 28px;
+      line-height: 28px;
       border: 1px solid transparent;
-      border-radius: 999px;
-      color: var(--tags-item-text, #526171);
-      background: var(--tags-item-bg, #f2f6fb);
-      padding: 0 10px;
-      font-size: 12px;
+      border-radius: 8px;
+      color: var(--tags-item-text, #64748b);
+      background: var(--tags-item-bg, transparent);
+      padding: 0 11px;
+      font-size: 12.5px;
+      font-weight: 500;
       margin-left: 5px;
-      margin-top: 4px;
-      transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+      margin-top: 5px;
+      transition: background 0.16s ease, color 0.16s ease, border-color 0.16s ease, box-shadow 0.16s ease;
+
+      &:hover:not(.active) {
+        background: var(--tags-item-hover, #e2e8f0);
+        color: var(--panel-heading, #0f172a);
+      }
 
       &:first-of-type {
-        margin-left: 15px;
+        margin-left: 16px;
       }
 
       &:last-of-type {
-        margin-right: 15px;
+        margin-right: 16px;
       }
 
       &.active {
-        background-color: #42b983;
-        color: #fff;
-        border-color: #42b983;
-        box-shadow: 0 8px 18px rgba(22, 119, 255, 0.18);
+        background-color: var(--tags-active-bg, #ffffff);
+        color: var(--tags-active-text, #2563eb);
+        border-color: var(--tags-active-border, #dbeafe);
+        font-weight: 600;
+        box-shadow: 0 1px 4px rgba(15, 23, 42, 0.06);
 
         &::before {
           content: '';
-          background: #fff;
+          background: currentColor;
           display: inline-block;
-          width: 8px;
-          height: 8px;
+          width: 6px;
+          height: 6px;
           border-radius: 50%;
           position: relative;
-          margin-right: 5px;
         }
       }
     }
@@ -319,25 +315,30 @@ function handleScroll() {
 
   .contextmenu {
     margin: 0;
-    background: var(--el-bg-color-overlay, #fff);
+    background: var(--panel-bg, #ffffff);
     z-index: 3000;
     position: absolute;
     list-style-type: none;
-    padding: 5px 0;
-    border-radius: 8px;
-    font-size: 12px;
-    font-weight: 400;
-    color: var(--tags-item-text, #333);
-    box-shadow: 0 16px 36px rgba(15, 35, 67, 0.18);
-    border: 1px solid var(--el-border-color-light, #e4e7ed);
+    padding: 6px 0;
+    border-radius: 10px;
+    font-size: 12.5px;
+    font-weight: 500;
+    color: var(--panel-text, #334155);
+    box-shadow: 0 16px 36px rgba(15, 23, 42, 0.16);
+    border: 1px solid var(--panel-border, #e2e8f0);
 
     li {
-      margin: 0;
-      padding: 7px 16px;
+      margin: 0 4px;
+      padding: 7px 14px;
+      border-radius: 6px;
       cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
 
       &:hover {
-        background: var(--tags-item-hover, #eee);
+        background: var(--primary-soft-bg, #eff6ff);
+        color: var(--brand-primary, #2563eb);
       }
     }
   }
@@ -345,29 +346,26 @@ function handleScroll() {
 </style>
 
 <style lang="scss">
-//reset element css of el-icon-close
 .tags-view-wrapper {
   .tags-view-item {
+    .tag-close-wrap {
+      display: inline-flex;
+      align-items: center;
+    }
+
     .el-icon-close {
-      width: 16px;
-      height: 16px;
-      vertical-align: 2px;
+      width: 15px;
+      height: 15px;
+      padding: 2px;
       border-radius: 50%;
       text-align: center;
-      transition: all .3s cubic-bezier(.645, .045, .355, 1);
-      transform-origin: 100% 50%;
-
-      &:before {
-        transform: scale(.6);
-        display: inline-block;
-        vertical-align: -3px;
-      }
+      opacity: 0.7;
+      transition: all 0.18s ease;
 
       &:hover {
-        background-color: var(--tags-close-hover, #b4bccc);
-        color: #fff;
-        width: 12px !important;
-        height: 12px !important;
+        background-color: var(--tags-close-hover, #cbd5e1);
+        color: #0f172a;
+        opacity: 1;
       }
     }
   }

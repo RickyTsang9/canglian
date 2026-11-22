@@ -40,7 +40,7 @@ router.beforeEach((to, from, next) => {
                 router.addRoute(route) // 动态添加可访问路由表
               }
             })
-            next({ ...to, replace: true }) // hack方法 确保addRoutes已完成
+            next(useUserStore().needChangePassword && to.path !== '/user/profile' ? { path: '/user/profile', replace: true } : { ...to, replace: true }) // hack方法 确保addRoutes已完成
           })
         }).catch(err => {
           useUserStore().logOut().then(() => {
@@ -48,6 +48,10 @@ router.beforeEach((to, from, next) => {
             next({ path: '/' })
           })
         })
+      } else if (useUserStore().needChangePassword && to.path !== '/user/profile') {
+        ElMessage.warning('当前账号仍为初始密码，请先修改密码后再进入业务系统')
+        next({ path: '/user/profile' })
+        NProgress.done()
       } else {
         next()
       }

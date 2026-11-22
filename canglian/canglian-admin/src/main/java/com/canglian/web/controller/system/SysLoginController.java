@@ -4,6 +4,7 @@ import java.util.Date;
 import java.util.List;
 import java.util.Set;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -47,6 +48,9 @@ public class SysLoginController
     @Autowired
     private ISysConfigService configService;
 
+    @Value("${canglian.security.forcePasswordChange:false}")
+    private boolean forcePasswordChangeProp;
+
     /**
      * 登录方法
      * 
@@ -89,7 +93,21 @@ public class SysLoginController
         ajax.put("permissions", permissions);
         ajax.put("isDefaultModifyPwd", initPasswordIsModify(user.getPwdUpdateDate()));
         ajax.put("isPasswordExpired", passwordIsExpiration(user.getPwdUpdateDate()));
+        ajax.put("needChangePassword", isForcePasswordChangeRequired(user.getPwdUpdateDate()));
         return ajax;
+    }
+
+    /**
+     * 判断是否命中生产强制修改初始密码策略
+     */
+    private boolean isForcePasswordChangeRequired(Date pwdUpdateDate)
+    {
+        if (pwdUpdateDate != null)
+        {
+            return false;
+        }
+        boolean configForce = "true".equalsIgnoreCase(configService.selectConfigByKey("canglian.security.forcePasswordChange"));
+        return forcePasswordChangeProp || configForce;
     }
 
     /**

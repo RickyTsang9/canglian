@@ -1,0 +1,133 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.canglian.business.mapper.MdProductUnitMapper">
+
+    <resultMap type="MdProductUnit" id="MdProductUnitResult">
+        <id property="unitId" column="unit_id" />
+        <result property="productId" column="product_id" />
+        <result property="unitName" column="unit_name" />
+        <result property="isBaseUnit" column="is_base_unit" />
+        <result property="convertRatio" column="convert_ratio" />
+        <result property="barCode" column="bar_code" />
+        <result property="purchasePrice" column="purchase_price" />
+        <result property="salePrice" column="sale_price" />
+        <result property="status" column="status" />
+        <result property="createBy" column="create_by" />
+        <result property="createTime" column="create_time" />
+        <result property="updateBy" column="update_by" />
+        <result property="updateTime" column="update_time" />
+    </resultMap>
+
+    <sql id="selectMdProductUnitVo">
+        select unit_id, product_id, unit_name, is_base_unit, convert_ratio, bar_code,
+               purchase_price, sale_price, status, create_by, create_time, update_by, update_time
+        from md_product_unit
+    </sql>
+
+    <select id="selectMdProductUnitById" parameterType="Long" resultMap="MdProductUnitResult">
+        <include refid="selectMdProductUnitVo"/>
+        where unit_id = #{unitId}
+    </select>
+
+    <select id="selectMdProductUnitList" parameterType="MdProductUnit" resultMap="MdProductUnitResult">
+        <include refid="selectMdProductUnitVo"/>
+        <where>
+            <if test="productId != null">and product_id = #{productId}</if>
+            <if test="unitName != null and unitName != ''">and unit_name like concat('%', #{unitName}, '%')</if>
+            <if test="barCode != null and barCode != ''">and bar_code = #{barCode}</if>
+            <if test="status != null and status != ''">and status = #{status}</if>
+        </where>
+        order by is_base_unit desc, convert_ratio asc, unit_id asc
+    </select>
+
+    <select id="selectByProductAndUnit" resultMap="MdProductUnitResult">
+        <include refid="selectMdProductUnitVo"/>
+        where product_id = #{productId} and unit_name = #{unitName} and status = '0'
+        limit 1
+    </select>
+
+    <select id="selectByProductAndUnitAnyStatus" resultMap="MdProductUnitResult">
+        <include refid="selectMdProductUnitVo"/>
+        where product_id = #{productId} and unit_name = #{unitName}
+        limit 1
+    </select>
+
+    <select id="selectBaseUnitByProductId" parameterType="Long" resultMap="MdProductUnitResult">
+        <include refid="selectMdProductUnitVo"/>
+        where product_id = #{productId} and is_base_unit = '1'
+        order by unit_id asc
+        limit 1
+    </select>
+
+    <select id="selectByBarCode" resultMap="MdProductUnitResult">
+        <include refid="selectMdProductUnitVo"/>
+        where bar_code = #{barCode} and status = '0'
+        order by unit_id asc
+        limit 1
+    </select>
+
+    <select id="countUnitReferences" resultType="int">
+        select
+            (select count(1) from pur_order_item where product_id = #{productId} and unit_name = #{unitName})
+          + (select count(1) from sal_order_item where product_id = #{productId} and unit_name = #{unitName})
+          + (select count(1) from wms_inbound_item where product_id = #{productId} and unit_name = #{unitName})
+          + (select count(1) from wms_outbound_item where product_id = #{productId} and unit_name = #{unitName})
+    </select>
+
+    <insert id="insertMdProductUnit" parameterType="MdProductUnit" useGeneratedKeys="true" keyProperty="unitId">
+        insert into md_product_unit
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="productId != null">product_id,</if>
+            <if test="unitName != null and unitName != ''">unit_name,</if>
+            <if test="isBaseUnit != null">is_base_unit,</if>
+            <if test="convertRatio != null">convert_ratio,</if>
+            <if test="barCode != null">bar_code,</if>
+            <if test="purchasePrice != null">purchase_price,</if>
+            <if test="salePrice != null">sale_price,</if>
+            <if test="status != null">status,</if>
+            <if test="createBy != null and createBy != ''">create_by,</if>
+            create_time,
+        </trim>
+        <trim prefix="values (" suffix=")" suffixOverrides=",">
+            <if test="productId != null">#{productId},</if>
+            <if test="unitName != null and unitName != ''">#{unitName},</if>
+            <if test="isBaseUnit != null">#{isBaseUnit},</if>
+            <if test="convertRatio != null">#{convertRatio},</if>
+            <if test="barCode != null">#{barCode},</if>
+            <if test="purchasePrice != null">#{purchasePrice},</if>
+            <if test="salePrice != null">#{salePrice},</if>
+            <if test="status != null">#{status},</if>
+            <if test="createBy != null and createBy != ''">#{createBy},</if>
+            sysdate(),
+        </trim>
+    </insert>
+
+    <update id="updateMdProductUnit" parameterType="MdProductUnit">
+        update md_product_unit
+        <set>
+            <if test="unitName != null and unitName != ''">unit_name = #{unitName},</if>
+            <if test="isBaseUnit != null">is_base_unit = #{isBaseUnit},</if>
+            <if test="convertRatio != null">convert_ratio = #{convertRatio},</if>
+            <if test="barCode != null">bar_code = #{barCode},</if>
+            <if test="purchasePrice != null">purchase_price = #{purchasePrice},</if>
+            <if test="salePrice != null">sale_price = #{salePrice},</if>
+            <if test="status != null">status = #{status},</if>
+            <if test="updateBy != null and updateBy != ''">update_by = #{updateBy},</if>
+            update_time = sysdate(),
+        </set>
+        where unit_id = #{unitId}
+    </update>
+
+    <delete id="deleteMdProductUnitById" parameterType="Long">
+        delete from md_product_unit where unit_id = #{unitId}
+    </delete>
+
+    <delete id="deleteMdProductUnitByIds" parameterType="Long">
+        delete from md_product_unit where unit_id in
+        <foreach collection="array" item="unitId" open="(" separator="," close=")">
+            #{unitId}
+        </foreach>
+    </delete>
+</mapper>

@@ -1,6 +1,8 @@
 package com.canglian.web.controller.business;
 
+import java.math.BigDecimal;
 import java.util.List;
+import java.util.Map;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
@@ -22,7 +24,7 @@ import com.canglian.common.enums.BusinessType;
 
 /**
  * 发票登记控制器
- * 
+ *
  * @author canglian
  */
 @RestController
@@ -32,12 +34,6 @@ public class FinInvoiceController extends BaseController
     @Autowired
     private IFinInvoiceService finInvoiceService;
 
-    /**
-     * 查询发票登记列表
-     * 
-     * @param finInvoice 发票登记
-     * @return 发票登记列表
-     */
     @PreAuthorize("@ss.hasPermi('business:invoice:list')")
     @GetMapping("/list")
     public TableDataInfo list(FinInvoice finInvoice)
@@ -47,12 +43,6 @@ public class FinInvoiceController extends BaseController
         return getDataTable(finInvoiceList);
     }
 
-    /**
-     * 查询发票登记详情
-     * 
-     * @param invoiceId 发票登记id
-     * @return 发票登记详情
-     */
     @PreAuthorize("@ss.hasPermi('business:invoice:query')")
     @GetMapping("/{invoiceId}")
     public AjaxResult getInfo(@PathVariable Long invoiceId)
@@ -60,12 +50,6 @@ public class FinInvoiceController extends BaseController
         return success(finInvoiceService.selectFinInvoiceById(invoiceId));
     }
 
-    /**
-     * 新增发票登记
-     * 
-     * @param finInvoice 发票登记
-     * @return 结果
-     */
     @PreAuthorize("@ss.hasPermi('business:invoice:add')")
     @Log(title = "发票登记", businessType = BusinessType.INSERT)
     @PostMapping
@@ -75,12 +59,6 @@ public class FinInvoiceController extends BaseController
         return toAjax(finInvoiceService.insertFinInvoice(finInvoice));
     }
 
-    /**
-     * 修改发票登记
-     * 
-     * @param finInvoice 发票登记
-     * @return 结果
-     */
     @PreAuthorize("@ss.hasPermi('business:invoice:edit')")
     @Log(title = "发票登记", businessType = BusinessType.UPDATE)
     @PutMapping
@@ -90,12 +68,6 @@ public class FinInvoiceController extends BaseController
         return toAjax(finInvoiceService.updateFinInvoice(finInvoice));
     }
 
-    /**
-     * 确认发票登记
-     * 
-     * @param invoiceId 发票登记id
-     * @return 结果
-     */
     @PreAuthorize("@ss.hasPermi('business:invoice:confirm')")
     @Log(title = "发票登记确认", businessType = BusinessType.UPDATE)
     @PutMapping("/confirm/{invoiceId}")
@@ -104,12 +76,18 @@ public class FinInvoiceController extends BaseController
         return toAjax(finInvoiceService.confirmFinInvoice(invoiceId, getUsername()));
     }
 
-    /**
-     * 删除发票登记
-     * 
-     * @param invoiceIds 发票登记id集合
-     * @return 结果
-     */
+    @PreAuthorize("@ss.hasPermi('business:invoice:red') or @ss.hasPermi('business:invoice:confirm')")
+    @Log(title = "红字发票冲销", businessType = BusinessType.INSERT)
+    @PostMapping("/red/{originInvoiceId}")
+    public AjaxResult issueRed(@PathVariable Long originInvoiceId, @RequestBody(required = false) Map<String, Object> body)
+    {
+        Object redObj = body == null ? null : (body.get("redAmount") != null ? body.get("redAmount") : body.get("amount"));
+        BigDecimal redAmount = (redObj != null && !"".equals(String.valueOf(redObj)))
+            ? new BigDecimal(String.valueOf(redObj)) : null;
+        String remark = body != null && body.get("remark") != null ? String.valueOf(body.get("remark")) : null;
+        return success(finInvoiceService.issueRedInvoice(originInvoiceId, redAmount, remark, getUsername()));
+    }
+
     @PreAuthorize("@ss.hasPermi('business:invoice:remove')")
     @Log(title = "发票登记", businessType = BusinessType.DELETE)
     @DeleteMapping("/{invoiceIds}")

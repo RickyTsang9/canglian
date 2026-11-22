@@ -17,6 +17,7 @@ import com.canglian.common.core.controller.BaseController;
 import com.canglian.common.core.domain.AjaxResult;
 import com.canglian.common.core.page.TableDataInfo;
 import com.canglian.common.enums.BusinessType;
+import com.canglian.common.exception.ServiceException;
 import com.canglian.business.domain.WmsStockLog;
 import com.canglian.business.service.IWmsStockLogService;
 
@@ -48,8 +49,7 @@ public class WmsStockLogController extends BaseController
     @PostMapping
     public AjaxResult add(@Validated @RequestBody WmsStockLog wmsStockLog)
     {
-        wmsStockLog.setCreateBy(getUsername());
-        return toAjax(wmsStockLogService.insertWmsStockLog(wmsStockLog));
+        throw new ServiceException("库存流水为系统审计台账，不允许手工新增");
     }
 
     @PreAuthorize("@ss.hasPermi('business:stockLog:edit')")
@@ -57,7 +57,7 @@ public class WmsStockLogController extends BaseController
     @PutMapping
     public AjaxResult edit(@Validated @RequestBody WmsStockLog wmsStockLog)
     {
-        return toAjax(wmsStockLogService.updateWmsStockLog(wmsStockLog));
+        throw new ServiceException("库存流水为系统审计台账，不允许手工修改");
     }
 
     @PreAuthorize("@ss.hasPermi('business:stockLog:remove')")
@@ -65,7 +65,7 @@ public class WmsStockLogController extends BaseController
     @DeleteMapping("/{stockLogIds}")
     public AjaxResult remove(@PathVariable Long[] stockLogIds)
     {
-        return toAjax(wmsStockLogService.deleteWmsStockLogByIds(stockLogIds));
+        throw new ServiceException("库存流水为系统审计台账，不允许删除");
     }
 }
 

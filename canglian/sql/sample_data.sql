@@ -10,10 +10,10 @@ SET FOREIGN_KEY_CHECKS = 0;
 
 -- 1. 仓库档案 (MdWarehouse)
 -- 删除可能存在的冲突数据（按编码）
-DELETE FROM md_warehouse WHERE warehouse_code IN ('WH001', 'WH002');
-INSERT INTO md_warehouse (warehouse_id, warehouse_code, warehouse_name, status, del_flag, create_by, create_time, remark) VALUES 
-(100, 'WH001', '主仓库', '0', '0', 'admin', NOW(), '系统默认主仓库'),
-(101, 'WH002', '门店仓', '0', '0', 'admin', NOW(), '分店仓库');
+DELETE FROM md_warehouse WHERE warehouse_code IN ('WH100', 'WH101');
+INSERT INTO md_warehouse (warehouse_id, warehouse_code, warehouse_name, contact_person, status, del_flag, create_by, create_time, remark) VALUES 
+(100, 'WH100', '示例主仓库', '系统管理员', '0', '0', 'admin', NOW(), '系统默认主仓库'),
+(101, 'WH101', '示例门店仓', '门店管理员', '0', '0', 'admin', NOW(), '分店仓库');
 
 -- 2. 库位档案 (MdLocation)
 DELETE FROM md_location WHERE location_code IN ('A-01-01', 'A-01-02', 'B-01-01', 'S-01-01');
@@ -82,7 +82,7 @@ INSERT INTO wms_transfer_item (transfer_item_id, transfer_id, product_id, out_lo
 
 -- 13. 盘点单 (WmsInventoryCheck)
 DELETE FROM wms_inventory_check WHERE check_no IN ('CHK202310030001');
-INSERT INTO wms_inventory_check (check_id, check_no, warehouse_id, check_status, remark, create_by, create_time) VALUES
+INSERT INTO wms_inventory_check (check_id, check_no, warehouse_id, status, remark, create_by, create_time) VALUES
 (100, 'CHK202310030001', 100, '0', '月度盘点', 'admin', NOW());
 
 -- 14. 盘点明细 (WmsInventoryCheckItem)

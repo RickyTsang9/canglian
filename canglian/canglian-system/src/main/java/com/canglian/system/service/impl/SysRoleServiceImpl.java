@@ -21,6 +21,7 @@ import com.canglian.system.domain.SysUserRole;
 import com.canglian.system.mapper.SysRoleDeptMapper;
 import com.canglian.system.mapper.SysRoleMapper;
 import com.canglian.system.mapper.SysRoleMenuMapper;
+import com.canglian.system.mapper.SysRoleWarehouseMapper;
 import com.canglian.system.mapper.SysUserRoleMapper;
 import com.canglian.system.service.ISysRoleService;
 
@@ -43,6 +44,9 @@ public class SysRoleServiceImpl implements ISysRoleService
 
     @Autowired
     private SysRoleDeptMapper roleDeptMapper;
+
+    @Autowired
+    private SysRoleWarehouseMapper roleWarehouseMapper;
 
     /**
      * 根据条件分页查询角色数据
@@ -274,13 +278,25 @@ public class SysRoleServiceImpl implements ISysRoleService
      * @return 结果
      */
     @Override
+    public List<Long> selectWarehouseIdsByRoleId(Long roleId)
+    {
+        return roleWarehouseMapper.selectWarehouseIdsByRoleId(roleId);
+    }
+
+    @Override
     @Transactional
     public int authDataScope(SysRole role)
     {
-        // 修改角色信息
+        // 修改角色信息（含 warehouseScope）
         roleMapper.updateRole(role);
         // 删除角色与部门关联
         roleDeptMapper.deleteRoleDeptByRoleId(role.getRoleId());
+        // 同步角色与仓库数据权限关联
+        roleWarehouseMapper.deleteRoleWarehouseByRoleId(role.getRoleId());
+        if ("2".equals(role.getWarehouseScope()) && role.getWarehouseIds() != null && role.getWarehouseIds().length > 0)
+        {
+            roleWarehouseMapper.batchInsertRoleWarehouse(role.getRoleId(), role.getWarehouseIds());
+        }
         // 新增角色和部门信息（数据权限）
         return insertRoleDept(role);
     }
@@ -347,6 +363,8 @@ public class SysRoleServiceImpl implements ISysRoleService
         roleMenuMapper.deleteRoleMenuByRoleId(roleId);
         // 删除角色与部门关联
         roleDeptMapper.deleteRoleDeptByRoleId(roleId);
+        // 删除角色与仓库关联
+        roleWarehouseMapper.deleteRoleWarehouseByRoleId(roleId);
         return roleMapper.deleteRoleById(roleId);
     }
 
@@ -374,6 +392,11 @@ public class SysRoleServiceImpl implements ISysRoleService
         roleMenuMapper.deleteRoleMenu(roleIds);
         // 删除角色与部门关联
         roleDeptMapper.deleteRoleDept(roleIds);
+        // 删除角色与仓库关联
+        for (Long roleId : roleIds)
+        {
+            roleWarehouseMapper.deleteRoleWarehouseByRoleId(roleId);
+        }
         return roleMapper.deleteRoleByIds(roleIds);
     }
 

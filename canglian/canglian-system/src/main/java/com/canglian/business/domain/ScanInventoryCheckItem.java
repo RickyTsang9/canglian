@@ -17,6 +17,8 @@ public class ScanInventoryCheckItem
 
     private String productName;
 
+    private String batchNo;
+
     private BigDecimal stockQty;
 
     private BigDecimal actualQty;
@@ -91,5 +93,15 @@ public class ScanInventoryCheckItem
     public void setDiffQty(BigDecimal diffQty)
     {
         this.diffQty = diffQty;
+    }
+
+    public String getBatchNo()
+    {
+        return batchNo;
+    }
+
+    public void setBatchNo(String batchNo)
+    {
+        this.batchNo = batchNo;
     }
 }

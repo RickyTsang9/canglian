@@ -86,6 +86,14 @@ public class FinExpenseController extends BaseController
         return toAjax(finExpenseService.confirmFinExpense(expenseId, getUsername()));
     }
 
+    @PreAuthorize("@ss.hasPermi('business:expense:confirm')")
+    @Log(title = "费用反确认", businessType = BusinessType.UPDATE)
+    @PostMapping("/unconfirm/{expenseId}")
+    public AjaxResult unconfirm(@PathVariable Long expenseId)
+    {
+        return toAjax(finExpenseService.unconfirmFinExpense(expenseId, getUsername()));
+    }
+
     /**
      * 删除费用
      */

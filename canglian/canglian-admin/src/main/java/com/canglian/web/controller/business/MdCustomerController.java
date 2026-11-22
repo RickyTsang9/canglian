@@ -71,6 +71,7 @@ public class MdCustomerController extends BaseController
      *
      * @param response 响应对象
      */
+    @PreAuthorize("@ss.hasPermi('business:customer:import')")
     @PostMapping("/importTemplate")
     public void importTemplate(HttpServletResponse response)
     {

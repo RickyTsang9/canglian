@@ -1,6 +1,7 @@
 package com.canglian.business.mapper;
 
 import java.util.List;
+import org.apache.ibatis.annotations.Param;
 import com.canglian.business.domain.FinPayable;
 
 /**
@@ -33,6 +34,11 @@ public interface FinPayableMapper
      * @return 最大应付单号
      */
     public String selectMaxPayableNoByPrefix(String payableNoPrefix);
+
+    /**
+     * 按来源单据查询应付单（用于防重与退货红字幂等）
+     */
+    public FinPayable selectFinPayableBySource(@Param("sourceBillType") String sourceBillType, @Param("sourceBillId") Long sourceBillId);
 
     /**
      * 新增应付单

@@ -10,6 +10,11 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         <result property="productId"   column="product_id"    />
         <result property="locationId"  column="location_id"   />
         <result property="batchNo"     column="batch_no"      />
+        <result property="unitName"    column="unit_name"     />
+        <result property="convertRatio" column="convert_ratio"/>
+        <result property="baseDiffQty" column="base_diff_qty" />
+        <result property="productionDate" column="production_date" />
+        <result property="expiryDate"  column="expiry_date"   />
         <result property="stockQty"    column="stock_qty"     />
         <result property="actualQty"   column="actual_qty"    />
         <result property="diffQty"     column="diff_qty"      />
@@ -18,7 +23,9 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
     </resultMap>
 
     <sql id="selectWmsInventoryCheckItemVo">
-        select check_item_id, check_id, product_id, location_id, batch_no, stock_qty, actual_qty, diff_qty, price, diff_amount
+        select check_item_id, check_id, product_id, location_id, batch_no,
+               unit_name, convert_ratio, base_diff_qty, production_date, expiry_date,
+               stock_qty, actual_qty, diff_qty, price, diff_amount
         from wms_inventory_check_item
     </sql>
 
@@ -30,18 +37,10 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
     <select id="selectWmsInventoryCheckItemList" parameterType="WmsInventoryCheckItem" resultMap="WmsInventoryCheckItemResult">
         <include refid="selectWmsInventoryCheckItemVo"/>
         <where>
-            <if test="checkId != null">
-                and check_id = #{checkId}
-            </if>
-            <if test="productId != null">
-                and product_id = #{productId}
-            </if>
-            <if test="locationId != null">
-                and location_id = #{locationId}
-            </if>
-            <if test="batchNo != null and batchNo != ''">
-                and batch_no = #{batchNo}
-            </if>
+            <if test="checkId != null">and check_id = #{checkId}</if>
+            <if test="productId != null">and product_id = #{productId}</if>
+            <if test="locationId != null">and location_id = #{locationId}</if>
+            <if test="batchNo != null and batchNo != ''">and batch_no = #{batchNo}</if>
         </where>
     </select>
 
@@ -51,7 +50,12 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             <if test="checkId != null">check_id,</if>
             <if test="productId != null">product_id,</if>
             <if test="locationId != null">location_id,</if>
-            <if test="batchNo != null and batchNo != ''">batch_no,</if>
+            <if test="batchNo != null">batch_no,</if>
+            <if test="unitName != null">unit_name,</if>
+            <if test="convertRatio != null">convert_ratio,</if>
+            <if test="baseDiffQty != null">base_diff_qty,</if>
+            <if test="productionDate != null">production_date,</if>
+            <if test="expiryDate != null">expiry_date,</if>
             <if test="stockQty != null">stock_qty,</if>
             <if test="actualQty != null">actual_qty,</if>
             <if test="diffQty != null">diff_qty,</if>
@@ -62,7 +66,12 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             <if test="checkId != null">#{checkId},</if>
             <if test="productId != null">#{productId},</if>
             <if test="locationId != null">#{locationId},</if>
-            <if test="batchNo != null and batchNo != ''">#{batchNo},</if>
+            <if test="batchNo != null">#{batchNo},</if>
+            <if test="unitName != null">#{unitName},</if>
+            <if test="convertRatio != null">#{convertRatio},</if>
+            <if test="baseDiffQty != null">#{baseDiffQty},</if>
+            <if test="productionDate != null">#{productionDate},</if>
+            <if test="expiryDate != null">#{expiryDate},</if>
             <if test="stockQty != null">#{stockQty},</if>
             <if test="actualQty != null">#{actualQty},</if>
             <if test="diffQty != null">#{diffQty},</if>
@@ -77,7 +86,12 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             <if test="checkId != null">check_id = #{checkId},</if>
             <if test="productId != null">product_id = #{productId},</if>
             <if test="locationId != null">location_id = #{locationId},</if>
-            <if test="batchNo != null and batchNo != ''">batch_no = #{batchNo},</if>
+            <if test="batchNo != null">batch_no = #{batchNo},</if>
+            <if test="unitName != null">unit_name = #{unitName},</if>
+            <if test="convertRatio != null">convert_ratio = #{convertRatio},</if>
+            <if test="baseDiffQty != null">base_diff_qty = #{baseDiffQty},</if>
+            <if test="productionDate != null">production_date = #{productionDate},</if>
+            <if test="expiryDate != null">expiry_date = #{expiryDate},</if>
             <if test="stockQty != null">stock_qty = #{stockQty},</if>
             <if test="actualQty != null">actual_qty = #{actualQty},</if>
             <if test="diffQty != null">diff_qty = #{diffQty},</if>
@@ -97,5 +111,8 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             #{checkItemId}
         </foreach>
     </delete>
-</mapper>
 
+    <delete id="deleteWmsInventoryCheckItemByCheckId" parameterType="Long">
+        delete from wms_inventory_check_item where check_id = #{checkId}
+    </delete>
+</mapper>

@@ -1,5 +1,6 @@
 package com.canglian.web.controller.business;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.HashMap;
 import java.util.Map;
@@ -39,6 +40,9 @@ public class WmsInboundController extends BaseController
     @Autowired
     private IWmsInboundItemService wmsInboundItemService;
 
+    @Autowired(required = false)
+    private PrintPayloadEnricher printPayloadEnricher;
+
     /**
      * 获取入库单列表
      */
@@ -76,6 +80,23 @@ public class WmsInboundController extends BaseController
         Map<String, Object> printData = new HashMap<String, Object>();
         printData.put("header", inbound);
         printData.put("items", inboundItemList);
+        if (printPayloadEnricher != null)
+        {
+            List<Long> pids = new ArrayList<Long>();
+            List<Long> lids = new ArrayList<Long>();
+            if (inboundItemList != null)
+            {
+                for (WmsInboundItem item : inboundItemList)
+                {
+                    if (item.getProductId() != null) pids.add(item.getProductId());
+                    if (item.getLocationId() != null) lids.add(item.getLocationId());
+                }
+            }
+            printData.put("displayNames", printPayloadEnricher.buildDisplayNames(
+                printPayloadEnricher.resolveSupplierName(inbound.getSupplierId()),
+                printPayloadEnricher.resolveWarehouseName(inbound.getWarehouseId()),
+                null, null, pids, lids));
+        }
         return success(printData);
     }
 
@@ -112,6 +133,28 @@ public class WmsInboundController extends BaseController
     public AjaxResult audit(@PathVariable Long inboundId)
     {
         return toAjax(wmsInboundService.auditWmsInbound(inboundId, getUsername()));
+    }
+
+    /**
+     * 入库单反审核
+     */
+    @PreAuthorize("@ss.hasPermi('business:inbound:unaudit') or @ss.hasPermi('business:inbound:audit')")
+    @Log(title = "入库反审核", businessType = BusinessType.UPDATE)
+    @PutMapping("/unaudit/{inboundId}")
+    public AjaxResult unaudit(@PathVariable Long inboundId)
+    {
+        return toAjax(wmsInboundService.unauditWmsInbound(inboundId, getUsername()));
+    }
+
+    /**
+     * 入库单一键红冲
+     */
+    @PreAuthorize("@ss.hasPermi('business:inbound:reverse') or @ss.hasPermi('business:inbound:audit')")
+    @Log(title = "入库红冲", businessType = BusinessType.INSERT)
+    @PostMapping("/reverse/{inboundId}")
+    public AjaxResult reverse(@PathVariable Long inboundId)
+    {
+        return success(wmsInboundService.reverseWmsInbound(inboundId, getUsername()));
     }
 
     /**

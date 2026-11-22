@@ -1,14 +1,16 @@
 package com.canglian.business.domain;
 
 import java.util.Date;
+import com.canglian.common.core.domain.BaseEntity;
 
 /**
  * 仓库统计查询对象
  * 
  * @author canglian
  */
-public class WarehouseStatisticsQuery
+public class WarehouseStatisticsQuery extends BaseEntity
 {
+    private static final long serialVersionUID = 1L;
     /** 仓库id */
     private Long warehouseId;
 

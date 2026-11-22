@@ -10,60 +10,99 @@
       <el-form-item>
         <el-button type="primary" icon="Search" @click="getAllReports">查询</el-button>
         <el-button icon="Refresh" @click="resetQuery">重置</el-button>
+        <el-button type="warning" plain icon="Download" @click="handleExportActive" v-hasPermi="['business:report:export']">导出当前报表 Excel</el-button>
       </el-form-item>
     </el-form>
 
     <el-tabs v-model="activeTab">
-      <el-tab-pane label="销售毛利" name="grossProfit">
-        <el-table v-loading="loading.grossProfit" :data="grossProfitList">
-          <el-table-column label="商品编码" align="center" prop="productCode" />
-          <el-table-column label="商品名称" align="center" prop="productName" />
-          <el-table-column label="销售数量" align="center" prop="saleQty" />
-          <el-table-column label="销售金额" align="center" prop="saleAmount" />
-          <el-table-column label="成本金额" align="center" prop="costAmount" />
-          <el-table-column label="毛利" align="center" prop="grossProfit" />
+      <el-tab-pane label="销售毛利（真实成本）" name="grossProfit">
+        <el-alert
+          title="统计口径：严格按客户签收确认的销售出库单与有效销售退货单汇总（数量统一换算为基础计量单位），结转成本取自历史真实成本流水。"
+          type="info"
+          show-icon
+          :closable="false"
+          style="margin-bottom: 10px"
+        />
+        <el-table v-loading="loading.grossProfit" :data="grossProfitList" border>
+          <el-table-column label="商品编码" align="center" prop="productCode" min-width="115" />
+          <el-table-column label="商品名称" align="center" prop="productName" min-width="150" show-overflow-tooltip />
+          <el-table-column label="签收销量(基础)" align="right" prop="saleQty" min-width="115" />
+          <el-table-column label="退货数量(基础)" align="right" prop="returnQty" min-width="115" />
+          <el-table-column label="净销量(基础)" align="right" prop="netSaleQty" min-width="110" />
+          <el-table-column label="净销售额" align="right" prop="netSaleAmount" min-width="115">
+            <template #default="scope">￥{{ Number(scope.row.netSaleAmount || 0).toFixed(2) }}</template>
+          </el-table-column>
+          <el-table-column label="真实成本" align="right" prop="costAmount" min-width="115">
+            <template #default="scope">￥{{ Number(scope.row.costAmount || 0).toFixed(2) }}</template>
+          </el-table-column>
+          <el-table-column label="销售毛利" align="right" prop="grossProfit" min-width="115">
+            <template #default="scope">
+              <span :style="Number(scope.row.grossProfit || 0) >= 0 ? 'color:#67c23a;font-weight:600' : 'color:#f56c6c;font-weight:600'">
+                ￥{{ Number(scope.row.grossProfit || 0).toFixed(2) }}
+              </span>
+            </template>
+          </el-table-column>
+          <el-table-column label="毛利率" align="center" width="95">
+            <template #default="scope">{{ scope.row.grossMarginRate ?? 0 }}%</template>
+          </el-table-column>
         </el-table>
       </el-tab-pane>
 
       <el-tab-pane label="客户贡献" name="customerContribution">
-        <el-table v-loading="loading.customerContribution" :data="customerContributionList">
-          <el-table-column label="客户编码" align="center" prop="customerCode" />
-          <el-table-column label="客户名称" align="center" prop="customerName" />
-          <el-table-column label="订单数" align="center" prop="orderCount" />
-          <el-table-column label="销售金额" align="center" prop="saleAmount" />
-          <el-table-column label="已收贡献" align="center" prop="receivedContribution" />
-          <el-table-column label="未收金额" align="center" prop="unpaidAmount" />
+        <el-table v-loading="loading.customerContribution" :data="customerContributionList" border>
+          <el-table-column label="客户编码" align="center" prop="customerCode" min-width="115" />
+          <el-table-column label="客户名称" align="center" prop="customerName" min-width="150" show-overflow-tooltip />
+          <el-table-column label="签收单数" align="center" prop="orderCount" width="100" />
+          <el-table-column label="净销售金额" align="right" min-width="125">
+            <template #default="scope">￥{{ Number(scope.row.saleAmount || 0).toFixed(2) }}</template>
+          </el-table-column>
+          <el-table-column label="已收贡献" align="right" min-width="125">
+            <template #default="scope">￥{{ Number(scope.row.receivedContribution || 0).toFixed(2) }}</template>
+          </el-table-column>
+          <el-table-column label="剩余未收" align="right" min-width="125">
+            <template #default="scope">￥{{ Number(scope.row.unpaidAmount || 0).toFixed(2) }}</template>
+          </el-table-column>
         </el-table>
       </el-tab-pane>
 
       <el-tab-pane label="商品周转" name="turnover">
-        <el-table v-loading="loading.turnover" :data="turnoverList">
-          <el-table-column label="商品编码" align="center" prop="productCode" />
-          <el-table-column label="商品名称" align="center" prop="productName" />
-          <el-table-column label="入库数量" align="center" prop="inboundQty" />
-          <el-table-column label="出库数量" align="center" prop="outboundQty" />
-          <el-table-column label="库存数量" align="center" prop="stockQty" />
-          <el-table-column label="周转率" align="center" prop="turnoverRate" />
+        <el-table v-loading="loading.turnover" :data="turnoverList" border>
+          <el-table-column label="商品编码" align="center" prop="productCode" min-width="115" />
+          <el-table-column label="商品名称" align="center" prop="productName" min-width="150" show-overflow-tooltip />
+          <el-table-column label="商业入库数" align="right" prop="inboundQty" min-width="115" />
+          <el-table-column label="商业出库数" align="right" prop="outboundQty" min-width="115" />
+          <el-table-column label="当前库存数" align="right" prop="stockQty" min-width="115" />
+          <el-table-column label="周转率" align="center" prop="turnoverRate" width="110" />
         </el-table>
       </el-tab-pane>
 
       <el-tab-pane label="库存余额" name="stockBalance">
-        <el-table v-loading="loading.stockBalance" :data="stockBalanceList">
-          <el-table-column label="仓库编号" align="center" prop="warehouseId" />
-          <el-table-column label="库位编号" align="center" prop="locationId" />
-          <el-table-column label="商品编码" align="center" prop="productCode" />
-          <el-table-column label="商品名称" align="center" prop="productName" />
-          <el-table-column label="批次号" align="center" prop="batchNo" />
-          <el-table-column label="库存数量" align="center" prop="stockQty" />
-          <el-table-column label="可用数量" align="center" prop="availableQty" />
-          <el-table-column label="库存金额" align="center" prop="stockAmount" />
+        <el-table v-loading="loading.stockBalance" :data="stockBalanceList" border>
+          <el-table-column label="仓库" align="center" prop="warehouseName" min-width="120" />
+          <el-table-column label="库位" align="center" min-width="115">
+            <template #default="scope">{{ scope.row.locationName || '默认库位' }}</template>
+          </el-table-column>
+          <el-table-column label="商品编码" align="center" prop="productCode" min-width="110" />
+          <el-table-column label="商品名称" align="center" prop="productName" min-width="145" show-overflow-tooltip />
+          <el-table-column label="批次号" align="center" prop="batchNo" min-width="120" />
+          <el-table-column label="库存数量" align="right" prop="stockQty" width="100" />
+          <el-table-column label="可用数量" align="right" prop="availableQty" width="100" />
+          <el-table-column label="库存金额" align="right" width="120">
+            <template #default="scope">￥{{ Number(scope.row.stockAmount || 0).toFixed(2) }}</template>
+          </el-table-column>
         </el-table>
       </el-tab-pane>
 
       <el-tab-pane label="资金分析" name="fundAnalysis">
-        <el-table v-loading="loading.fundAnalysis" :data="fundAnalysisList">
-          <el-table-column label="资金类型" align="center" prop="fundType" />
-          <el-table-column label="金额" align="center" prop="amount" />
+        <el-table v-loading="loading.fundAnalysis" :data="fundAnalysisList" border>
+          <el-table-column label="资金类型" align="center" min-width="180">
+            <template #default="scope">
+              <span>{{ scope.row.fundTypeName || fundTypeLabelMap[scope.row.fundType] || scope.row.fundType }}</span>
+            </template>
+          </el-table-column>
+          <el-table-column label="金额" align="right" min-width="160">
+            <template #default="scope">￥{{ Number(scope.row.amount || 0).toFixed(2) }}</template>
+          </el-table-column>
         </el-table>
       </el-tab-pane>
     </el-tabs>
@@ -71,7 +110,7 @@
 </template>
 
 <script setup name="OperationReport">
-import { salesGrossProfit, customerContribution, productTurnover, stockBalance, fundAnalysis } from "@/api/business/report"
+import { salesGrossProfit, customerContribution, productTurnover, stockBalance, fundAnalysis, exportReport } from "@/api/business/report"
 
 const { proxy } = getCurrentInstance()
 
@@ -84,8 +123,15 @@ const loading = reactive({
   fundAnalysis: false
 })
 
-const currentDate = new Date()
-const currentYear = currentDate.getFullYear()
+const fundTypeLabelMap = {
+  receipt: "销售收款流入",
+  payment: "采购付款流出",
+  expense: "期间费用支出",
+  bad_debt_recover: "坏账收回流入",
+  transfer_fee: "内部互转手续费"
+}
+
+const currentYear = new Date().getFullYear()
 const queryParams = reactive({
   startDate: `${currentYear}-01-01`,
   endDate: `${currentYear}-12-31`
@@ -97,7 +143,31 @@ const turnoverList = ref([])
 const stockBalanceList = ref([])
 const fundAnalysisList = ref([])
 
-// 查询全部经营报表
+const tabExportMap = {
+  grossProfit: { type: "salesGrossProfit", file: "销售毛利报表.xlsx" },
+  customerContribution: { type: "customerContribution", file: "客户贡献报表.xlsx" },
+  turnover: { type: "productTurnover", file: "商品周转报表.xlsx" },
+  stockBalance: { type: "stockBalance", file: "库存余额报表.xlsx" },
+  fundAnalysis: { type: "fundAnalysis", file: "资金分析报表.xlsx" }
+}
+
+function handleExportActive() {
+  const cfg = tabExportMap[activeTab.value]
+  if (!cfg) return
+  exportReport({ reportType: cfg.type, ...queryParams }).then(blob => {
+    const url = window.URL.createObjectURL(new Blob([blob]))
+    const link = document.createElement("a")
+    link.href = url
+    link.setAttribute("download", cfg.file)
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    window.URL.revokeObjectURL(url)
+  }).catch(() => {
+    proxy.$modal.msgError("报表导出失败")
+  })
+}
+
 function getAllReports() {
   getGrossProfitList()
   getCustomerContributionList()
@@ -106,59 +176,55 @@ function getAllReports() {
   getFundAnalysisList()
 }
 
-// 查询销售毛利
 function getGrossProfitList() {
   loading.grossProfit = true
   salesGrossProfit(queryParams).then(response => {
-    grossProfitList.value = response.data
+    grossProfitList.value = response.data || []
   }).finally(() => {
     loading.grossProfit = false
   })
 }
 
-// 查询客户贡献
 function getCustomerContributionList() {
   loading.customerContribution = true
   customerContribution(queryParams).then(response => {
-    customerContributionList.value = response.data
+    customerContributionList.value = response.data || []
   }).finally(() => {
     loading.customerContribution = false
   })
 }
 
-// 查询商品周转
 function getTurnoverList() {
   loading.turnover = true
   productTurnover(queryParams).then(response => {
-    turnoverList.value = response.data
+    turnoverList.value = response.data || []
   }).finally(() => {
     loading.turnover = false
   })
 }
 
-// 查询库存余额
 function getStockBalanceList() {
   loading.stockBalance = true
   stockBalance().then(response => {
-    stockBalanceList.value = response.data
+    stockBalanceList.value = response.data || []
   }).finally(() => {
     loading.stockBalance = false
   })
 }
 
-// 查询资金分析
 function getFundAnalysisList() {
   loading.fundAnalysis = true
   fundAnalysis(queryParams).then(response => {
-    fundAnalysisList.value = response.data
+    fundAnalysisList.value = response.data || []
   }).finally(() => {
     loading.fundAnalysis = false
   })
 }
 
-// 重置查询条件
 function resetQuery() {
   proxy.resetForm("queryRef")
+  queryParams.startDate = `${currentYear}-01-01`
+  queryParams.endDate = `${currentYear}-12-31`
   getAllReports()
 }
 

@@ -99,10 +99,10 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         <set>
             <if test="writeOffNo != null and writeOffNo != ''">write_off_no = #{writeOffNo},</if>
             <if test="writeOffType != null and writeOffType != ''">write_off_type = #{writeOffType},</if>
-            <if test="receivableId != null">receivable_id = #{receivableId},</if>
-            <if test="payableId != null">payable_id = #{payableId},</if>
-            <if test="receiptId != null">receipt_id = #{receiptId},</if>
-            <if test="paymentId != null">payment_id = #{paymentId},</if>
+            receivable_id = #{receivableId},
+            payable_id = #{payableId},
+            receipt_id = #{receiptId},
+            payment_id = #{paymentId},
             <if test="amount != null">amount = #{amount},</if>
             <if test="writeOffDate != null">write_off_date = #{writeOffDate},</if>
             <if test="status != null">status = #{status},</if>

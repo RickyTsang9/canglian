@@ -114,17 +114,19 @@ where business_date is null
 
 update fin_receivable
 set business_date = coalesce(business_date, due_date, date(create_time)),
-    biz_status = case when status = '1' then 'confirmed' else 'draft' end
+    biz_status = case when status in ('0', '1', '2') then 'confirmed' else 'draft' end
 where business_date is null
    or biz_status is null
-   or biz_status = '';
+   or biz_status = ''
+   or (biz_status = 'draft' and status in ('1', '2'));
 
 update fin_payable
 set business_date = coalesce(business_date, due_date, date(create_time)),
-    biz_status = case when status = '1' then 'confirmed' else 'draft' end
+    biz_status = case when status in ('0', '1', '2') then 'confirmed' else 'draft' end
 where business_date is null
    or biz_status is null
-   or biz_status = '';
+   or biz_status = ''
+   or (biz_status = 'draft' and status in ('1', '2'));
 
 update md_product
 set warning_min_qty = coalesce(warning_min_qty, 0.00),
@@ -295,268 +297,270 @@ create table if not exists fin_voucher_event (
   primary key (voucher_event_id)
 ) engine=innodb comment = '凭证事件表';
 
-insert into sys_menu
-select '2260', '报价单', '2000', '30', 'saleQuote', 'business/saleOrder/index', '{"orderType":"quote"}', '', 1, 0, 'C', '0', '0', 'business:saleOrder:list', 'document', 'admin', sysdate(), '', null, '报价单菜单'
+insert into sys_menu(menu_id, menu_name, parent_id, order_num, path, component, query, route_name, is_frame, is_cache, menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time, remark)
+select 2260, '报价单', 2000, 30, 'saleQuote', 'business/saleOrder/index', '{"orderType":"quote"}', '', 1, 0, 'C', '0', '0', 'business:saleOrder:list', 'documentation', 'admin', sysdate(), '', null, '报价单菜单'
 from dual
-where not exists (select 1 from sys_menu where menu_id = '2260');
+where not exists (select 1 from sys_menu where menu_id = 2260 or path = 'saleQuote');
 
-insert into sys_menu
-select '2261', '销货订单', '2000', '31', 'saleOrder', 'business/saleOrder/index', '{"orderType":"sale"}', '', 1, 0, 'C', '0', '0', 'business:saleOrder:list', 'shopping', 'admin', sysdate(), '', null, '销货订单菜单'
+insert into sys_menu(menu_id, menu_name, parent_id, order_num, path, component, query, route_name, is_frame, is_cache, menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time, remark)
+select 2261, '销货订单', 2000, 31, 'saleOrder', 'business/saleOrder/index', '{"orderType":"sale"}', '', 1, 0, 'C', '0', '0', 'business:saleOrder:list', 'shopping', 'admin', sysdate(), '', null, '销货订单菜单'
 from dual
-where not exists (select 1 from sys_menu where menu_id = '2261');
+where not exists (select 1 from sys_menu where menu_id = 2261 or path = 'saleOrder');
 
-insert into sys_menu
-select '2262', '购货订单', '2000', '32', 'purOrder', 'business/purOrder/index', '', '', 1, 0, 'C', '0', '0', 'business:purOrder:list', 'table', 'admin', sysdate(), '', null, '购货订单菜单'
+insert into sys_menu(menu_id, menu_name, parent_id, order_num, path, component, query, route_name, is_frame, is_cache, menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time, remark)
+select 2262, '购货订单', 2000, 32, 'purOrder', 'business/purOrder/index', '', '', 1, 0, 'C', '0', '0', 'business:purOrder:list', 'table', 'admin', sysdate(), '', null, '购货订单菜单'
 from dual
-where not exists (select 1 from sys_menu where menu_id = '2262');
+where not exists (select 1 from sys_menu where menu_id = 2262 or path = 'purOrder');
 
-insert into sys_menu
-select '2263', '销售发票', '2200', '12', 'salesInvoice', 'business/invoice/index', '{"invoiceType":"sale"}', '', 1, 0, 'C', '0', '0', 'business:invoice:list', 'date', 'admin', sysdate(), '', null, '销售发票菜单'
+insert into sys_menu(menu_id, menu_name, parent_id, order_num, path, component, query, route_name, is_frame, is_cache, menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time, remark)
+select 2263, '销售发票', 2200, 12, 'salesInvoice', 'business/invoice/index', '{"invoiceType":"sale"}', '', 1, 0, 'C', '0', '0', 'business:invoice:list', 'date', 'admin', sysdate(), '', null, '销售发票菜单'
 from dual
-where not exists (select 1 from sys_menu where menu_id = '2263');
+where not exists (select 1 from sys_menu where menu_id = 2263 or path = 'salesInvoice');
 
-insert into sys_menu
-select '2264', '采购发票', '2200', '13', 'purchaseInvoice', 'business/invoice/index', '{"invoiceType":"purchase"}', '', 1, 0, 'C', '0', '0', 'business:invoice:list', 'date', 'admin', sysdate(), '', null, '采购发票菜单'
+insert into sys_menu(menu_id, menu_name, parent_id, order_num, path, component, query, route_name, is_frame, is_cache, menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time, remark)
+select 2264, '采购发票', 2200, 13, 'purchaseInvoice', 'business/invoice/index', '{"invoiceType":"purchase"}', '', 1, 0, 'C', '0', '0', 'business:invoice:list', 'date', 'admin', sysdate(), '', null, '采购发票菜单'
 from dual
-where not exists (select 1 from sys_menu where menu_id = '2264');
+where not exists (select 1 from sys_menu where menu_id = 2264 or path = 'purchaseInvoice');
 
-insert into sys_menu
-select '2265', '客户等级价', '2000', '33', 'customerLevelPrice', 'business/customerLevelPrice/index', '', '', 1, 0, 'C', '0', '0', 'business:customerLevelPrice:list', 'number', 'admin', sysdate(), '', null, '客户等级价菜单'
+insert into sys_menu(menu_id, menu_name, parent_id, order_num, path, component, query, route_name, is_frame, is_cache, menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time, remark)
+select 2265, '客户等级价', 2000, 33, 'customerLevelPrice', 'business/customerLevelPrice/index', '', '', 1, 0, 'C', '0', '0', 'business:customerLevelPrice:list', 'number', 'admin', sysdate(), '', null, '客户等级价菜单'
 from dual
-where not exists (select 1 from sys_menu where menu_id = '2265');
+where not exists (select 1 from sys_menu where menu_id = 2265 or path = 'customerLevelPrice');
 
-insert into sys_menu
-select '2266', '客户专属价', '2000', '34', 'customerSpecialPrice', 'business/customerSpecialPrice/index', '', '', 1, 0, 'C', '0', '0', 'business:customerSpecialPrice:list', 'number', 'admin', sysdate(), '', null, '客户专属价菜单'
+insert into sys_menu(menu_id, menu_name, parent_id, order_num, path, component, query, route_name, is_frame, is_cache, menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time, remark)
+select 2266, '客户专属价', 2000, 34, 'customerSpecialPrice', 'business/customerSpecialPrice/index', '', '', 1, 0, 'C', '0', '0', 'business:customerSpecialPrice:list', 'number', 'admin', sysdate(), '', null, '客户专属价菜单'
 from dual
-where not exists (select 1 from sys_menu where menu_id = '2266');
+where not exists (select 1 from sys_menu where menu_id = 2266 or path = 'customerSpecialPrice');
 
-insert into sys_menu
-select '2267', '最近成交价', '2000', '35', 'recentTransactionPrice', 'business/recentTransactionPrice/index', '', '', 1, 0, 'C', '0', '0', 'business:recentTransactionPrice:list', 'number', 'admin', sysdate(), '', null, '最近成交价菜单'
+insert into sys_menu(menu_id, menu_name, parent_id, order_num, path, component, query, route_name, is_frame, is_cache, menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time, remark)
+select 2267, '最近成交价', 2000, 35, 'recentTransactionPrice', 'business/recentTransactionPrice/index', '', '', 1, 0, 'C', '0', '0', 'business:recentTransactionPrice:list', 'number', 'admin', sysdate(), '', null, '最近成交价菜单'
 from dual
-where not exists (select 1 from sys_menu where menu_id = '2267');
+where not exists (select 1 from sys_menu where menu_id = 2267 or path = 'recentTransactionPrice');
 
-insert into sys_menu
-select '2268', '补货建议', '2001', '11', 'replenishment', 'business/replenishment/index', '', '', 1, 0, 'C', '0', '0', 'business:replenishment:list', 'edit', 'admin', sysdate(), '', null, '补货建议菜单'
+insert into sys_menu(menu_id, menu_name, parent_id, order_num, path, component, query, route_name, is_frame, is_cache, menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time, remark)
+select 2268, '补货建议', 2001, 11, 'replenishment', 'business/replenishment/index', '', '', 1, 0, 'C', '0', '0', 'business:replenishment:list', 'edit', 'admin', sysdate(), '', null, '补货建议菜单'
 from dual
-where not exists (select 1 from sys_menu where menu_id = '2268');
+where not exists (select 1 from sys_menu where menu_id = 2268 or path = 'replenishment');
 
-insert into sys_menu
-select '2269', '凭证事件', '2200', '14', 'voucherEvent', 'business/voucherEvent/index', '', '', 1, 0, 'C', '0', '0', 'business:voucherEvent:list', 'form', 'admin', sysdate(), '', null, '凭证事件菜单'
+insert into sys_menu(menu_id, menu_name, parent_id, order_num, path, component, query, route_name, is_frame, is_cache, menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time, remark)
+select 2269, '凭证事件', 2200, 14, 'voucherEvent', 'business/voucherEvent/index', '', '', 1, 0, 'C', '0', '0', 'business:voucherEvent:list', 'form', 'admin', sysdate(), '', null, '凭证事件菜单'
 from dual
-where not exists (select 1 from sys_menu where menu_id = '2269');
+where not exists (select 1 from sys_menu where menu_id = 2269 or path = 'voucherEvent');
 
-insert into sys_menu
-select '2270', '业务工作台', '2000', '29', 'workbench', 'business/workbench/index', '', '', 1, 0, 'C', '0', '0', 'business:workbench:list', 'dashboard', 'admin', sysdate(), '', null, '业务工作台菜单'
+insert into sys_menu(menu_id, menu_name, parent_id, order_num, path, component, query, route_name, is_frame, is_cache, menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time, remark)
+select 2270, '业务工作台', 2000, 29, 'workbench', 'business/workbench/index', '', '', 1, 0, 'C', '0', '0', 'business:workbench:list', 'dashboard', 'admin', sysdate(), '', null, '业务工作台菜单'
 from dual
-where not exists (select 1 from sys_menu where menu_id = '2270');
+where not exists (select 1 from sys_menu where menu_id = 2270 or path = 'workbench');
 
-insert into sys_menu
-select '2271', '扫码开单', '2001', '12', 'scan', 'business/scan/index', '', '', 1, 0, 'C', '0', '0', 'business:scan:list', 'guide', 'admin', sysdate(), '', null, '扫码开单菜单'
+insert into sys_menu(menu_id, menu_name, parent_id, order_num, path, component, query, route_name, is_frame, is_cache, menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time, remark)
+select 2271, '扫码开单', 2001, 12, 'scan', 'business/scan/index', '', '', 1, 0, 'C', '0', '0', 'business:scan:list', 'guide', 'admin', sysdate(), '', null, '扫码开单菜单'
 from dual
-where not exists (select 1 from sys_menu where menu_id = '2271');
+where not exists (select 1 from sys_menu where menu_id = 2271 or path = 'scan');
 
-insert into sys_menu
-select '2310', '销售查询', '2261', '1', '#', '', '', '', 1, 0, 'F', '0', '0', 'business:saleOrder:query', '#', 'admin', sysdate(), '', null, ''
+insert into sys_menu(menu_id, menu_name, parent_id, order_num, path, component, query, route_name, is_frame, is_cache, menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time, remark)
+select 2510, '销售查询', 2261, 1, '#', '', '', '', 1, 0, 'F', '0', '0', 'business:saleOrder:query', '#', 'admin', sysdate(), '', null, ''
 from dual
-where not exists (select 1 from sys_menu where menu_id = '2310');
+where not exists (select 1 from sys_menu where menu_id = 2510 or perms = 'business:saleOrder:query');
 
-insert into sys_menu
-select '2311', '销售新增', '2261', '2', '#', '', '', '', 1, 0, 'F', '0', '0', 'business:saleOrder:add', '#', 'admin', sysdate(), '', null, ''
+insert into sys_menu(menu_id, menu_name, parent_id, order_num, path, component, query, route_name, is_frame, is_cache, menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time, remark)
+select 2511, '销售新增', 2261, 2, '#', '', '', '', 1, 0, 'F', '0', '0', 'business:saleOrder:add', '#', 'admin', sysdate(), '', null, ''
 from dual
-where not exists (select 1 from sys_menu where menu_id = '2311');
+where not exists (select 1 from sys_menu where menu_id = 2511 or perms = 'business:saleOrder:add');
 
-insert into sys_menu
-select '2312', '销售修改', '2261', '3', '#', '', '', '', 1, 0, 'F', '0', '0', 'business:saleOrder:edit', '#', 'admin', sysdate(), '', null, ''
+insert into sys_menu(menu_id, menu_name, parent_id, order_num, path, component, query, route_name, is_frame, is_cache, menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time, remark)
+select 2512, '销售修改', 2261, 3, '#', '', '', '', 1, 0, 'F', '0', '0', 'business:saleOrder:edit', '#', 'admin', sysdate(), '', null, ''
 from dual
-where not exists (select 1 from sys_menu where menu_id = '2312');
+where not exists (select 1 from sys_menu where menu_id = 2512 or perms = 'business:saleOrder:edit');
 
-insert into sys_menu
-select '2313', '销售删除', '2261', '4', '#', '', '', '', 1, 0, 'F', '0', '0', 'business:saleOrder:remove', '#', 'admin', sysdate(), '', null, ''
+insert into sys_menu(menu_id, menu_name, parent_id, order_num, path, component, query, route_name, is_frame, is_cache, menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time, remark)
+select 2513, '销售删除', 2261, 4, '#', '', '', '', 1, 0, 'F', '0', '0', 'business:saleOrder:remove', '#', 'admin', sysdate(), '', null, ''
 from dual
-where not exists (select 1 from sys_menu where menu_id = '2313');
+where not exists (select 1 from sys_menu where menu_id = 2513 or perms = 'business:saleOrder:remove');
 
-insert into sys_menu
-select '2314', '销售审批', '2261', '5', '#', '', '', '', 1, 0, 'F', '0', '0', 'business:saleOrder:approve', '#', 'admin', sysdate(), '', null, ''
+insert into sys_menu(menu_id, menu_name, parent_id, order_num, path, component, query, route_name, is_frame, is_cache, menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time, remark)
+select 2514, '销售审批', 2261, 5, '#', '', '', '', 1, 0, 'F', '0', '0', 'business:saleOrder:approve', '#', 'admin', sysdate(), '', null, ''
 from dual
-where not exists (select 1 from sys_menu where menu_id = '2314');
+where not exists (select 1 from sys_menu where menu_id = 2514 or perms = 'business:saleOrder:approve');
 
-insert into sys_menu
-select '2315', '下推出库', '2261', '6', '#', '', '', '', 1, 0, 'F', '0', '0', 'business:saleOrder:pushOutbound', '#', 'admin', sysdate(), '', null, ''
+insert into sys_menu(menu_id, menu_name, parent_id, order_num, path, component, query, route_name, is_frame, is_cache, menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time, remark)
+select 2515, '下推出库', 2261, 6, '#', '', '', '', 1, 0, 'F', '0', '0', 'business:saleOrder:pushOutbound', '#', 'admin', sysdate(), '', null, ''
 from dual
-where not exists (select 1 from sys_menu where menu_id = '2315');
+where not exists (select 1 from sys_menu where menu_id = 2515 or perms = 'business:saleOrder:pushOutbound');
 
-insert into sys_menu
-select '2316', '单据打印', '2261', '7', '#', '', '', '', 1, 0, 'F', '0', '0', 'business:saleOrder:print', '#', 'admin', sysdate(), '', null, ''
+insert into sys_menu(menu_id, menu_name, parent_id, order_num, path, component, query, route_name, is_frame, is_cache, menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time, remark)
+select 2516, '单据打印', 2261, 7, '#', '', '', '', 1, 0, 'F', '0', '0', 'business:saleOrder:print', '#', 'admin', sysdate(), '', null, ''
 from dual
-where not exists (select 1 from sys_menu where menu_id = '2316');
+where not exists (select 1 from sys_menu where menu_id = 2516 or perms = 'business:saleOrder:print');
 
-insert into sys_menu
-select '2317', '报价下推', '2260', '5', '#', '', '', '', 1, 0, 'F', '0', '0', 'business:saleOrder:pushSale', '#', 'admin', sysdate(), '', null, ''
+insert into sys_menu(menu_id, menu_name, parent_id, order_num, path, component, query, route_name, is_frame, is_cache, menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time, remark)
+select 2517, '报价下推', 2260, 5, '#', '', '', '', 1, 0, 'F', '0', '0', 'business:saleOrder:pushSale', '#', 'admin', sysdate(), '', null, ''
 from dual
-where not exists (select 1 from sys_menu where menu_id = '2317');
+where not exists (select 1 from sys_menu where menu_id = 2517 or perms = 'business:saleOrder:pushSale');
 
-insert into sys_menu
-select '2320', '购货查询', '2262', '1', '#', '', '', '', 1, 0, 'F', '0', '0', 'business:purOrder:query', '#', 'admin', sysdate(), '', null, ''
+insert into sys_menu(menu_id, menu_name, parent_id, order_num, path, component, query, route_name, is_frame, is_cache, menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time, remark)
+select 2520, '购货查询', 2262, 1, '#', '', '', '', 1, 0, 'F', '0', '0', 'business:purOrder:query', '#', 'admin', sysdate(), '', null, ''
 from dual
-where not exists (select 1 from sys_menu where menu_id = '2320');
+where not exists (select 1 from sys_menu where menu_id = 2520 or perms = 'business:purOrder:query');
 
-insert into sys_menu
-select '2321', '购货新增', '2262', '2', '#', '', '', '', 1, 0, 'F', '0', '0', 'business:purOrder:add', '#', 'admin', sysdate(), '', null, ''
+insert into sys_menu(menu_id, menu_name, parent_id, order_num, path, component, query, route_name, is_frame, is_cache, menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time, remark)
+select 2521, '购货新增', 2262, 2, '#', '', '', '', 1, 0, 'F', '0', '0', 'business:purOrder:add', '#', 'admin', sysdate(), '', null, ''
 from dual
-where not exists (select 1 from sys_menu where menu_id = '2321');
+where not exists (select 1 from sys_menu where menu_id = 2521 or perms = 'business:purOrder:add');
 
-insert into sys_menu
-select '2322', '购货修改', '2262', '3', '#', '', '', '', 1, 0, 'F', '0', '0', 'business:purOrder:edit', '#', 'admin', sysdate(), '', null, ''
+insert into sys_menu(menu_id, menu_name, parent_id, order_num, path, component, query, route_name, is_frame, is_cache, menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time, remark)
+select 2522, '购货修改', 2262, 3, '#', '', '', '', 1, 0, 'F', '0', '0', 'business:purOrder:edit', '#', 'admin', sysdate(), '', null, ''
 from dual
-where not exists (select 1 from sys_menu where menu_id = '2322');
+where not exists (select 1 from sys_menu where menu_id = 2522 or perms = 'business:purOrder:edit');
 
-insert into sys_menu
-select '2323', '购货删除', '2262', '4', '#', '', '', '', 1, 0, 'F', '0', '0', 'business:purOrder:remove', '#', 'admin', sysdate(), '', null, ''
+insert into sys_menu(menu_id, menu_name, parent_id, order_num, path, component, query, route_name, is_frame, is_cache, menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time, remark)
+select 2523, '购货删除', 2262, 4, '#', '', '', '', 1, 0, 'F', '0', '0', 'business:purOrder:remove', '#', 'admin', sysdate(), '', null, ''
 from dual
-where not exists (select 1 from sys_menu where menu_id = '2323');
+where not exists (select 1 from sys_menu where menu_id = 2523 or perms = 'business:purOrder:remove');
 
-insert into sys_menu
-select '2324', '购货审批', '2262', '5', '#', '', '', '', 1, 0, 'F', '0', '0', 'business:purOrder:approve', '#', 'admin', sysdate(), '', null, ''
+insert into sys_menu(menu_id, menu_name, parent_id, order_num, path, component, query, route_name, is_frame, is_cache, menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time, remark)
+select 2524, '购货审批', 2262, 5, '#', '', '', '', 1, 0, 'F', '0', '0', 'business:purOrder:approve', '#', 'admin', sysdate(), '', null, ''
 from dual
-where not exists (select 1 from sys_menu where menu_id = '2324');
+where not exists (select 1 from sys_menu where menu_id = 2524 or perms = 'business:purOrder:approve');
 
-insert into sys_menu
-select '2325', '下推入库', '2262', '6', '#', '', '', '', 1, 0, 'F', '0', '0', 'business:purOrder:pushInbound', '#', 'admin', sysdate(), '', null, ''
+insert into sys_menu(menu_id, menu_name, parent_id, order_num, path, component, query, route_name, is_frame, is_cache, menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time, remark)
+select 2525, '下推入库', 2262, 6, '#', '', '', '', 1, 0, 'F', '0', '0', 'business:purOrder:pushInbound', '#', 'admin', sysdate(), '', null, ''
 from dual
-where not exists (select 1 from sys_menu where menu_id = '2325');
+where not exists (select 1 from sys_menu where menu_id = 2525 or perms = 'business:purOrder:pushInbound');
 
-insert into sys_menu
-select '2326', '单据打印', '2262', '7', '#', '', '', '', 1, 0, 'F', '0', '0', 'business:purOrder:print', '#', 'admin', sysdate(), '', null, ''
+insert into sys_menu(menu_id, menu_name, parent_id, order_num, path, component, query, route_name, is_frame, is_cache, menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time, remark)
+select 2526, '单据打印', 2262, 7, '#', '', '', '', 1, 0, 'F', '0', '0', 'business:purOrder:print', '#', 'admin', sysdate(), '', null, ''
 from dual
-where not exists (select 1 from sys_menu where menu_id = '2326');
+where not exists (select 1 from sys_menu where menu_id = 2526 or perms = 'business:purOrder:print');
 
-insert into sys_menu
-select '2330', '发票查询', '2263', '1', '#', '', '', '', 1, 0, 'F', '0', '0', 'business:invoice:query', '#', 'admin', sysdate(), '', null, ''
+insert into sys_menu(menu_id, menu_name, parent_id, order_num, path, component, query, route_name, is_frame, is_cache, menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time, remark)
+select 2530, '发票查询', 2263, 1, '#', '', '', '', 1, 0, 'F', '0', '0', 'business:invoice:query', '#', 'admin', sysdate(), '', null, ''
 from dual
-where not exists (select 1 from sys_menu where menu_id = '2330');
+where not exists (select 1 from sys_menu where menu_id = 2530 or perms = 'business:invoice:query');
 
-insert into sys_menu
-select '2331', '发票新增', '2263', '2', '#', '', '', '', 1, 0, 'F', '0', '0', 'business:invoice:add', '#', 'admin', sysdate(), '', null, ''
+insert into sys_menu(menu_id, menu_name, parent_id, order_num, path, component, query, route_name, is_frame, is_cache, menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time, remark)
+select 2531, '发票新增', 2263, 2, '#', '', '', '', 1, 0, 'F', '0', '0', 'business:invoice:add', '#', 'admin', sysdate(), '', null, ''
 from dual
-where not exists (select 1 from sys_menu where menu_id = '2331');
+where not exists (select 1 from sys_menu where menu_id = 2531 or perms = 'business:invoice:add');
 
-insert into sys_menu
-select '2332', '发票修改', '2263', '3', '#', '', '', '', 1, 0, 'F', '0', '0', 'business:invoice:edit', '#', 'admin', sysdate(), '', null, ''
+insert into sys_menu(menu_id, menu_name, parent_id, order_num, path, component, query, route_name, is_frame, is_cache, menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time, remark)
+select 2532, '发票修改', 2263, 3, '#', '', '', '', 1, 0, 'F', '0', '0', 'business:invoice:edit', '#', 'admin', sysdate(), '', null, ''
 from dual
-where not exists (select 1 from sys_menu where menu_id = '2332');
+where not exists (select 1 from sys_menu where menu_id = 2532 or perms = 'business:invoice:edit');
 
-insert into sys_menu
-select '2333', '发票删除', '2263', '4', '#', '', '', '', 1, 0, 'F', '0', '0', 'business:invoice:remove', '#', 'admin', sysdate(), '', null, ''
+insert into sys_menu(menu_id, menu_name, parent_id, order_num, path, component, query, route_name, is_frame, is_cache, menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time, remark)
+select 2533, '发票删除', 2263, 4, '#', '', '', '', 1, 0, 'F', '0', '0', 'business:invoice:remove', '#', 'admin', sysdate(), '', null, ''
 from dual
-where not exists (select 1 from sys_menu where menu_id = '2333');
+where not exists (select 1 from sys_menu where menu_id = 2533 or perms = 'business:invoice:remove');
 
-insert into sys_menu
-select '2334', '发票确认', '2263', '5', '#', '', '', '', 1, 0, 'F', '0', '0', 'business:invoice:confirm', '#', 'admin', sysdate(), '', null, ''
+insert into sys_menu(menu_id, menu_name, parent_id, order_num, path, component, query, route_name, is_frame, is_cache, menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time, remark)
+select 2534, '发票确认', 2263, 5, '#', '', '', '', 1, 0, 'F', '0', '0', 'business:invoice:confirm', '#', 'admin', sysdate(), '', null, ''
 from dual
-where not exists (select 1 from sys_menu where menu_id = '2334');
+where not exists (select 1 from sys_menu where menu_id = 2534 or perms = 'business:invoice:confirm');
 
-insert into sys_menu
-select '2340', '等级价查询', '2265', '1', '#', '', '', '', 1, 0, 'F', '0', '0', 'business:customerLevelPrice:query', '#', 'admin', sysdate(), '', null, ''
+insert into sys_menu(menu_id, menu_name, parent_id, order_num, path, component, query, route_name, is_frame, is_cache, menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time, remark)
+select 2540, '等级价查询', 2265, 1, '#', '', '', '', 1, 0, 'F', '0', '0', 'business:customerLevelPrice:query', '#', 'admin', sysdate(), '', null, ''
 from dual
-where not exists (select 1 from sys_menu where menu_id = '2340');
+where not exists (select 1 from sys_menu where menu_id = 2540 or perms = 'business:customerLevelPrice:query');
 
-insert into sys_menu
-select '2341', '等级价新增', '2265', '2', '#', '', '', '', 1, 0, 'F', '0', '0', 'business:customerLevelPrice:add', '#', 'admin', sysdate(), '', null, ''
+insert into sys_menu(menu_id, menu_name, parent_id, order_num, path, component, query, route_name, is_frame, is_cache, menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time, remark)
+select 2541, '等级价新增', 2265, 2, '#', '', '', '', 1, 0, 'F', '0', '0', 'business:customerLevelPrice:add', '#', 'admin', sysdate(), '', null, ''
 from dual
-where not exists (select 1 from sys_menu where menu_id = '2341');
+where not exists (select 1 from sys_menu where menu_id = 2541 or perms = 'business:customerLevelPrice:add');
 
-insert into sys_menu
-select '2342', '等级价修改', '2265', '3', '#', '', '', '', 1, 0, 'F', '0', '0', 'business:customerLevelPrice:edit', '#', 'admin', sysdate(), '', null, ''
+insert into sys_menu(menu_id, menu_name, parent_id, order_num, path, component, query, route_name, is_frame, is_cache, menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time, remark)
+select 2542, '等级价修改', 2265, 3, '#', '', '', '', 1, 0, 'F', '0', '0', 'business:customerLevelPrice:edit', '#', 'admin', sysdate(), '', null, ''
 from dual
-where not exists (select 1 from sys_menu where menu_id = '2342');
+where not exists (select 1 from sys_menu where menu_id = 2542 or perms = 'business:customerLevelPrice:edit');
 
-insert into sys_menu
-select '2343', '等级价删除', '2265', '4', '#', '', '', '', 1, 0, 'F', '0', '0', 'business:customerLevelPrice:remove', '#', 'admin', sysdate(), '', null, ''
+insert into sys_menu(menu_id, menu_name, parent_id, order_num, path, component, query, route_name, is_frame, is_cache, menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time, remark)
+select 2543, '等级价删除', 2265, 4, '#', '', '', '', 1, 0, 'F', '0', '0', 'business:customerLevelPrice:remove', '#', 'admin', sysdate(), '', null, ''
 from dual
-where not exists (select 1 from sys_menu where menu_id = '2343');
+where not exists (select 1 from sys_menu where menu_id = 2543 or perms = 'business:customerLevelPrice:remove');
 
-insert into sys_menu
-select '2350', '专属价查询', '2266', '1', '#', '', '', '', 1, 0, 'F', '0', '0', 'business:customerSpecialPrice:query', '#', 'admin', sysdate(), '', null, ''
+insert into sys_menu(menu_id, menu_name, parent_id, order_num, path, component, query, route_name, is_frame, is_cache, menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time, remark)
+select 2550, '专属价查询', 2266, 1, '#', '', '', '', 1, 0, 'F', '0', '0', 'business:customerSpecialPrice:query', '#', 'admin', sysdate(), '', null, ''
 from dual
-where not exists (select 1 from sys_menu where menu_id = '2350');
+where not exists (select 1 from sys_menu where menu_id = 2550 or perms = 'business:customerSpecialPrice:query');
 
-insert into sys_menu
-select '2351', '专属价新增', '2266', '2', '#', '', '', '', 1, 0, 'F', '0', '0', 'business:customerSpecialPrice:add', '#', 'admin', sysdate(), '', null, ''
+insert into sys_menu(menu_id, menu_name, parent_id, order_num, path, component, query, route_name, is_frame, is_cache, menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time, remark)
+select 2551, '专属价新增', 2266, 2, '#', '', '', '', 1, 0, 'F', '0', '0', 'business:customerSpecialPrice:add', '#', 'admin', sysdate(), '', null, ''
 from dual
-where not exists (select 1 from sys_menu where menu_id = '2351');
+where not exists (select 1 from sys_menu where menu_id = 2551 or perms = 'business:customerSpecialPrice:add');
 
-insert into sys_menu
-select '2352', '专属价修改', '2266', '3', '#', '', '', '', 1, 0, 'F', '0', '0', 'business:customerSpecialPrice:edit', '#', 'admin', sysdate(), '', null, ''
+insert into sys_menu(menu_id, menu_name, parent_id, order_num, path, component, query, route_name, is_frame, is_cache, menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time, remark)
+select 2552, '专属价修改', 2266, 3, '#', '', '', '', 1, 0, 'F', '0', '0', 'business:customerSpecialPrice:edit', '#', 'admin', sysdate(), '', null, ''
 from dual
-where not exists (select 1 from sys_menu where menu_id = '2352');
+where not exists (select 1 from sys_menu where menu_id = 2552 or perms = 'business:customerSpecialPrice:edit');
 
-insert into sys_menu
-select '2353', '专属价删除', '2266', '4', '#', '', '', '', 1, 0, 'F', '0', '0', 'business:customerSpecialPrice:remove', '#', 'admin', sysdate(), '', null, ''
+insert into sys_menu(menu_id, menu_name, parent_id, order_num, path, component, query, route_name, is_frame, is_cache, menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time, remark)
+select 2553, '专属价删除', 2266, 4, '#', '', '', '', 1, 0, 'F', '0', '0', 'business:customerSpecialPrice:remove', '#', 'admin', sysdate(), '', null, ''
 from dual
-where not exists (select 1 from sys_menu where menu_id = '2353');
+where not exists (select 1 from sys_menu where menu_id = 2553 or perms = 'business:customerSpecialPrice:remove');
 
-insert into sys_menu
-select '2360', '最近价查询', '2267', '1', '#', '', '', '', 1, 0, 'F', '0', '0', 'business:recentTransactionPrice:query', '#', 'admin', sysdate(), '', null, ''
+insert into sys_menu(menu_id, menu_name, parent_id, order_num, path, component, query, route_name, is_frame, is_cache, menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time, remark)
+select 2560, '最近价查询', 2267, 1, '#', '', '', '', 1, 0, 'F', '0', '0', 'business:recentTransactionPrice:query', '#', 'admin', sysdate(), '', null, ''
 from dual
-where not exists (select 1 from sys_menu where menu_id = '2360');
+where not exists (select 1 from sys_menu where menu_id = 2560 or perms = 'business:recentTransactionPrice:query');
 
-insert into sys_menu
-select '2361', '最近价新增', '2267', '2', '#', '', '', '', 1, 0, 'F', '0', '0', 'business:recentTransactionPrice:add', '#', 'admin', sysdate(), '', null, ''
+insert into sys_menu(menu_id, menu_name, parent_id, order_num, path, component, query, route_name, is_frame, is_cache, menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time, remark)
+select 2561, '最近价新增', 2267, 2, '#', '', '', '', 1, 0, 'F', '0', '0', 'business:recentTransactionPrice:add', '#', 'admin', sysdate(), '', null, ''
 from dual
-where not exists (select 1 from sys_menu where menu_id = '2361');
+where not exists (select 1 from sys_menu where menu_id = 2561 or perms = 'business:recentTransactionPrice:add');
 
-insert into sys_menu
-select '2362', '最近价修改', '2267', '3', '#', '', '', '', 1, 0, 'F', '0', '0', 'business:recentTransactionPrice:edit', '#', 'admin', sysdate(), '', null, ''
+insert into sys_menu(menu_id, menu_name, parent_id, order_num, path, component, query, route_name, is_frame, is_cache, menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time, remark)
+select 2562, '最近价修改', 2267, 3, '#', '', '', '', 1, 0, 'F', '0', '0', 'business:recentTransactionPrice:edit', '#', 'admin', sysdate(), '', null, ''
 from dual
-where not exists (select 1 from sys_menu where menu_id = '2362');
+where not exists (select 1 from sys_menu where menu_id = 2562 or perms = 'business:recentTransactionPrice:edit');
 
-insert into sys_menu
-select '2363', '最近价删除', '2267', '4', '#', '', '', '', 1, 0, 'F', '0', '0', 'business:recentTransactionPrice:remove', '#', 'admin', sysdate(), '', null, ''
+insert into sys_menu(menu_id, menu_name, parent_id, order_num, path, component, query, route_name, is_frame, is_cache, menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time, remark)
+select 2563, '最近价删除', 2267, 4, '#', '', '', '', 1, 0, 'F', '0', '0', 'business:recentTransactionPrice:remove', '#', 'admin', sysdate(), '', null, ''
 from dual
-where not exists (select 1 from sys_menu where menu_id = '2363');
+where not exists (select 1 from sys_menu where menu_id = 2563 or perms = 'business:recentTransactionPrice:remove');
 
-insert into sys_menu
-select '2370', '补货查询', '2268', '1', '#', '', '', '', 1, 0, 'F', '0', '0', 'business:replenishment:query', '#', 'admin', sysdate(), '', null, ''
+insert into sys_menu(menu_id, menu_name, parent_id, order_num, path, component, query, route_name, is_frame, is_cache, menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time, remark)
+select 2570, '补货查询', 2268, 1, '#', '', '', '', 1, 0, 'F', '0', '0', 'business:replenishment:query', '#', 'admin', sysdate(), '', null, ''
 from dual
-where not exists (select 1 from sys_menu where menu_id = '2370');
+where not exists (select 1 from sys_menu where menu_id = 2570 or perms = 'business:replenishment:query');
 
-insert into sys_menu
-select '2380', '工作台查询', '2270', '1', '#', '', '', '', 1, 0, 'F', '0', '0', 'business:workbench:query', '#', 'admin', sysdate(), '', null, ''
+insert into sys_menu(menu_id, menu_name, parent_id, order_num, path, component, query, route_name, is_frame, is_cache, menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time, remark)
+select 2580, '工作台查询', 2270, 1, '#', '', '', '', 1, 0, 'F', '0', '0', 'business:workbench:query', '#', 'admin', sysdate(), '', null, ''
 from dual
-where not exists (select 1 from sys_menu where menu_id = '2380');
+where not exists (select 1 from sys_menu where menu_id = 2580 or perms = 'business:workbench:query');
 
-insert into sys_menu
-select '2390', '扫码查询', '2271', '1', '#', '', '', '', 1, 0, 'F', '0', '0', 'business:scan:query', '#', 'admin', sysdate(), '', null, ''
+insert into sys_menu(menu_id, menu_name, parent_id, order_num, path, component, query, route_name, is_frame, is_cache, menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time, remark)
+select 2590, '扫码查询', 2271, 1, '#', '', '', '', 1, 0, 'F', '0', '0', 'business:scan:query', '#', 'admin', sysdate(), '', null, ''
 from dual
-where not exists (select 1 from sys_menu where menu_id = '2390');
+where not exists (select 1 from sys_menu where menu_id = 2590 or perms = 'business:scan:query');
 
-insert into sys_menu
-select '2391', '扫码开单', '2271', '2', '#', '', '', '', 1, 0, 'F', '0', '0', 'business:scan:add', '#', 'admin', sysdate(), '', null, ''
+insert into sys_menu(menu_id, menu_name, parent_id, order_num, path, component, query, route_name, is_frame, is_cache, menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time, remark)
+select 2591, '扫码开单', 2271, 2, '#', '', '', '', 1, 0, 'F', '0', '0', 'business:scan:add', '#', 'admin', sysdate(), '', null, ''
 from dual
-where not exists (select 1 from sys_menu where menu_id = '2391');
+where not exists (select 1 from sys_menu where menu_id = 2591 or perms = 'business:scan:add');
 
-insert into sys_menu
-select '2392', '扫码盘点', '2271', '3', '#', '', '', '', 1, 0, 'F', '0', '0', 'business:scan:inventory', '#', 'admin', sysdate(), '', null, ''
+insert into sys_menu(menu_id, menu_name, parent_id, order_num, path, component, query, route_name, is_frame, is_cache, menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time, remark)
+select 2592, '扫码盘点', 2271, 3, '#', '', '', '', 1, 0, 'F', '0', '0', 'business:scan:inventory', '#', 'admin', sysdate(), '', null, ''
 from dual
-where not exists (select 1 from sys_menu where menu_id = '2392');
+where not exists (select 1 from sys_menu where menu_id = 2592 or perms = 'business:scan:inventory');
 
-insert into sys_menu
-select '2393', '扫码调拨', '2271', '4', '#', '', '', '', 1, 0, 'F', '0', '0', 'business:scan:transfer', '#', 'admin', sysdate(), '', null, ''
+insert into sys_menu(menu_id, menu_name, parent_id, order_num, path, component, query, route_name, is_frame, is_cache, menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time, remark)
+select 2593, '扫码调拨', 2271, 4, '#', '', '', '', 1, 0, 'F', '0', '0', 'business:scan:transfer', '#', 'admin', sysdate(), '', null, ''
 from dual
-where not exists (select 1 from sys_menu where menu_id = '2393');
+where not exists (select 1 from sys_menu where menu_id = 2593 or perms = 'business:scan:transfer');
 
 insert ignore into sys_role_menu (role_id, menu_id)
-select 1, menu_id
-from sys_menu
-where menu_id in (
+select r.role_id, m.menu_id
+from sys_role r
+join sys_menu m on m.menu_id in (
   2260, 2261, 2262, 2263, 2264, 2265, 2266, 2267, 2268, 2269, 2270, 2271,
-  2310, 2311, 2312, 2313, 2314, 2315, 2316, 2317,
-  2320, 2321, 2322, 2323, 2324, 2325, 2326,
-  2330, 2331, 2332, 2333, 2334,
-  2340, 2341, 2342, 2343,
-  2350, 2351, 2352, 2353,
-  2360, 2370, 2380, 2390, 2391, 2392, 2393
-);
+  2510, 2511, 2512, 2513, 2514, 2515, 2516, 2517,
+  2520, 2521, 2522, 2523, 2524, 2525, 2526,
+  2530, 2531, 2532, 2533, 2534,
+  2540, 2541, 2542, 2543,
+  2550, 2551, 2552, 2553,
+  2560, 2561, 2562, 2563,
+  2570, 2580, 2590, 2591, 2592, 2593
+)
+where r.role_id in (1, 2);
 
 drop procedure if exists add_column_if_absent;
 

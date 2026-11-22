@@ -117,3 +117,11 @@ export function deptTreeSelect(roleId) {
     method: 'get'
   })
 }
+
+// 根据角色ID查询授权仓库范围
+export function warehouseScopeSelect(roleId) {
+  return request({
+    url: '/system/role/warehouseScope/' + roleId,
+    method: 'get'
+  })
+}

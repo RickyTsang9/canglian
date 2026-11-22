@@ -25,7 +25,7 @@
             <span>审批待办</span>
             <el-tag type="warning">{{ pendingApproveList.length }}</el-tag>
           </div>
-          <el-table v-loading="loading" :data="pendingApproveList" border>
+          <el-table v-if="loading || pendingApproveList.length > 0" v-loading="loading" :data="pendingApproveList" border>
             <el-table-column label="单据类型" align="center" prop="billTypeLabel" width="110" />
             <el-table-column label="单据单号" align="center" prop="billNo" min-width="150" show-overflow-tooltip />
             <el-table-column label="业务日期" align="center" prop="businessDate" width="160">
@@ -49,10 +49,22 @@
             <span>库存预警</span>
             <el-tag type="danger">{{ lowStockList.length }}</el-tag>
           </div>
-          <el-table v-loading="loading" :data="lowStockList" border>
-            <el-table-column label="仓库编号" align="center" prop="warehouseId" width="100" />
-            <el-table-column label="商品编号" align="center" prop="productId" width="100" />
-            <el-table-column label="库位编号" align="center" prop="locationId" width="100" />
+          <el-table v-if="loading || lowStockList.length > 0" v-loading="loading" :data="lowStockList" border>
+            <el-table-column label="仓库" align="center" min-width="100" show-overflow-tooltip>
+              <template #default="scope">
+                <span>{{ getWarehouseName(scope.row.warehouseId) }}</span>
+              </template>
+            </el-table-column>
+            <el-table-column label="商品" align="center" min-width="140" show-overflow-tooltip>
+              <template #default="scope">
+                <span>{{ getProductName(scope.row.productId) }}</span>
+              </template>
+            </el-table-column>
+            <el-table-column label="库位" align="center" width="95">
+              <template #default="scope">
+                <span>{{ scope.row.locationId ? `#${scope.row.locationId}` : "默认库位" }}</span>
+              </template>
+            </el-table-column>
             <el-table-column label="当前库存" align="center" prop="quantity" />
             <el-table-column label="最小库存" align="center" prop="warningMinQty" />
             <el-table-column label="处理" align="center" width="90">
@@ -71,10 +83,14 @@
         <span>往来到期</span>
         <el-tag type="info">{{ financeTodoList.length }}</el-tag>
       </div>
-      <el-table v-loading="loading" :data="financeTodoList" border>
+      <el-table v-if="loading || financeTodoList.length > 0" v-loading="loading" :data="financeTodoList" border>
         <el-table-column label="类型" align="center" prop="billTypeLabel" width="100" />
         <el-table-column label="单据单号" align="center" prop="billNo" min-width="150" show-overflow-tooltip />
-        <el-table-column label="往来单位编号" align="center" prop="partnerId" width="130" />
+        <el-table-column label="往来单位" align="center" min-width="140" show-overflow-tooltip>
+          <template #default="scope">
+            <span>{{ scope.row.billType === "receivable" ? getCustomerName(scope.row.partnerId) : getSupplierName(scope.row.partnerId) }}</span>
+          </template>
+        </el-table-column>
         <el-table-column label="应收应付金额" align="center" prop="amount" />
         <el-table-column label="已收已付金额" align="center" prop="settledAmount" />
         <el-table-column label="到期日期" align="center" prop="dueDate" width="160">
@@ -96,18 +112,20 @@
 <script setup name="TodoCenter">
 import { getWorkbenchSummary } from "@/api/business/workbench"
 import { useRouter } from "vue-router"
+import { useBusinessOptions } from "@/utils/businessOptions"
 
 const { proxy } = getCurrentInstance()
 const router = useRouter()
+const { loadWarehouses, loadProducts, loadCustomers, loadSuppliers, getWarehouseName, getProductName, getCustomerName, getSupplierName } = useBusinessOptions()
 const loading = ref(false)
 const summaryData = ref({})
 
 const summaryCardList = computed(() => {
   return [
     { key: "pendingApproveCount", label: "审批待办", value: getNumber(summaryData.value.pendingApproveCount), desc: "草稿单据待审批", type: "warning", path: "/business/saleOrder" },
-    { key: "lowStockCount", label: "库存预警", value: getNumber(summaryData.value.lowStockCount), desc: "低于最小库存", type: "danger", path: "/business/stock" },
-    { key: "dueReceivableCount", label: "应收到期", value: getNumber(summaryData.value.dueReceivableCount), desc: "7天内待跟进", type: "primary", path: "/business/receivable" },
-    { key: "duePayableCount", label: "应付到期", value: getNumber(summaryData.value.duePayableCount), desc: "7天内待付款", type: "success", path: "/business/payable" }
+    { key: "lowStockCount", label: "库存预警", value: getNumber(summaryData.value.lowStockCount), desc: "低于最小库存", type: "danger", path: "/wms/stock" },
+    { key: "dueReceivableCount", label: "应收到期", value: getNumber(summaryData.value.dueReceivableCount), desc: "7天内待跟进", type: "primary", path: "/finance/receivable" },
+    { key: "duePayableCount", label: "应付到期", value: getNumber(summaryData.value.duePayableCount), desc: "7天内待付款", type: "success", path: "/finance/payable" }
   ]
 })
 
@@ -145,10 +163,10 @@ const financeTodoList = computed(() => {
 // 查询统一待办汇总
 function getSummary() {
   loading.value = true
+  Promise.all([loadWarehouses(), loadProducts(), loadCustomers(), loadSuppliers()])
   getWorkbenchSummary().then(response => {
     summaryData.value = response.data || {}
-    loading.value = false
-  }).catch(() => {
+  }).finally(() => {
     loading.value = false
   })
 }
@@ -177,20 +195,20 @@ function handlePendingApprove(todoItem) {
   const billTypePathMap = {
     saleOrder: "/business/saleOrder",
     purOrder: "/business/purOrder",
-    inbound: "/business/inbound",
-    outbound: "/business/outbound"
+    inbound: "/wms/inbound",
+    outbound: "/wms/outbound"
   }
   router.push({ path: billTypePathMap[todoItem.billType] || "/business/workbench" })
 }
 
 // 进入库存预警页面
 function handleStockWarning() {
-  router.push({ path: "/business/stock", query: { warningMode: "1" } })
+  router.push({ path: "/wms/stock", query: { warningMode: "1" } })
 }
 
 // 进入往来账款页面
 function handleFinanceTodo(todoItem) {
-  const financePath = todoItem.billType === "payable" ? "/business/payable" : "/business/receivable"
+  const financePath = todoItem.billType === "payable" ? "/finance/payable" : "/finance/receivable"
   router.push({ path: financePath })
 }
 
@@ -199,7 +217,7 @@ getSummary()
 
 <style scoped>
 .todo-center {
-  background: #f5f7fb;
+  background: var(--el-bg-color-page, #f5f7fb);
   min-height: calc(100vh - 84px);
 }
 
@@ -211,14 +229,14 @@ getSummary()
 }
 
 .page-title {
-  color: var(--panel-heading, #1f2d3d);
+  color: var(--el-text-color-primary, #1f2d3d);
   font-size: 20px;
   font-weight: 650;
 }
 
 .page-subtitle {
   margin-top: 6px;
-  color: var(--panel-muted, #6b7280);
+  color: var(--el-text-color-secondary, #6b7280);
   font-size: 13px;
 }
 
@@ -230,10 +248,10 @@ getSummary()
   min-height: 118px;
   margin-bottom: 16px;
   padding: 18px;
-  border: 1px solid var(--panel-border, #e5eaf3);
+  border: 1px solid var(--el-border-color-light, #e5eaf3);
   border-left: 4px solid #409eff;
   border-radius: 8px;
-  background: var(--panel-bg, #ffffff);
+  background: var(--el-bg-color-overlay, #ffffff);
   cursor: pointer;
   transition: border-color 0.2s, box-shadow 0.2s, transform 0.2s;
 }
@@ -261,13 +279,13 @@ getSummary()
 }
 
 .summary-label {
-  color: var(--panel-text, #606266);
+  color: var(--el-text-color-regular, #606266);
   font-size: 14px;
 }
 
 .summary-value {
   margin-top: 12px;
-  color: var(--panel-heading, #1f2d3d);
+  color: var(--el-text-color-primary, #1f2d3d);
   font-size: 30px;
   font-weight: 700;
   line-height: 1;
@@ -275,16 +293,16 @@ getSummary()
 
 .summary-desc {
   margin-top: 12px;
-  color: var(--panel-muted, #909399);
+  color: var(--el-text-color-secondary, #909399);
   font-size: 13px;
 }
 
 .todo-panel {
   margin-bottom: 16px;
   padding: 16px;
-  border: 1px solid var(--panel-border, #e5eaf3);
+  border: 1px solid var(--el-border-color-light, #e5eaf3);
   border-radius: 8px;
-  background: var(--panel-bg, #ffffff);
+  background: var(--el-bg-color-overlay, #ffffff);
 }
 
 .finance-panel {
@@ -296,7 +314,7 @@ getSummary()
   align-items: center;
   justify-content: space-between;
   margin-bottom: 12px;
-  color: var(--panel-heading, #1f2d3d);
+  color: var(--el-text-color-primary, #1f2d3d);
   font-size: 15px;
   font-weight: 650;
 }

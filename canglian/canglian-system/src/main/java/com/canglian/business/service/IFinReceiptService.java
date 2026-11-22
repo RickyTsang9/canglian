@@ -5,57 +5,29 @@ import com.canglian.business.domain.FinReceipt;
 
 /**
  * 收款单 服务层
- * 
+ *
  * @author canglian
  */
 public interface IFinReceiptService
 {
-    /**
-     * 查询收款单信息
-     * 
-     * @param receiptId 收款单id
-     * @return 收款单信息
-     */
     public FinReceipt selectFinReceiptById(Long receiptId);
 
-    /**
-     * 查询收款单列表
-     * 
-     * @param finReceipt 收款单信息
-     * @return 收款单集合
-     */
     public List<FinReceipt> selectFinReceiptList(FinReceipt finReceipt);
 
-    /**
-     * 新增收款单
-     * 
-     * @param finReceipt 收款单信息
-     * @return 结果
-     */
     public int insertFinReceipt(FinReceipt finReceipt);
 
-    /**
-     * 修改收款单
-     * 
-     * @param finReceipt 收款单信息
-     * @return 结果
-     */
+    /** 仅限退货流程内部调用的红字退款收款单（自动确认入账） */
+    public int insertRefundReceipt(FinReceipt finReceipt);
+
     public int updateFinReceipt(FinReceipt finReceipt);
 
-    /**
-     * 删除收款单
-     * 
-     * @param receiptId 收款单id
-     * @return 结果
-     */
+    /** 确认收款单（记入资金流水、同步应收已收、触发凭证事件） */
+    public int confirmFinReceipt(Long receiptId, String operator);
+
+    /** 反确认收款单（开放账期且无后续核销/未生成凭证，逆向冲回资金与应收并恢复草稿） */
+    public int unconfirmFinReceipt(Long receiptId, String operator);
+
     public int deleteFinReceiptById(Long receiptId);
 
-    /**
-     * 批量删除收款单
-     * 
-     * @param receiptIds 需要删除的收款单id
-     * @return 结果
-     */
     public int deleteFinReceiptByIds(Long[] receiptIds);
 }
-

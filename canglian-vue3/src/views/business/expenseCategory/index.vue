@@ -168,6 +168,7 @@ function getList() {
   loading.value = true
   listExpenseCategory(queryParams.value).then(response => {
     expenseCategoryList.value = proxy.handleTree(response.data, "categoryId", "parentId")
+  }).finally(() => {
     loading.value = false
   })
 }

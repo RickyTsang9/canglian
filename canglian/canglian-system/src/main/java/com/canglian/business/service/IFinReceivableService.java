@@ -1,5 +1,7 @@
 package com.canglian.business.service;
 
+import java.math.BigDecimal;
+import java.util.Date;
 import java.util.List;
 import com.canglian.business.domain.FinReceivable;
 
@@ -10,62 +12,37 @@ import com.canglian.business.domain.FinReceivable;
  */
 public interface IFinReceivableService
 {
-    /**
-     * 查询应收单信息
-     * 
-     * @param receivableId 应收单id
-     * @return 应收单信息
-     */
     public FinReceivable selectFinReceivableById(Long receivableId);
 
-    /**
-     * 查询应收单列表
-     * 
-     * @param finReceivable 应收单信息
-     * @return 应收单集合
-     */
     public List<FinReceivable> selectFinReceivableList(FinReceivable finReceivable);
 
-    /**
-     * 新增应收单
-     * 
-     * @param finReceivable 应收单信息
-     * @return 结果
-     */
     public int insertFinReceivable(FinReceivable finReceivable);
 
-    /**
-     * 修改应收单
-     * 
-     * @param finReceivable 应收单信息
-     * @return 结果
-     */
     public int updateFinReceivable(FinReceivable finReceivable);
 
-    /**
-     * 删除应收单
-     * 
-     * @param receivableId 应收单id
-     * @return 结果
-     */
     public int deleteFinReceivableById(Long receivableId);
 
-    /**
-     * 批量删除应收单
-     * 
-     * @param receivableIds 需要删除的应收单id
-     * @return 结果
-     */
     public int deleteFinReceivableByIds(Long[] receivableIds);
 
-    /**
-     * 审核应收单
-     * 
-     * @param receivableId 应收单id
-     * @param operator 操作人
-     * @return 结果
-     */
     public int auditFinReceivable(Long receivableId, String operator);
 
-}
+    /** 反确认应收单（开放账期、未发生收款/对冲且非业务单据自动生成） */
+    public int unconfirmFinReceivable(Long receivableId, String operator);
 
+    /**
+     * 销售退货/出库退货自动生成已确认的红字应收冲减单（幂等）
+     */
+    public FinReceivable createRedReceivableForReturn(Long customerId, String sourceBillType, Long sourceBillId,
+        String sourceBillNo, Date businessDate, BigDecimal returnAmount, String operator, String remark);
+
+    /**
+     * 红蓝应收单互冲核销（将红字待抵扣余额冲抵指定正向应收单未收余额）
+     */
+    public int offsetRedReceivable(Long redReceivableId, Long targetReceivableId, BigDecimal offsetAmount, String operator);
+
+    /** 查询应收红蓝对冲台账 */
+    public List<com.canglian.business.domain.FinOffsetLog> selectOffsetLogs(Long receivableId);
+
+    /** 撤销应收红蓝对冲 */
+    public int unoffsetRedReceivable(Long offsetId, String operator);
+}

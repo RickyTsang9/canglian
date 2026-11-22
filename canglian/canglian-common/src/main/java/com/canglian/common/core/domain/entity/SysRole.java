@@ -39,6 +39,12 @@ public class SysRole extends BaseEntity
     @Excel(name = "数据范围", readConverterExp = "1=所有数据权限,2=自定义数据权限,3=本部门数据权限,4=本部门及以下数据权限,5=仅本人数据权限")
     private String dataScope;
 
+    /** 仓库数据范围（1：全部仓库；2：指定仓库） */
+    private String warehouseScope;
+
+    /** 授权仓库ID数组 */
+    private Long[] warehouseIds;
+
     /** 菜单树选择项是否关联显示（ 0：父子不互相关联显示 1：父子互相关联显示） */
     private boolean menuCheckStrictly;
 
@@ -137,6 +143,26 @@ public class SysRole extends BaseEntity
     public void setDataScope(String dataScope)
     {
         this.dataScope = dataScope;
+    }
+
+    public String getWarehouseScope()
+    {
+        return warehouseScope;
+    }
+
+    public void setWarehouseScope(String warehouseScope)
+    {
+        this.warehouseScope = warehouseScope;
+    }
+
+    public Long[] getWarehouseIds()
+    {
+        return warehouseIds;
+    }
+
+    public void setWarehouseIds(Long[] warehouseIds)
+    {
+        this.warehouseIds = warehouseIds;
     }
 
     public boolean isMenuCheckStrictly()

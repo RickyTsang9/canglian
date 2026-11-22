@@ -57,5 +57,7 @@ public interface WmsTransferItemMapper
      * @return 结果
      */
     public int deleteWmsTransferItemByIds(Long[] transferItemIds);
+
+    public int deleteWmsTransferItemByTransferId(Long transferId);
 }
 

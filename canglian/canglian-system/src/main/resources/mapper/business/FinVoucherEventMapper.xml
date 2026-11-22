@@ -49,6 +49,9 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             <if test="billType != null and billType != ''">
                 and bill_type = #{billType}
             </if>
+            <if test="billId != null">
+                and bill_id = #{billId}
+            </if>
             <if test="billNo != null and billNo != ''">
                 and bill_no like concat('%', #{billNo}, '%')
             </if>
@@ -151,6 +154,10 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
     </delete>
 
     <select id="selectMaxVoucherNoByPrefix" parameterType="String" resultType="String">
-        select max(voucher_no) from fin_voucher_event where voucher_no like concat(#{voucherNoPrefix}, '%')
+        select voucher_no from fin_voucher_event where voucher_no like concat(#{voucherNoPrefix}, '%') order by length(voucher_no) desc, voucher_no desc limit 1
+    </select>
+
+    <select id="selectMaxReverseVoucherNoByPrefix" parameterType="String" resultType="String">
+        select reverse_voucher_no from fin_voucher_event where reverse_voucher_no like concat(#{reverseVoucherNoPrefix}, '%') order by length(reverse_voucher_no) desc, reverse_voucher_no desc limit 1
     </select>
 </mapper>

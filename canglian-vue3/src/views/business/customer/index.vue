@@ -74,35 +74,40 @@
           v-hasPermi="['business:customer:remove']"
         >删除</el-button>
       </el-col>
+      <el-col :span="1.5">
+        <el-button
+          type="warning"
+          plain
+          icon="Refresh"
+          @click="handleSyncAux"
+          v-hasPermi="['business:customer:edit']"
+        >同步辅助核算</el-button>
+      </el-col>
       <right-toolbar v-model:showSearch="showSearch" @queryTable="getList"></right-toolbar>
     </el-row>
 
     <el-table v-loading="loading" :data="customerList" @selection-change="handleSelectionChange">
-      <el-table-column type="selection" width="55" align="center" />
-      <el-table-column label="客户编号" align="center" prop="customerId" />
-      <el-table-column label="客户编码" align="center" prop="customerCode" />
-      <el-table-column label="客户名称" align="center" prop="customerName" />
-      <el-table-column label="联系人" align="center" prop="contactPerson" />
-      <el-table-column label="联系电话" align="center" prop="contactPhone" />
-      <el-table-column label="客户等级" align="center" prop="customerLevel" />
-      <el-table-column label="信用额度" align="center" prop="creditLimit" />
-      <el-table-column label="账期天数" align="center" prop="receivableDays" />
-      <el-table-column label="邮箱" align="center" prop="contactEmail" />
-      <el-table-column label="地址" align="center" prop="address" />
-      <el-table-column label="状态" align="center" prop="status">
+      <el-table-column type="selection" width="50" align="center" />
+      <el-table-column label="客户编码" align="center" prop="customerCode" width="110" />
+      <el-table-column label="客户名称" align="center" prop="customerName" min-width="140" show-overflow-tooltip />
+      <el-table-column label="联系人" align="center" prop="contactPerson" width="95" />
+      <el-table-column label="联系电话" align="center" prop="contactPhone" width="120" />
+      <el-table-column label="客户等级" align="center" prop="customerLevel" width="95">
+        <template #default="scope">{{ levelLabel(scope.row.customerLevel) }}</template>
+      </el-table-column>
+      <el-table-column label="信用额度" align="right" prop="creditLimit" width="100" />
+      <el-table-column label="期初应收" align="right" prop="openingReceivable" width="100" />
+      <el-table-column label="账期(天)" align="center" prop="receivableDays" width="85" />
+      <el-table-column label="地址" align="center" prop="address" min-width="140" show-overflow-tooltip />
+      <el-table-column label="状态" align="center" prop="status" width="80">
         <template #default="scope">
           <dict-tag :options="sys_normal_disable" :value="scope.row.status" />
         </template>
       </el-table-column>
-      <el-table-column label="创建时间" align="center" prop="createTime" width="180">
-        <template #default="scope">
-          <span>{{ parseTime(scope.row.createTime) }}</span>
-        </template>
-      </el-table-column>
-      <el-table-column label="操作" width="180" align="center" class-name="small-padding fixed-width">
+      <el-table-column label="操作" width="160" align="center" class-name="small-padding fixed-width">
         <template #default="scope">
           <el-button link type="primary" icon="Edit" @click="handleUpdate(scope.row)" v-hasPermi="['business:customer:edit']">修改</el-button>
-          <el-button link type="primary" icon="Delete" @click="handleDelete(scope.row)" v-hasPermi="['business:customer:remove']">删除</el-button>
+          <el-button link type="danger" icon="Delete" @click="handleDelete(scope.row)" v-hasPermi="['business:customer:remove']">删除</el-button>
         </template>
       </el-table-column>
     </el-table>
@@ -144,34 +149,51 @@
         <el-row>
           <el-col :span="12">
             <el-form-item label="客户等级" prop="customerLevel">
-              <el-input v-model="form.customerLevel" placeholder="请输入客户等级" />
+              <el-select v-model="form.customerLevel" placeholder="请选择客户等级" clearable style="width: 100%">
+                <el-option label="VIP 客户" value="VIP" />
+                <el-option label="一级代理 (L1)" value="L1" />
+                <el-option label="二级代理 (L2)" value="L2" />
+                <el-option label="普通客户 (NORMAL)" value="NORMAL" />
+              </el-select>
             </el-form-item>
           </el-col>
           <el-col :span="12">
             <el-form-item label="信用额度" prop="creditLimit">
-              <el-input-number v-model="form.creditLimit" controls-position="right" :min="0" />
+              <el-input-number v-model="form.creditLimit" controls-position="right" :min="0" :precision="2" style="width: 100%" />
             </el-form-item>
           </el-col>
         </el-row>
         <el-row>
+          <el-col :span="12">
+            <el-form-item label="期初应收" prop="openingReceivable">
+              <el-input-number v-model="form.openingReceivable" controls-position="right" :precision="2" style="width: 100%" />
+            </el-form-item>
+          </el-col>
           <el-col :span="12">
             <el-form-item label="账期天数" prop="receivableDays">
-              <el-input-number v-model="form.receivableDays" controls-position="right" :min="0" />
-            </el-form-item>
-          </el-col>
-          <el-col :span="12">
-            <el-form-item label="价格策略" prop="pricePolicyType">
-              <el-input v-model="form.pricePolicyType" placeholder="请输入价格策略类型" />
+              <el-input-number v-model="form.receivableDays" controls-position="right" :min="0" style="width: 100%" />
             </el-form-item>
           </el-col>
         </el-row>
         <el-row>
+          <el-col :span="12">
+            <el-form-item label="价格策略" prop="pricePolicyType">
+              <el-select v-model="form.pricePolicyType" placeholder="默认专属价优先" clearable style="width: 100%">
+                <el-option label="专属价优先" value="special_first" />
+                <el-option label="等级价优先" value="level_first" />
+                <el-option label="最近成交价优先" value="recent_first" />
+                <el-option label="仅商品标准价" value="standard_only" />
+              </el-select>
+            </el-form-item>
+          </el-col>
           <el-col :span="12">
             <el-form-item label="邮箱" prop="contactEmail">
               <el-input v-model="form.contactEmail" placeholder="请输入邮箱" />
             </el-form-item>
           </el-col>
-          <el-col :span="12">
+        </el-row>
+        <el-row>
+          <el-col :span="24">
             <el-form-item label="地址" prop="address">
               <el-input v-model="form.address" placeholder="请输入地址" />
             </el-form-item>
@@ -199,7 +221,7 @@
     </el-dialog>
 
     <el-dialog :title="upload.title" v-model="upload.open" width="420px" append-to-body>
-      <el-upload ref="uploadRef" :limit="1" accept=".xlsx, .xls" :headers="upload.headers" :action="upload.url + '?updateSupport=' + upload.updateSupport" :disabled="upload.isUploading" :on-progress="handleFileUploadProgress" :on-success="handleFileSuccess" :on-change="handleFileChange" :on-remove="handleFileRemove" :auto-upload="false" drag>
+      <el-upload ref="uploadRef" :limit="1" accept=".xlsx, .xls" :headers="upload.headers" :action="upload.url + '?updateSupport=' + upload.updateSupport" :disabled="upload.isUploading" :on-progress="handleFileUploadProgress" :on-success="handleFileSuccess" :on-error="handleFileError" :on-change="handleFileChange" :on-remove="handleFileRemove" :auto-upload="false" drag>
         <el-icon class="el-icon--upload"><upload-filled /></el-icon>
         <div class="el-upload__text">将文件拖到此处，或<em>点击上传</em></div>
         <template #tip>
@@ -225,6 +247,13 @@
 <script setup name="Customer">
 import { getToken } from "@/utils/auth"
 import { listCustomer, addCustomer, delCustomer, getCustomer, updateCustomer } from "@/api/business/customer"
+import { syncAuxiliaryItems } from "@/api/business/generalLedger"
+
+const LEVEL_MAP = { VIP: "VIP 客户", L1: "一级代理", L2: "二级代理", NORMAL: "普通客户" }
+function levelLabel(v) { return LEVEL_MAP[v] || v || "-" }
+function handleSyncAux() {
+  syncAuxiliaryItems().then(() => proxy.$modal.msgSuccess("已将客户档案同步至财务辅助核算项")).catch(() => {})
+}
 
 const { proxy } = getCurrentInstance()
 const { sys_normal_disable } = proxy.useDict("sys_normal_disable")
@@ -277,6 +306,7 @@ function getList() {
   listCustomer(queryParams.value).then(response => {
     customerList.value = response.rows
     total.value = response.total
+  }).finally(() => {
     loading.value = false
   })
 }
@@ -293,10 +323,11 @@ function reset() {
     customerName: undefined,
     contactPerson: undefined,
     contactPhone: undefined,
-    customerLevel: undefined,
+    customerLevel: "NORMAL",
     creditLimit: 0,
+    openingReceivable: 0,
     receivableDays: 30,
-    pricePolicyType: undefined,
+    pricePolicyType: "special_first",
     contactEmail: undefined,
     address: undefined,
     status: "0",
@@ -401,6 +432,12 @@ const handleFileSuccess = (response, file) => {
   proxy.$refs["uploadRef"].handleRemove(file)
   proxy.$alert("<div style='overflow: auto;overflow-x: hidden;max-height: 70vh;padding: 10px 20px 0;'>" + response.msg + "</div>", "导入结果", { dangerouslyUseHTMLString: true })
   getList()
+}
+
+// 文件上传失败处理
+const handleFileError = () => {
+  upload.isUploading = false
+  proxy.$modal.msgError("文件导入失败，请检查文件格式或网络后重试")
 }
 
 // 提交上传文件

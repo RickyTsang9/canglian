@@ -67,9 +67,12 @@ public class BusinessScanController extends BaseController
      */
     @PreAuthorize("@ss.hasPermi('business:scan:query')")
     @GetMapping("/stock")
-    public AjaxResult stock(@RequestParam String barCode, @RequestParam Long warehouseId, @RequestParam(required = false) String locationCode)
+    public AjaxResult stock(@RequestParam String barCode,
+                            @RequestParam Long warehouseId,
+                            @RequestParam(required = false) String locationCode,
+                            @RequestParam(required = false) String batchNo)
     {
-        return success(businessScanService.scanStock(barCode, warehouseId, locationCode));
+        return success(businessScanService.scanStock(barCode, warehouseId, locationCode, batchNo));
     }
 
     /**
@@ -112,5 +115,20 @@ public class BusinessScanController extends BaseController
     public AjaxResult transfer(@Validated @RequestBody ScanTransferRequest scanTransferRequest)
     {
         return success(businessScanService.createTransfer(scanTransferRequest, getUsername()));
+    }
+
+    @PreAuthorize("@ss.hasPermi('business:scan:add') or @ss.hasPermi('business:inbound:add')")
+    @Log(title = "扫码快速入库", businessType = BusinessType.INSERT)
+    @PostMapping("/quickInbound")
+    public AjaxResult quickInbound(@RequestBody java.util.Map<String, Object> payload)
+    {
+        return success(businessScanService.createQuickInbound(payload, getUsername()));
+    }
+
+    @PreAuthorize("@ss.hasPermi('business:scan:query') or @ss.hasPermi('business:outbound:query')")
+    @PostMapping("/outboundVerify/{outboundId}")
+    public AjaxResult outboundVerify(@PathVariable Long outboundId, @RequestBody java.util.List<java.util.Map<String, Object>> scannedItems)
+    {
+        return success(businessScanService.verifyOutboundByScan(outboundId, scannedItems, getUsername()));
     }
 }

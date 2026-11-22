@@ -57,7 +57,22 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             <if test="inOut != null and inOut != ''">
                 and in_out = #{inOut}
             </if>
+            ${params.warehouseScope}
         </where>
+        order by stock_log_id desc
+    </select>
+
+    <select id="selectWmsStockLogChronological" resultMap="WmsStockLogResult">
+        <include refid="selectWmsStockLogVo"/>
+        <where>
+            <if test="warehouseId != null">
+                and warehouse_id = #{warehouseId}
+            </if>
+            <if test="productId != null">
+                and product_id = #{productId}
+            </if>
+        </where>
+        order by create_time asc, stock_log_id asc
     </select>
 
     <insert id="insertWmsStockLog" parameterType="WmsStockLog" useGeneratedKeys="true" keyProperty="stockLogId">

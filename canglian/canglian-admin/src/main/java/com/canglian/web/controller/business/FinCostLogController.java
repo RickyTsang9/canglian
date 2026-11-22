@@ -3,7 +3,6 @@ package com.canglian.web.controller.business;
 import java.util.List;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -12,29 +11,27 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
-import com.canglian.common.annotation.Log;
+import com.canglian.business.domain.FinCostLog;
+import com.canglian.business.service.IFinCostLogService;
 import com.canglian.common.core.controller.BaseController;
 import com.canglian.common.core.domain.AjaxResult;
 import com.canglian.common.core.page.TableDataInfo;
-import com.canglian.common.enums.BusinessType;
-import com.canglian.business.domain.FinCostLog;
-import com.canglian.business.service.IFinCostLogService;
+import com.canglian.common.exception.ServiceException;
 
 /**
- * 成本流水 信息操作处理
- * 
+ * 成本流水 信息操作处理（不可篡改只读财务流水）
+ *
  * @author canglian
  */
 @RestController
 @RequestMapping("/business/costLog")
 public class FinCostLogController extends BaseController
 {
+    private static final String READONLY_MSG = "成本流水为不可篡改审计凭证，由出入库与成本核算引擎自动生成，禁止手工增删改";
+
     @Autowired
     private IFinCostLogService finCostLogService;
 
-    /**
-     * 获取成本流水列表
-     */
     @PreAuthorize("@ss.hasPermi('business:costLog:list')")
     @GetMapping("/list")
     public TableDataInfo list(FinCostLog finCostLog)
@@ -44,9 +41,6 @@ public class FinCostLogController extends BaseController
         return getDataTable(list);
     }
 
-    /**
-     * 根据成本流水编号获取详细信息
-     */
     @PreAuthorize("@ss.hasPermi('business:costLog:query')")
     @GetMapping(value = "/{costLogId}")
     public AjaxResult getInfo(@PathVariable Long costLogId)
@@ -54,38 +48,24 @@ public class FinCostLogController extends BaseController
         return success(finCostLogService.selectFinCostLogById(costLogId));
     }
 
-    /**
-     * 新增成本流水
-     */
     @PreAuthorize("@ss.hasPermi('business:costLog:add')")
-    @Log(title = "成本流水", businessType = BusinessType.INSERT)
     @PostMapping
-    public AjaxResult add(@Validated @RequestBody FinCostLog finCostLog)
+    public AjaxResult add(@RequestBody(required = false) FinCostLog finCostLog)
     {
-        finCostLog.setCreateBy(getUsername());
-        return toAjax(finCostLogService.insertFinCostLog(finCostLog));
+        throw new ServiceException(READONLY_MSG);
     }
 
-    /**
-     * 修改成本流水
-     */
     @PreAuthorize("@ss.hasPermi('business:costLog:edit')")
-    @Log(title = "成本流水", businessType = BusinessType.UPDATE)
     @PutMapping
-    public AjaxResult edit(@Validated @RequestBody FinCostLog finCostLog)
+    public AjaxResult edit(@RequestBody(required = false) FinCostLog finCostLog)
     {
-        return toAjax(finCostLogService.updateFinCostLog(finCostLog));
+        throw new ServiceException(READONLY_MSG);
     }
 
-    /**
-     * 删除成本流水
-     */
     @PreAuthorize("@ss.hasPermi('business:costLog:remove')")
-    @Log(title = "成本流水", businessType = BusinessType.DELETE)
     @DeleteMapping("/{costLogIds}")
     public AjaxResult remove(@PathVariable Long[] costLogIds)
     {
-        return toAjax(finCostLogService.deleteFinCostLogByIds(costLogIds));
+        throw new ServiceException(READONLY_MSG);
     }
 }
-

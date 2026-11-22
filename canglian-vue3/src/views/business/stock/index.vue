@@ -1,31 +1,27 @@
 <template>
   <div class="app-container">
     <el-form :model="queryParams" ref="queryRef" :inline="true" v-show="showSearch">
-      <el-form-item label="仓库编号" prop="warehouseId">
-        <el-input
-          v-model="queryParams.warehouseId"
-          placeholder="请输入仓库编号"
-          clearable
-          style="width: 200px"
-          @keyup.enter="handleQuery"
-        />
-      </el-form-item>
-      <el-form-item label="商品编号" prop="productId">
-        <el-input
-          v-model="queryParams.productId"
-          placeholder="请输入商品编号"
-          clearable
-          style="width: 200px"
-          @keyup.enter="handleQuery"
-        />
-      </el-form-item>
-      <el-form-item v-if="warningMode" label="预警类型" prop="warningType">
-        <el-select v-model="queryParams.warningType" placeholder="请选择预警类型" clearable style="width: 200px">
-          <el-option v-for="warningOption in warningTypeOptions" :key="warningOption.value" :label="warningOption.label" :value="warningOption.value" />
+      <el-form-item label="仓库" prop="warehouseId">
+        <el-select v-model="queryParams.warehouseId" placeholder="请选择仓库" clearable filterable style="width: 190px">
+          <el-option v-for="w in warehouseOptions" :key="w.warehouseId" :label="w.warehouseName" :value="w.warehouseId" />
         </el-select>
       </el-form-item>
-      <el-form-item v-if="warningMode" label="滞销天数" prop="warningDays">
-        <el-input-number v-model="queryParams.warningDays" :min="1" :step="30" controls-position="right" style="width: 160px" />
+      <el-form-item label="商品" prop="productId">
+        <el-select v-model="queryParams.productId" placeholder="请选择商品" clearable filterable style="width: 210px">
+          <el-option v-for="p in productOptions" :key="p.productId" :label="`${p.productCode || ''} - ${p.productName}`" :value="p.productId" />
+        </el-select>
+      </el-form-item>
+      <el-form-item v-if="viewMode === 'warning'" label="预警类型" prop="warningType">
+        <el-select v-model="queryParams.warningType" placeholder="请选择预警类型" clearable style="width: 170px">
+          <el-option v-for="w in warningTypeOptions" :key="w.value" :label="w.label" :value="w.value" />
+        </el-select>
+      </el-form-item>
+      <el-form-item v-if="viewMode === 'expiry'" label="效期状态" prop="expiryStatus">
+        <el-select v-model="queryParams.expiryStatus" placeholder="全部效期" clearable style="width: 150px">
+          <el-option label="正常" value="normal" />
+          <el-option label="临期预警" value="near_expiry" />
+          <el-option label="已过期" value="expired" />
+        </el-select>
       </el-form-item>
       <el-form-item>
         <el-button type="primary" icon="Search" @click="handleQuery">搜索</el-button>
@@ -35,165 +31,156 @@
 
     <el-row :gutter="10" class="mb8">
       <el-col :span="1.5">
-        <el-button
-          :type="warningMode ? 'warning' : 'primary'"
-          plain
-          icon="Warning"
-          @click="handleWarningMode"
-          v-hasPermi="['business:stock:list']"
-        >{{ warningMode ? "返回库存" : "预警中心" }}</el-button>
+        <el-radio-group v-model="viewMode" @change="handleModeChange">
+          <el-radio-button value="normal">实时库存</el-radio-button>
+          <el-radio-button value="warning">上下限/滞销预警</el-radio-button>
+          <el-radio-button value="expiry">批次效期预警(FEFO)</el-radio-button>
+        </el-radio-group>
       </el-col>
-      <el-col v-if="!warningMode" :span="1.5">
-        <el-button
-          type="info"
-          plain
-          icon="Upload"
-          @click="handleImport"
-          v-hasPermi="['business:stock:import']"
-        >导入</el-button>
+      <el-col v-if="viewMode === 'normal'" :span="1.5">
+        <el-button type="info" plain icon="Upload" @click="handleImport" v-hasPermi="['business:stock:import']">期初导入</el-button>
       </el-col>
-      <el-col v-if="!warningMode" :span="1.5">
-        <el-button
-          type="primary"
-          plain
-          icon="Plus"
-          @click="handleAdd"
-          v-hasPermi="['business:stock:add']"
-        >新增</el-button>
+      <el-col v-if="viewMode === 'normal'" :span="1.5">
+        <el-tag type="info" effect="plain" style="line-height: 30px; height: 32px">库存数量由入/出/调/盘业务单据自动维护，仅支持预警阈值设置与质检冻结</el-tag>
       </el-col>
-      <el-col v-if="!warningMode" :span="1.5">
-        <el-button
-          type="success"
-          plain
-          icon="Edit"
-          :disabled="isSingleDisabled"
-          @click="handleUpdate"
-          v-hasPermi="['business:stock:edit']"
-        >修改</el-button>
-      </el-col>
-      <el-col v-if="!warningMode" :span="1.5">
-        <el-button
-          type="danger"
-          plain
-          icon="Delete"
-          :disabled="isMultipleDisabled"
-          @click="handleDelete"
-          v-hasPermi="['business:stock:remove']"
-        >删除</el-button>
-      </el-col>
-      <right-toolbar v-model:showSearch="showSearch" @queryTable="getList"></right-toolbar>
+      <right-toolbar v-model:showSearch="showSearch" @queryTable="getList" />
     </el-row>
 
-    <el-table v-loading="loading" :data="stockList" @selection-change="handleSelectionChange">
-      <el-table-column type="selection" width="55" align="center" />
-      <el-table-column label="库存编号" align="center" prop="stockId" />
-      <el-table-column label="仓库编号" align="center" prop="warehouseId" />
-      <el-table-column label="商品编号" align="center" prop="productId" />
-      <el-table-column label="库存数量" align="center" prop="quantity" />
-      <el-table-column label="可用数量" align="center" prop="availableQuantity" />
-      <el-table-column label="锁定数量" align="center" prop="lockedQuantity" />
-      <el-table-column label="冻结数量" align="center" prop="frozenQuantity" />
-      <el-table-column label="最小预警" align="center" prop="warningMinQty" />
-      <el-table-column label="最大预警" align="center" prop="warningMaxQty" />
-      <el-table-column v-if="warningMode" label="预警类型" align="center" prop="warningType" width="120">
+    <el-table v-loading="loading" :data="stockList">
+      <el-table-column label="仓库" align="center" min-width="110" show-overflow-tooltip>
+        <template #default="scope">{{ getWarehouseName(scope.row.warehouseId) }}</template>
+      </el-table-column>
+      <el-table-column label="库位" align="center" width="115" show-overflow-tooltip>
+        <template #default="scope">{{ getLocationName(scope.row.locationId) }}</template>
+      </el-table-column>
+      <el-table-column label="商品" align="center" min-width="165" show-overflow-tooltip>
+        <template #default="scope">{{ getProductName(scope.row.productId) }}</template>
+      </el-table-column>
+      <el-table-column label="批次号" align="center" prop="batchNo" width="105" />
+      <el-table-column label="现存" align="right" prop="quantity" width="75" />
+      <el-table-column label="可用" align="right" prop="availableQuantity" width="75" />
+      <el-table-column label="锁定" align="right" prop="lockedQuantity" width="70" />
+      <el-table-column label="冻结" align="right" prop="frozenQuantity" width="70" />
+      <el-table-column label="生产日期" align="center" prop="productionDate" width="105">
+        <template #default="scope">{{ parseTime(scope.row.productionDate, '{y}-{m}-{d}') || '-' }}</template>
+      </el-table-column>
+      <el-table-column label="有效期至" align="center" prop="expiryDate" width="105">
+        <template #default="scope">{{ parseTime(scope.row.expiryDate, '{y}-{m}-{d}') || '-' }}</template>
+      </el-table-column>
+      <el-table-column label="效期状态" align="center" width="115">
+        <template #default="scope">
+          <el-tag v-if="scope.row.expiryStatus === 'expired'" type="danger">已过期({{ scope.row.remainDays }}天)</el-tag>
+          <el-tag v-else-if="scope.row.expiryStatus === 'near_expiry'" type="warning">临期({{ scope.row.remainDays }}天)</el-tag>
+          <el-tag v-else-if="scope.row.expiryDate" type="success">正常({{ scope.row.remainDays ?? '-' }}天)</el-tag>
+          <span v-else>-</span>
+        </template>
+      </el-table-column>
+      <el-table-column v-if="viewMode === 'warning'" label="预警类型" align="center" width="110">
         <template #default="scope">
           <el-tag :type="getWarningTagType(scope.row.warningType)">{{ getWarningTypeLabel(scope.row.warningType) }}</el-tag>
         </template>
       </el-table-column>
-      <el-table-column v-if="warningMode" label="预警说明" align="center" prop="warningMessage" min-width="220" />
-      <el-table-column v-if="warningMode" label="滞销天数" align="center" prop="unsoldDays" />
-      <el-table-column v-if="warningMode" label="最近出库时间" align="center" prop="lastOutboundTime" width="180">
+      <el-table-column v-if="viewMode === 'warning'" label="预警说明" align="center" prop="warningMessage" min-width="200" />
+      <el-table-column v-if="viewMode === 'normal'" label="操作" width="215" align="center">
         <template #default="scope">
-          <span>{{ parseTime(scope.row.lastOutboundTime) }}</span>
-        </template>
-      </el-table-column>
-      <el-table-column label="创建时间" align="center" prop="createTime" width="180">
-        <template #default="scope">
-          <span>{{ parseTime(scope.row.createTime) }}</span>
-        </template>
-      </el-table-column>
-      <el-table-column v-if="!warningMode" label="操作" width="180" align="center" class-name="small-padding fixed-width">
-        <template #default="scope">
-          <el-button link type="primary" icon="Edit" @click="handleUpdate(scope.row)" v-hasPermi="['business:stock:edit']">修改</el-button>
-          <el-button link type="primary" icon="Delete" @click="handleDelete(scope.row)" v-hasPermi="['business:stock:remove']">删除</el-button>
+          <el-button link type="warning" icon="Lock" @click="openFreezeDialog(scope.row, 'freeze')" v-hasPermi="['business:stock:freeze']">冻结</el-button>
+          <el-button link type="success" icon="Unlock" :disabled="Number(scope.row.frozenQuantity || 0) <= 0" @click="openFreezeDialog(scope.row, 'unfreeze')" v-hasPermi="['business:stock:freeze']">解冻</el-button>
+          <el-button link type="primary" icon="Setting" @click="handleUpdateThreshold(scope.row)" v-hasPermi="['business:stock:edit']">预警设置</el-button>
         </template>
       </el-table-column>
     </el-table>
 
-    <pagination
-      v-show="total > 0"
-      :total="total"
-      v-model:page="queryParams.pageNum"
-      v-model:limit="queryParams.pageSize"
-      @pagination="getList"
-    />
+    <pagination v-show="total > 0" :total="total" v-model:page="queryParams.pageNum" v-model:limit="queryParams.pageSize" @pagination="getList" />
 
-    <el-dialog :title="title" v-model="open" width="720px" append-to-body>
-      <el-form ref="stockRef" :model="form" :rules="rules" label-width="90px">
+    <!-- 库存预警阈值设置弹窗（禁止手工直改库存数量） -->
+    <el-dialog title="设置库存上下限与效期属性" v-model="open" width="600px" append-to-body>
+      <el-form ref="stockRef" :model="form" label-width="95px">
         <el-row>
           <el-col :span="12">
-            <el-form-item label="仓库编号" prop="warehouseId">
-              <el-input v-model="form.warehouseId" placeholder="请输入仓库编号" />
-            </el-form-item>
+            <el-form-item label="仓库"><el-input :model-value="getWarehouseName(form.warehouseId)" disabled /></el-form-item>
           </el-col>
           <el-col :span="12">
-            <el-form-item label="商品编号" prop="productId">
-              <el-input v-model="form.productId" placeholder="请输入商品编号" />
-            </el-form-item>
+            <el-form-item label="库位"><el-input :model-value="getLocationName(form.locationId)" disabled /></el-form-item>
           </el-col>
         </el-row>
         <el-row>
           <el-col :span="12">
-            <el-form-item label="库存数量" prop="quantity">
-              <el-input v-model="form.quantity" placeholder="请输入库存数量" />
+            <el-form-item label="商品"><el-input :model-value="getProductName(form.productId)" disabled /></el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="现存数量"><el-input :model-value="String(form.quantity ?? 0)" disabled /></el-form-item>
+          </el-col>
+        </el-row>
+        <el-row>
+          <el-col :span="12">
+            <el-form-item label="生产日期" prop="productionDate">
+              <el-date-picker v-model="form.productionDate" type="date" value-format="YYYY-MM-DD" style="width: 100%" />
             </el-form-item>
           </el-col>
           <el-col :span="12">
-            <el-form-item label="锁定数量" prop="lockedQuantity">
-              <el-input v-model="form.lockedQuantity" placeholder="请输入锁定数量" />
+            <el-form-item label="有效期至" prop="expiryDate">
+              <el-date-picker v-model="form.expiryDate" type="date" value-format="YYYY-MM-DD" style="width: 100%" />
             </el-form-item>
           </el-col>
         </el-row>
         <el-row>
           <el-col :span="12">
             <el-form-item label="最小预警" prop="warningMinQty">
-              <el-input v-model="form.warningMinQty" placeholder="请输入最小预警" />
+              <el-input-number v-model="form.warningMinQty" :min="0" controls-position="right" style="width: 100%" />
             </el-form-item>
           </el-col>
           <el-col :span="12">
             <el-form-item label="最大预警" prop="warningMaxQty">
-              <el-input v-model="form.warningMaxQty" placeholder="请输入最大预警" />
+              <el-input-number v-model="form.warningMaxQty" :min="0" controls-position="right" style="width: 100%" />
             </el-form-item>
           </el-col>
         </el-row>
       </el-form>
       <template #footer>
-        <div class="dialog-footer">
-          <el-button type="primary" @click="submitForm">确 定</el-button>
-          <el-button @click="cancel">取 消</el-button>
-        </div>
+        <el-button type="primary" @click="submitForm">保存设置</el-button>
+        <el-button @click="open = false">取 消</el-button>
+      </template>
+    </el-dialog>
+
+    <!-- 库存冻结/解冻弹窗 -->
+    <el-dialog :title="freezeForm.mode === 'freeze' ? '质检/残次库存冻结' : '释放冻结库存'" v-model="freezeOpen" width="460px" append-to-body>
+      <el-form :model="freezeForm" label-width="100px">
+        <el-form-item label="商品">{{ getProductName(freezeForm.productId) }}</el-form-item>
+        <el-form-item label="当前可用">{{ freezeForm.availableQuantity }} &nbsp;|&nbsp; 已冻结：{{ freezeForm.frozenQuantity }}</el-form-item>
+        <el-form-item :label="freezeForm.mode === 'freeze' ? '冻结数量' : '解冻数量'" required>
+          <el-input-number
+            v-model="freezeForm.quantity"
+            :min="0.01"
+            :max="freezeForm.mode === 'freeze' ? Number(freezeForm.availableQuantity || 0) : Number(freezeForm.frozenQuantity || 0)"
+            controls-position="right"
+            style="width: 100%"
+          />
+        </el-form-item>
+        <el-form-item label="原因说明">
+          <el-input v-model="freezeForm.reason" placeholder="如：质检待复核 / 复检合格放行" />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button type="primary" @click="submitFreeze">确 定</el-button>
+        <el-button @click="freezeOpen = false">取 消</el-button>
       </template>
     </el-dialog>
 
     <el-dialog :title="upload.title" v-model="upload.open" width="420px" append-to-body>
-      <el-upload ref="uploadRef" :limit="1" accept=".xlsx, .xls" :headers="upload.headers" :action="upload.url + '?updateSupport=' + upload.updateSupport" :disabled="upload.isUploading" :on-progress="handleFileUploadProgress" :on-success="handleFileSuccess" :on-change="handleFileChange" :on-remove="handleFileRemove" :auto-upload="false" drag>
+      <el-upload ref="uploadRef" :limit="1" accept=".xlsx, .xls" :headers="upload.headers" :action="upload.url + '?updateSupport=' + upload.updateSupport" :disabled="upload.isUploading" :on-progress="handleFileUploadProgress" :on-success="handleFileSuccess" :on-error="handleFileError" :on-change="handleFileChange" :on-remove="handleFileRemove" :auto-upload="false" drag>
         <el-icon class="el-icon--upload"><upload-filled /></el-icon>
         <div class="el-upload__text">将文件拖到此处，或<em>点击上传</em></div>
         <template #tip>
           <div class="el-upload__tip text-center">
-            <div class="el-upload__tip">
-              <el-checkbox v-model="upload.updateSupport" />是否更新已存在的库存数据
-            </div>
+            <div class="el-upload__tip"><el-checkbox v-model="upload.updateSupport" />是否更新已存在的库存数据</div>
             <span>仅允许导入xls、xlsx格式文件。</span>
             <el-link type="primary" :underline="false" style="font-size: 12px; vertical-align: baseline" @click="importTemplate">下载模板</el-link>
           </div>
         </template>
       </el-upload>
       <template #footer>
-        <div class="dialog-footer">
-          <el-button type="primary" @click="submitFileForm">确 定</el-button>
-          <el-button @click="upload.open = false">取 消</el-button>
-        </div>
+        <el-button type="primary" @click="submitFileForm">确 定</el-button>
+        <el-button @click="upload.open = false">取 消</el-button>
       </template>
     </el-dialog>
   </div>
@@ -201,36 +188,27 @@
 
 <script setup name="Stock">
 import { getToken } from "@/utils/auth"
-import { listStock, listStockWarning, addStock, delStock, getStock, updateStock } from "@/api/business/stock"
+import { listStock, listStockWarning, listExpiryWarning, freezeStock, unfreezeStock, getStock, updateStock } from "@/api/business/stock"
 import { useRoute } from "vue-router"
+import { useBusinessOptions } from "@/utils/businessOptions"
 
 const { proxy } = getCurrentInstance()
 const route = useRoute()
+const { warehouseOptions, productOptions, loadWarehouses, loadProducts, loadLocations, getWarehouseName, getProductName, getLocationName } = useBusinessOptions()
 
 const stockList = ref([])
 const open = ref(false)
 const loading = ref(true)
 const showSearch = ref(true)
-const selectedIds = ref([])
-const isSingleDisabled = ref(true)
-const isMultipleDisabled = ref(true)
 const total = ref(0)
-const title = ref("")
-const warningMode = ref(route.query.warningMode === "1")
+const viewMode = ref(route.query.warningMode === "1" ? "warning" : "normal")
+
+const freezeOpen = ref(false)
+const freezeForm = reactive({ mode: "freeze", stockId: undefined, productId: undefined, availableQuantity: 0, frozenQuantity: 0, quantity: 1, reason: "" })
+
 const upload = reactive({
-  // 是否显示导入弹窗
-  open: false,
-  // 导入弹窗标题
-  title: "",
-  // 是否正在上传
-  isUploading: false,
-  // 是否更新已存在数据
-  updateSupport: 0,
-  // 已选择文件
-  selectedFile: null,
-  // 请求头
+  open: false, title: "", isUploading: false, updateSupport: 0, selectedFile: null,
   headers: { Authorization: "Bearer " + getToken() },
-  // 上传地址
   url: import.meta.env.VITE_APP_BASE_API + "/business/stock/importData"
 })
 
@@ -243,185 +221,114 @@ const warningTypeOptions = [
 
 const data = reactive({
   form: {},
-  queryParams: {
-    pageNum: 1,
-    pageSize: 10,
-    warehouseId: undefined,
-    productId: undefined,
-    warningType: undefined,
-    warningDays: 90
-  },
-  rules: {
-    warehouseId: [{ required: true, message: "仓库编号不能为空", trigger: "blur" }],
-    productId: [{ required: true, message: "商品编号不能为空", trigger: "blur" }]
-  }
+  queryParams: { pageNum: 1, pageSize: 10, warehouseId: undefined, productId: undefined, warningType: undefined, expiryStatus: undefined }
 })
 
-const { queryParams, form, rules } = toRefs(data)
+const { queryParams, form } = toRefs(data)
 
 function getList() {
   loading.value = true
-  const requestMethod = warningMode.value ? listStockWarning : listStock
-  requestMethod(queryParams.value).then(response => {
-    stockList.value = response.rows
-    total.value = response.total
+  const req = viewMode.value === "warning" ? listStockWarning : (viewMode.value === "expiry" ? listExpiryWarning : listStock)
+  req(queryParams.value).then(res => {
+    stockList.value = res.rows || []
+    total.value = res.total || 0
+  }).finally(() => {
     loading.value = false
   })
 }
 
-// 切换库存预警中心
-function handleWarningMode() {
-  warningMode.value = !warningMode.value
+function handleModeChange() {
   queryParams.value.pageNum = 1
   getList()
 }
 
-// 获取预警类型名称
-function getWarningTypeLabel(warningType) {
-  const warningOption = warningTypeOptions.find(item => item.value === warningType)
-  return warningOption ? warningOption.label : warningType
+function getWarningTypeLabel(t) {
+  const o = warningTypeOptions.find(i => i.value === t)
+  return o ? o.label : t
 }
 
-// 获取预警标签样式
-function getWarningTagType(warningType) {
-  if (warningType === "negative_available") {
-    return "danger"
-  }
-  if (warningType === "low_stock") {
-    return "warning"
-  }
-  if (warningType === "over_stock") {
-    return "info"
-  }
+function getWarningTagType(t) {
+  if (t === "negative_available") return "danger"
+  if (t === "low_stock") return "warning"
+  if (t === "over_stock") return "info"
   return "success"
 }
 
-function cancel() {
-  open.value = false
-  reset()
+function openFreezeDialog(row, mode) {
+  Object.assign(freezeForm, {
+    mode,
+    stockId: row.stockId,
+    productId: row.productId,
+    availableQuantity: Number(row.availableQuantity || 0),
+    frozenQuantity: Number(row.frozenQuantity || 0),
+    quantity: 1,
+    reason: mode === "freeze" ? "质检暂冻" : "复检放行"
+  })
+  freezeOpen.value = true
 }
 
-function reset() {
-  form.value = {
-    stockId: undefined,
-    warehouseId: undefined,
-    productId: undefined,
-    quantity: undefined,
-    lockedQuantity: undefined,
-    frozenQuantity: undefined,
-    warningMinQty: undefined,
-    warningMaxQty: undefined
+function submitFreeze() {
+  if (!freezeForm.quantity || Number(freezeForm.quantity) <= 0) {
+    proxy.$modal.msgError("数量必须大于0")
+    return
   }
-  proxy.resetForm("stockRef")
+  const fn = freezeForm.mode === "freeze" ? freezeStock : unfreezeStock
+  fn({ stockId: freezeForm.stockId, quantity: freezeForm.quantity, reason: freezeForm.reason }).then(() => {
+    proxy.$modal.msgSuccess(freezeForm.mode === "freeze" ? "冻结成功" : "解冻成功")
+    freezeOpen.value = false
+    getList()
+  })
 }
 
-function handleQuery() {
-  queryParams.value.pageNum = 1
-  getList()
-}
+function handleQuery() { queryParams.value.pageNum = 1; getList() }
+function resetQuery() { proxy.resetForm("queryRef"); handleQuery() }
 
-function resetQuery() {
-  proxy.resetForm("queryRef")
-  handleQuery()
-}
-
-function handleSelectionChange(selection) {
-  selectedIds.value = selection.map(item => item.stockId)
-  isSingleDisabled.value = selection.length !== 1
-  isMultipleDisabled.value = !selection.length
-}
-
-function handleAdd() {
-  reset()
-  open.value = true
-  title.value = "添加库存"
-}
-
-function handleUpdate(currentRow) {
-  reset()
-  const stockId = currentRow.stockId || selectedIds.value
-  getStock(stockId).then(response => {
-    form.value = response.data
+function handleUpdateThreshold(row) {
+  getStock(row.stockId).then(res => {
+    form.value = res.data || {}
     open.value = true
-    title.value = "修改库存"
   })
 }
 
 function submitForm() {
-  proxy.$refs["stockRef"].validate(valid => {
-    if (valid) {
-      if (form.value.stockId != undefined) {
-        updateStock(form.value).then(() => {
-          proxy.$modal.msgSuccess("修改成功")
-          open.value = false
-          getList()
-        })
-      } else {
-        addStock(form.value).then(() => {
-          proxy.$modal.msgSuccess("新增成功")
-          open.value = false
-          getList()
-        })
-      }
-    }
+  updateStock({
+    stockId: form.value.stockId,
+    productionDate: form.value.productionDate,
+    expiryDate: form.value.expiryDate,
+    warningMinQty: form.value.warningMinQty,
+    warningMaxQty: form.value.warningMaxQty
+  }).then(() => {
+    proxy.$modal.msgSuccess("预警与效期属性保存成功")
+    open.value = false
+    getList()
   })
 }
 
-function handleDelete(currentRow) {
-  const stockIds = currentRow.stockId || selectedIds.value
-  proxy.$modal.confirm('是否确认删除库存编号为"' + stockIds + '"的数据项？').then(function() {
-    return delStock(stockIds)
-  }).then(() => {
-    getList()
-    proxy.$modal.msgSuccess("删除成功")
-  }).catch(() => {})
-}
-
-// 导入按钮操作
-function handleImport() {
-  upload.title = "期初库存导入"
-  upload.open = true
-  upload.selectedFile = null
-}
-
-// 下载模板操作
-function importTemplate() {
-  proxy.download("business/stock/importTemplate", {}, `stock_template_${new Date().getTime()}.xlsx`)
-}
-
-// 文件上传中处理
-const handleFileUploadProgress = () => {
-  upload.isUploading = true
-}
-
-// 文件选择处理
-const handleFileChange = (file) => {
-  upload.selectedFile = file
-}
-
-// 文件删除处理
-const handleFileRemove = () => {
-  upload.selectedFile = null
-}
-
-// 文件上传成功处理
-const handleFileSuccess = (response, file) => {
-  upload.open = false
-  upload.isUploading = false
+function handleImport() { upload.title = "期初库存导入"; upload.open = true; upload.selectedFile = null }
+function importTemplate() { proxy.download("business/stock/importTemplate", {}, `stock_template_${Date.now()}.xlsx`) }
+const handleFileUploadProgress = () => { upload.isUploading = true }
+const handleFileChange = (file) => { upload.selectedFile = file }
+const handleFileRemove = () => { upload.selectedFile = null }
+const handleFileSuccess = (res, file) => {
+  upload.open = false; upload.isUploading = false
   proxy.$refs["uploadRef"].handleRemove(file)
-  proxy.$alert("<div style='overflow: auto;overflow-x: hidden;max-height: 70vh;padding: 10px 20px 0;'>" + response.msg + "</div>", "导入结果", { dangerouslyUseHTMLString: true })
+  proxy.$alert(`<div style="overflow:auto;max-height:70vh;padding:10px 20px 0;">${res.msg}</div>`, "导入结果", { dangerouslyUseHTMLString: true })
   getList()
 }
-
-// 提交上传文件
+const handleFileError = () => { upload.isUploading = false; proxy.$modal.msgError("文件导入失败") }
 function submitFileForm() {
-  const selectedFile = upload.selectedFile
-  if (!selectedFile || !selectedFile.name || (!selectedFile.name.toLowerCase().endsWith(".xls") && !selectedFile.name.toLowerCase().endsWith(".xlsx"))) {
-    proxy.$modal.msgError("请选择后缀为 xls 或 xlsx 的文件。")
+  if (!upload.selectedFile || !/\.(xls|xlsx)$/i.test(upload.selectedFile.name)) {
+    proxy.$modal.msgError("请选择 xls 或 xlsx 文件")
     return
   }
   proxy.$refs["uploadRef"].submit()
 }
 
-getList()
+watch(() => route.query.warningMode, (val) => {
+  viewMode.value = val === "1" ? "warning" : "normal"
+  queryParams.value.pageNum = 1
+  getList()
+})
+
+loadWarehouses(); loadProducts(); loadLocations(); getList()
 </script>

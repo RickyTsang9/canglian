@@ -57,5 +57,7 @@ public interface MdWarehouseMapper
      * @return 结果
      */
     public int deleteMdWarehouseByIds(Long[] warehouseIds);
+
+    public int countWarehouseReferences(Long warehouseId);
 }
 

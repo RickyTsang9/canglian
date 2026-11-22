@@ -71,6 +71,7 @@ public class MdSupplierController extends BaseController
      *
      * @param response 响应对象
      */
+    @PreAuthorize("@ss.hasPermi('business:supplier:import')")
     @PostMapping("/importTemplate")
     public void importTemplate(HttpServletResponse response)
     {

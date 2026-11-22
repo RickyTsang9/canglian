@@ -8,23 +8,55 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         <id property="orderItemId" column="order_item_id" />
         <result property="orderId" column="order_id" />
         <result property="productId" column="product_id" />
+        <result property="unitName" column="unit_name" />
+        <result property="convertRatio" column="convert_ratio" />
+        <result property="baseQuantity" column="base_quantity" />
         <result property="quantity" column="quantity" />
+        <result property="shippedQty" column="shipped_qty" />
         <result property="price" column="price" />
+        <result property="discountRate" column="discount_rate" />
+        <result property="taxRate" column="tax_rate" />
+        <result property="taxAmount" column="tax_amount" />
         <result property="amount" column="amount" />
         <result property="remark" column="remark" />
     </resultMap>
 
-    <select id="selectSalOrderItemListByOrderId" parameterType="Long" resultMap="SalOrderItemResult">
-        select order_item_id, order_id, product_id, quantity, price, amount, remark
+    <sql id="selectSalOrderItemVo">
+        select order_item_id, order_id, product_id, unit_name, convert_ratio, base_quantity,
+               quantity, coalesce(shipped_qty, 0) as shipped_qty, price,
+               coalesce(discount_rate, 100.00) as discount_rate, coalesce(tax_rate, 0.00) as tax_rate,
+               coalesce(tax_amount, 0.00) as tax_amount, amount, remark
         from sal_order_item
+    </sql>
+
+    <select id="selectSalOrderItemListByOrderId" parameterType="Long" resultMap="SalOrderItemResult">
+        <include refid="selectSalOrderItemVo"/>
         where order_id = #{orderId}
         order by order_item_id asc
     </select>
 
+    <select id="selectSalOrderItemById" parameterType="Long" resultMap="SalOrderItemResult">
+        <include refid="selectSalOrderItemVo"/>
+        where order_item_id = #{orderItemId}
+    </select>
+
     <insert id="insertSalOrderItem" parameterType="SalOrderItem" useGeneratedKeys="true" keyProperty="orderItemId">
-        insert into sal_order_item(order_id, product_id, quantity, price, amount, remark)
-        values(#{orderId}, #{productId}, #{quantity}, #{price}, #{amount}, #{remark})
+        insert into sal_order_item(
+            order_id, product_id, unit_name, convert_ratio, base_quantity,
+            quantity, shipped_qty, price, discount_rate, tax_rate, tax_amount, amount, remark
+        )
+        values(
+            #{orderId}, #{productId}, #{unitName}, coalesce(#{convertRatio}, 1.0000), #{baseQuantity},
+            #{quantity}, coalesce(#{shippedQty}, 0), #{price}, coalesce(#{discountRate}, 100.00),
+            coalesce(#{taxRate}, 0.00), coalesce(#{taxAmount}, 0.00), #{amount}, #{remark}
+        )
     </insert>
+
+    <update id="updateShippedQty">
+        update sal_order_item
+        set shipped_qty = #{shippedQty}
+        where order_item_id = #{orderItemId}
+    </update>
 
     <delete id="deleteSalOrderItemByOrderId" parameterType="Long">
         delete from sal_order_item where order_id = #{orderId}

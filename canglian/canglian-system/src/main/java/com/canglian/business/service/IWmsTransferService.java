@@ -17,13 +17,11 @@ public interface IWmsTransferService
 
     public int deleteWmsTransferByIds(Long[] transferIds);
 
-    /**
-     * 调拨单审核
-     * 
-     * @param transferId 调拨单id
-     * @param operator 操作人
-     * @return 结果
-     */
     public int auditWmsTransfer(Long transferId, String operator);
-}
 
+    /** 反审核调拨单（调入仓回退至调出仓并恢复草稿） */
+    public int unauditWmsTransfer(Long transferId, String operator);
+
+    /** 一键红冲调拨单（生成反向红冲调拨单） */
+    public WmsTransfer reverseWmsTransfer(Long transferId, String operator);
+}

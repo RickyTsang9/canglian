@@ -27,6 +27,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         <result property="productName" column="product_name" />
         <result property="unitName" column="unit_name" />
         <result property="availableQuantity" column="available_quantity" />
+        <result property="stockAmount" column="stock_amount" />
     </resultMap>
 
     <sql id="queryWarehouseAndTimeCondition">
@@ -39,6 +40,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         <if test="endTime != null">
             and create_time &lt;= #{endTime}
         </if>
+        ${params.warehouseScope}
     </sql>
 
     <select id="selectInboundCardData" parameterType="WarehouseStatisticsQuery" resultMap="WarehouseStatisticsCardDataResult">
@@ -48,6 +50,8 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             ifnull(sum(total_amount), 0) as total_amount
         from wms_inbound
         where status = '1'
+          and ifnull(is_reversal, '0') = '0'
+          and ifnull(reversed_flag, '0') = '0'
         <include refid="queryWarehouseAndTimeCondition"/>
     </select>
 
@@ -58,6 +62,9 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             ifnull(sum(total_amount), 0) as total_amount
         from wms_outbound
         where status = '1'
+          and ifnull(is_reversal, '0') = '0'
+          and ifnull(reversed_flag, '0') = '0'
+          and ifnull(delivery_status, '0') != '3'
         <include refid="queryWarehouseAndTimeCondition"/>
     </select>
 
@@ -67,7 +74,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             ifnull(sum(quantity), 0) as total_quantity,
             ifnull(sum(amount), 0) as total_amount
         from wms_stock_log
-        where bill_type in ('transfer', 'inventory_check')
+        where bill_type in ('transfer', 'transfer_in', 'inventory_check')
           and in_out = '1'
         <include refid="queryWarehouseAndTimeCondition"/>
     </select>
@@ -78,7 +85,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             ifnull(sum(quantity), 0) as total_quantity,
             ifnull(sum(amount), 0) as total_amount
         from wms_stock_log
-        where bill_type in ('transfer', 'inventory_check')
+        where bill_type in ('transfer', 'transfer_out', 'inventory_check')
           and in_out = '2'
         <include refid="queryWarehouseAndTimeCondition"/>
     </select>
@@ -91,9 +98,17 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             total_qty as total_quantity,
             total_amount as total_amount,
             create_time as business_time,
-            concat('入库类型:', ifnull(inbound_type, '')) as summary
+            concat('入库类型:',
+                case ifnull(inbound_type, '')
+                    when 'purchase' then '采购入库'
+                    when 'return' then '退货入库'
+                    when 'other' then '其他入库'
+                    else ifnull(inbound_type, '')
+                end) as summary
         from wms_inbound
         where status = '1'
+          and ifnull(is_reversal, '0') = '0'
+          and ifnull(reversed_flag, '0') = '0'
         <include refid="queryWarehouseAndTimeCondition"/>
         order by create_time desc
         limit #{operationLimit}
@@ -107,9 +122,18 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             total_qty as total_quantity,
             total_amount as total_amount,
             create_time as business_time,
-            concat('出库类型:', ifnull(outbound_type, '')) as summary
+            concat('出库类型:',
+                case ifnull(outbound_type, '')
+                    when 'sale' then '销售出库'
+                    when 'return' then '退货出库'
+                    when 'other' then '其他出库'
+                    else ifnull(outbound_type, '')
+                end) as summary
         from wms_outbound
         where status = '1'
+          and ifnull(is_reversal, '0') = '0'
+          and ifnull(reversed_flag, '0') = '0'
+          and ifnull(delivery_status, '0') != '3'
         <include refid="queryWarehouseAndTimeCondition"/>
         order by create_time desc
         limit #{operationLimit}
@@ -125,12 +149,12 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             max(create_time) as business_time,
             concat('库存调整-',
                 case
-                    when bill_type = 'transfer' then '调拨入库'
+                    when bill_type in ('transfer', 'transfer_in') then '调拨入库'
                     when bill_type = 'inventory_check' then '盘点盘盈'
                     else bill_type
                 end) as summary
         from wms_stock_log
-        where bill_type in ('transfer', 'inventory_check')
+        where bill_type in ('transfer', 'transfer_in', 'inventory_check')
           and in_out = '1'
         <include refid="queryWarehouseAndTimeCondition"/>
         group by bill_type, bill_id
@@ -148,12 +172,12 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             max(create_time) as business_time,
             concat('库存调整-',
                 case
-                    when bill_type = 'transfer' then '调拨出库'
+                    when bill_type in ('transfer', 'transfer_out') then '调拨出库'
                     when bill_type = 'inventory_check' then '盘点盘亏'
                     else bill_type
                 end) as summary
         from wms_stock_log
-        where bill_type in ('transfer', 'inventory_check')
+        where bill_type in ('transfer', 'transfer_out', 'inventory_check')
           and in_out = '2'
         <include refid="queryWarehouseAndTimeCondition"/>
         group by bill_type, bill_id
@@ -163,31 +187,44 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
 
     <select id="selectWarehouseStockData" parameterType="WarehouseStatisticsQuery" resultMap="WarehouseStatisticsStockDataResult">
         select
-            ifnull(sum(wms_stock.quantity), 0) as total_quantity,
-            ifnull(sum(wms_stock.quantity * ifnull(md_product.cost_price, 0)), 0) as total_amount
-        from wms_stock
-        left join md_product on wms_stock.product_id = md_product.product_id
-        where 1 = 1
-        <if test="warehouseId != null">
-            and wms_stock.warehouse_id = #{warehouseId}
-        </if>
+            ifnull(sum(s.quantity), 0) as total_quantity,
+            ifnull(sum(s.quantity * coalesce(nullif(ca.avg_cost, 0), p.cost_price, 0)), 0) as total_amount
+        from (
+            select warehouse_id, product_id, quantity
+            from wms_stock
+            where 1 = 1
+            <if test="warehouseId != null">
+                and warehouse_id = #{warehouseId}
+            </if>
+            ${params.warehouseScope}
+        ) s
+        left join md_product p on s.product_id = p.product_id
+        left join fin_cost_account ca on ca.product_id = s.product_id and ca.warehouse_id = s.warehouse_id
+             and ca.cost_method = coalesce(#{params.costMethod}, 'moving')
     </select>
 
     <select id="selectProductRankList" parameterType="WarehouseStatisticsQuery" resultMap="WarehouseStatisticsProductRankItemResult">
         select
-            wms_stock.product_id as product_id,
-            max(md_product.product_code) as product_code,
-            max(md_product.product_name) as product_name,
-            max(md_product.unit_name) as unit_name,
-            ifnull(sum(wms_stock.quantity - ifnull(wms_stock.locked_quantity, 0) - ifnull(wms_stock.frozen_quantity, 0)), 0)
-                as available_quantity
-        from wms_stock
-        left join md_product on wms_stock.product_id = md_product.product_id
-        where 1 = 1
-        <if test="warehouseId != null">
-            and wms_stock.warehouse_id = #{warehouseId}
-        </if>
-        group by wms_stock.product_id
+            s.product_id as product_id,
+            max(p.product_code) as product_code,
+            max(p.product_name) as product_name,
+            max(p.unit_name) as unit_name,
+            ifnull(sum(s.quantity - ifnull(s.locked_quantity, 0) - ifnull(s.frozen_quantity, 0)), 0)
+                as available_quantity,
+            ifnull(sum(s.quantity * coalesce(nullif(ca.avg_cost, 0), p.cost_price, 0)), 0) as stock_amount
+        from (
+            select warehouse_id, product_id, quantity, locked_quantity, frozen_quantity
+            from wms_stock
+            where 1 = 1
+            <if test="warehouseId != null">
+                and warehouse_id = #{warehouseId}
+            </if>
+            ${params.warehouseScope}
+        ) s
+        left join md_product p on s.product_id = p.product_id
+        left join fin_cost_account ca on ca.product_id = s.product_id and ca.warehouse_id = s.warehouse_id
+             and ca.cost_method = coalesce(#{params.costMethod}, 'moving')
+        group by s.product_id
         order by available_quantity desc
         limit #{rankLimit}
     </select>

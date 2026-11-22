@@ -1,93 +1,153 @@
 package com.canglian.business.service.impl;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.List;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import com.canglian.business.domain.WmsSaleReturn;
 import com.canglian.business.domain.WmsSaleReturnItem;
 import com.canglian.business.mapper.WmsSaleReturnItemMapper;
+import com.canglian.business.mapper.WmsSaleReturnMapper;
+import com.canglian.business.service.IMdProductUnitService;
 import com.canglian.business.service.IWmsSaleReturnItemService;
+import com.canglian.common.exception.ServiceException;
 
-/**
- * 销售退货明细 服务层实现
- * 
- * @author canglian
- */
 @Service
 public class WmsSaleReturnItemServiceImpl implements IWmsSaleReturnItemService
 {
     @Autowired
     private WmsSaleReturnItemMapper wmsSaleReturnItemMapper;
 
-    /**
-     * 查询销售退货明细信息
-     * 
-     * @param saleReturnItemId 销售退货明细id
-     * @return 销售退货明细信息
-     */
+    @Autowired
+    private WmsSaleReturnMapper wmsSaleReturnMapper;
+
+    @Autowired(required = false)
+    private IMdProductUnitService mdProductUnitService;
+
+    @Autowired(required = false)
+    private BizScopeHelper bizScopeHelper;
+
     @Override
     public WmsSaleReturnItem selectWmsSaleReturnItemById(Long saleReturnItemId)
     {
-        return wmsSaleReturnItemMapper.selectWmsSaleReturnItemById(saleReturnItemId);
+        WmsSaleReturnItem item = wmsSaleReturnItemMapper.selectWmsSaleReturnItemById(saleReturnItemId);
+        if (item != null && item.getSaleReturnId() != null) assertReturnAccess(item.getSaleReturnId());
+        return item;
     }
 
-    /**
-     * 查询销售退货明细列表
-     * 
-     * @param wmsSaleReturnItem 销售退货明细信息
-     * @return 销售退货明细集合
-     */
     @Override
     public List<WmsSaleReturnItem> selectWmsSaleReturnItemList(WmsSaleReturnItem wmsSaleReturnItem)
     {
+        if (wmsSaleReturnItem != null && wmsSaleReturnItem.getSaleReturnId() != null) assertReturnAccess(wmsSaleReturnItem.getSaleReturnId());
         return wmsSaleReturnItemMapper.selectWmsSaleReturnItemList(wmsSaleReturnItem);
     }
 
-    /**
-     * 新增销售退货明细
-     * 
-     * @param wmsSaleReturnItem 销售退货明细信息
-     * @return 结果
-     */
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public int insertWmsSaleReturnItem(WmsSaleReturnItem wmsSaleReturnItem)
     {
-        return wmsSaleReturnItemMapper.insertWmsSaleReturnItem(wmsSaleReturnItem);
+        WmsSaleReturn doc = assertDraftReturn(wmsSaleReturnItem.getSaleReturnId());
+        normalizeItem(wmsSaleReturnItem);
+        int rows = wmsSaleReturnItemMapper.insertWmsSaleReturnItem(wmsSaleReturnItem);
+        if (rows > 0) recalculateHeader(doc);
+        return rows;
     }
 
-    /**
-     * 修改销售退货明细
-     * 
-     * @param wmsSaleReturnItem 销售退货明细信息
-     * @return 结果
-     */
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public int updateWmsSaleReturnItem(WmsSaleReturnItem wmsSaleReturnItem)
     {
-        return wmsSaleReturnItemMapper.updateWmsSaleReturnItem(wmsSaleReturnItem);
+        WmsSaleReturnItem existed = wmsSaleReturnItemMapper.selectWmsSaleReturnItemById(wmsSaleReturnItem.getSaleReturnItemId());
+        if (existed == null) throw new ServiceException("销售退货明细不存在");
+        WmsSaleReturn doc = assertDraftReturn(existed.getSaleReturnId());
+        normalizeItem(wmsSaleReturnItem);
+        int rows = wmsSaleReturnItemMapper.updateWmsSaleReturnItem(wmsSaleReturnItem);
+        if (rows > 0) recalculateHeader(doc);
+        return rows;
     }
 
-    /**
-     * 删除销售退货明细
-     * 
-     * @param saleReturnItemId 销售退货明细id
-     * @return 结果
-     */
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public int deleteWmsSaleReturnItemById(Long saleReturnItemId)
     {
-        return wmsSaleReturnItemMapper.deleteWmsSaleReturnItemById(saleReturnItemId);
+        WmsSaleReturnItem existed = wmsSaleReturnItemMapper.selectWmsSaleReturnItemById(saleReturnItemId);
+        WmsSaleReturn doc = existed == null ? null : assertDraftReturn(existed.getSaleReturnId());
+        int rows = wmsSaleReturnItemMapper.deleteWmsSaleReturnItemById(saleReturnItemId);
+        if (rows > 0 && doc != null) recalculateHeader(doc);
+        return rows;
     }
 
-    /**
-     * 批量删除销售退货明细
-     * 
-     * @param saleReturnItemIds 需要删除的销售退货明细id
-     * @return 结果
-     */
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public int deleteWmsSaleReturnItemByIds(Long[] saleReturnItemIds)
     {
-        return wmsSaleReturnItemMapper.deleteWmsSaleReturnItemByIds(saleReturnItemIds);
+        java.util.Map<Long, WmsSaleReturn> affected = new java.util.LinkedHashMap<Long, WmsSaleReturn>();
+        for (Long id : saleReturnItemIds)
+        {
+            WmsSaleReturnItem existed = wmsSaleReturnItemMapper.selectWmsSaleReturnItemById(id);
+            if (existed != null)
+            {
+                WmsSaleReturn doc = assertDraftReturn(existed.getSaleReturnId());
+                affected.put(doc.getSaleReturnId(), doc);
+            }
+        }
+        int rows = wmsSaleReturnItemMapper.deleteWmsSaleReturnItemByIds(saleReturnItemIds);
+        if (rows > 0) for (WmsSaleReturn doc : affected.values()) recalculateHeader(doc);
+        return rows;
+    }
+
+    private void assertReturnAccess(Long saleReturnId)
+    {
+        if (bizScopeHelper == null || saleReturnId == null) return;
+        WmsSaleReturn doc = wmsSaleReturnMapper.selectWmsSaleReturnById(saleReturnId);
+        if (doc != null) bizScopeHelper.assertRecordAccess(doc.getDeptId(), doc.getOwnerUserId(), doc.getWarehouseId());
+    }
+
+    private WmsSaleReturn assertDraftReturn(Long saleReturnId)
+    {
+        WmsSaleReturn doc = saleReturnId == null ? null : wmsSaleReturnMapper.selectWmsSaleReturnById(saleReturnId);
+        if (doc == null) throw new ServiceException("关联销售退货单不存在");
+        if (bizScopeHelper != null) bizScopeHelper.assertRecordAccess(doc.getDeptId(), doc.getOwnerUserId(), doc.getWarehouseId());
+        if (!"0".equals(doc.getStatus())) throw new ServiceException("仅草稿态销售退货单允许维护明细");
+        return doc;
+    }
+
+    private void normalizeItem(WmsSaleReturnItem item)
+    {
+        BigDecimal qty = item.getQuantity() == null ? BigDecimal.ZERO : item.getQuantity();
+        if (qty.compareTo(BigDecimal.ZERO) <= 0) throw new ServiceException("销售退货明细数量必须大于0");
+        BigDecimal ratio = mdProductUnitService != null && item.getProductId() != null
+            ? mdProductUnitService.resolveConvertRatio(item.getProductId(), item.getUnitName())
+            : (item.getConvertRatio() != null && item.getConvertRatio().compareTo(BigDecimal.ZERO) > 0 ? item.getConvertRatio() : BigDecimal.ONE);
+        item.setConvertRatio(ratio);
+        item.setBaseQuantity(qty.multiply(ratio).setScale(4, RoundingMode.HALF_UP));
+        if (item.getBatchNo() != null) item.setBatchNo(item.getBatchNo().trim());
+        if (item.getPrice() != null && (item.getAmount() == null || item.getAmount().compareTo(BigDecimal.ZERO) <= 0))
+        {
+            item.setAmount(qty.multiply(item.getPrice()).setScale(2, RoundingMode.HALF_UP));
+        }
+    }
+
+    private void recalculateHeader(WmsSaleReturn doc)
+    {
+        WmsSaleReturnItem q = new WmsSaleReturnItem();
+        q.setSaleReturnId(doc.getSaleReturnId());
+        List<WmsSaleReturnItem> list = wmsSaleReturnItemMapper.selectWmsSaleReturnItemList(q);
+        BigDecimal totalQty = BigDecimal.ZERO;
+        BigDecimal totalAmt = BigDecimal.ZERO;
+        if (list != null)
+        {
+            for (WmsSaleReturnItem it : list)
+            {
+                if (it.getQuantity() != null) totalQty = totalQty.add(it.getQuantity());
+                if (it.getAmount() != null) totalAmt = totalAmt.add(it.getAmount());
+            }
+        }
+        doc.setTotalQty(totalQty);
+        doc.setTotalAmount(totalAmt);
+        wmsSaleReturnMapper.updateWmsSaleReturn(doc);
     }
 }
 

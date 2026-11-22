@@ -173,6 +173,7 @@ function saveSetting() {
     "dynamicTitle": storeSettings.value.dynamicTitle,
     "footerVisible": storeSettings.value.footerVisible,
     "sideTheme": storeSettings.value.sideTheme,
+    "explicitDarkSidebar": storeSettings.value.sideTheme === "theme-dark",
     "theme": storeSettings.value.theme
   }
   localStorage.setItem("layout-setting", JSON.stringify(layoutSetting))

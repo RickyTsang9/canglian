@@ -1,6 +1,8 @@
 package com.canglian.web.controller.business;
 
+import java.math.BigDecimal;
 import java.util.List;
+import java.util.Map;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
@@ -87,6 +89,43 @@ public class FinReceivableController extends BaseController
     public AjaxResult audit(@PathVariable Long receivableId)
     {
         return toAjax(finReceivableService.auditFinReceivable(receivableId, getUsername()));
+    }
+
+    @PreAuthorize("@ss.hasPermi('business:receivable:audit')")
+    @Log(title = "应收反确认", businessType = BusinessType.UPDATE)
+    @PostMapping("/unconfirm/{receivableId}")
+    public AjaxResult unconfirm(@PathVariable Long receivableId)
+    {
+        return toAjax(finReceivableService.unconfirmFinReceivable(receivableId, getUsername()));
+    }
+
+    /**
+     * 红蓝应收单互冲核销
+     */
+    @PreAuthorize("@ss.hasPermi('business:receivable:edit')")
+    @Log(title = "应收红蓝对冲", businessType = BusinessType.UPDATE)
+    @PostMapping("/offset")
+    public AjaxResult offset(@RequestBody Map<String, Object> payload)
+    {
+        Long redId = payload.get("redReceivableId") == null ? null : Long.valueOf(String.valueOf(payload.get("redReceivableId")));
+        Long targetId = payload.get("targetReceivableId") == null ? null : Long.valueOf(String.valueOf(payload.get("targetReceivableId")));
+        BigDecimal amount = payload.get("offsetAmount") == null ? null : new BigDecimal(String.valueOf(payload.get("offsetAmount")));
+        return toAjax(finReceivableService.offsetRedReceivable(redId, targetId, amount, getUsername()));
+    }
+
+    @PreAuthorize("@ss.hasPermi('business:receivable:list')")
+    @GetMapping("/offsetLogs")
+    public AjaxResult offsetLogs(@org.springframework.web.bind.annotation.RequestParam(required = false) Long receivableId)
+    {
+        return success(finReceivableService.selectOffsetLogs(receivableId));
+    }
+
+    @PreAuthorize("@ss.hasPermi('business:receivable:edit')")
+    @Log(title = "撤销应收红蓝对冲", businessType = BusinessType.UPDATE)
+    @PostMapping("/unoffset/{offsetId}")
+    public AjaxResult unoffset(@PathVariable Long offsetId)
+    {
+        return toAjax(finReceivableService.unoffsetRedReceivable(offsetId, getUsername()));
     }
 
     /**

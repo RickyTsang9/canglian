@@ -10,6 +10,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         <result property="customerName"   column="customer_name"  />
         <result property="customerLevel"  column="customer_level" />
         <result property="creditLimit"    column="credit_limit"   />
+        <result property="openingReceivable" column="opening_receivable" />
         <result property="receivableDays" column="receivable_days" />
         <result property="pricePolicyType" column="price_policy_type" />
         <result property="contactPerson"  column="contact_person" />
@@ -26,7 +27,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
     </resultMap>
 
     <sql id="selectMdCustomerVo">
-        select customer_id, customer_code, customer_name, customer_level, credit_limit, receivable_days, price_policy_type,
+        select customer_id, customer_code, customer_name, customer_level, credit_limit, opening_receivable, receivable_days, price_policy_type,
                contact_person, contact_phone, contact_email, address,
                status, del_flag, create_by, create_time, update_by, update_time, remark
         from md_customer
@@ -80,6 +81,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             <if test="customerName != null and customerName != ''">customer_name,</if>
             <if test="customerLevel != null">customer_level,</if>
             <if test="creditLimit != null">credit_limit,</if>
+            <if test="openingReceivable != null">opening_receivable,</if>
             <if test="receivableDays != null">receivable_days,</if>
             <if test="pricePolicyType != null">price_policy_type,</if>
             <if test="contactPerson != null">contact_person,</if>
@@ -98,6 +100,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             <if test="customerName != null and customerName != ''">#{customerName},</if>
             <if test="customerLevel != null">#{customerLevel},</if>
             <if test="creditLimit != null">#{creditLimit},</if>
+            <if test="openingReceivable != null">#{openingReceivable},</if>
             <if test="receivableDays != null">#{receivableDays},</if>
             <if test="pricePolicyType != null">#{pricePolicyType},</if>
             <if test="contactPerson != null">#{contactPerson},</if>
@@ -120,6 +123,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             <if test="customerName != null and customerName != ''">customer_name = #{customerName},</if>
             <if test="customerLevel != null">customer_level = #{customerLevel},</if>
             <if test="creditLimit != null">credit_limit = #{creditLimit},</if>
+            <if test="openingReceivable != null">opening_receivable = #{openingReceivable},</if>
             <if test="receivableDays != null">receivable_days = #{receivableDays},</if>
             <if test="pricePolicyType != null">price_policy_type = #{pricePolicyType},</if>
             <if test="contactPerson != null">contact_person = #{contactPerson},</if>
@@ -145,5 +149,19 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             #{customerId}
         </foreach>
     </delete>
+
+    <select id="countCustomerReferences" parameterType="Long" resultType="int">
+        select
+            (select count(1) from sal_order where customer_id = #{customerId})
+          + (select count(1) from wms_outbound where customer_id = #{customerId})
+          + (select count(1) from wms_sale_return where customer_id = #{customerId})
+          + (select count(1) from wms_serial_no where customer_id = #{customerId})
+          + (select count(1) from fin_receivable where customer_id = #{customerId})
+          + (select count(1) from fin_receipt where customer_id = #{customerId})
+          + (select count(1) from fin_invoice where customer_id = #{customerId})
+          + (select count(1) from fin_bad_debt where customer_id = #{customerId})
+          + (select count(1) from price_customer_special where customer_id = #{customerId})
+          + (select count(1) from price_recent_transaction where customer_id = #{customerId})
+    </select>
 </mapper>
 

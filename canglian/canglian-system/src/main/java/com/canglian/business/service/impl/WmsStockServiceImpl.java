@@ -1,17 +1,29 @@
 package com.canglian.business.service.impl;
 
 import java.math.BigDecimal;
+import java.util.ArrayList;
+import java.util.Calendar;
+import java.util.Date;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import com.canglian.business.domain.WmsStock;
+import com.canglian.business.domain.WmsStockLock;
+import com.canglian.business.domain.WmsStockLog;
+import com.canglian.business.mapper.WmsStockLockMapper;
+import com.canglian.business.mapper.WmsStockLogMapper;
 import com.canglian.business.mapper.WmsStockMapper;
+import com.canglian.business.service.IFinGeneralLedgerService;
 import com.canglian.business.service.IWmsStockService;
+import com.canglian.common.annotation.WarehouseScope;
 import com.canglian.common.exception.ServiceException;
 import com.canglian.common.utils.StringUtils;
+import com.canglian.system.service.ISysConfigService;
 
 /**
- * 库存 服务层实现
+ * 库存 服务层实现（含效期预警、FEFO 推荐、手工冻结/解冻、订单级锁库台账与内控防篡改）
  *
  * @author canglian
  */
@@ -21,51 +33,55 @@ public class WmsStockServiceImpl implements IWmsStockService
     @Autowired
     private WmsStockMapper wmsStockMapper;
 
-    /**
-     * 查询库存信息
-     *
-     * @param stockId 库存id
-     * @return 库存信息
-     */
+    @Autowired(required = false)
+    private WmsStockLogMapper wmsStockLogMapper;
+
+    @Autowired(required = false)
+    private WmsStockLockMapper wmsStockLockMapper;
+
+    @Autowired(required = false)
+    private BizScopeHelper bizScopeHelper;
+
+    @Autowired(required = false)
+    private IFinGeneralLedgerService finGeneralLedgerService;
+
+    @Autowired(required = false)
+    private ISysConfigService sysConfigService;
+
     @Override
     public WmsStock selectWmsStockById(Long stockId)
     {
         WmsStock stock = wmsStockMapper.selectWmsStockById(stockId);
-        fillAvailableQuantity(stock);
+        if (stock != null && bizScopeHelper != null)
+        {
+            bizScopeHelper.assertWarehouseAccess(stock.getWarehouseId());
+        }
+        fillAvailableAndExpiry(stock);
         return stock;
     }
 
-    /**
-     * 查询库存列表
-     *
-     * @param wmsStock 库存信息
-     * @return 库存集合
-     */
     @Override
+    @WarehouseScope(column = "warehouse_id")
     public List<WmsStock> selectWmsStockList(WmsStock wmsStock)
     {
         List<WmsStock> stockList = wmsStockMapper.selectWmsStockList(wmsStock);
         for (WmsStock stock : stockList)
         {
-            fillAvailableQuantity(stock);
+            fillAvailableAndExpiry(stock);
         }
         return stockList;
     }
 
-    /**
-     * 导入期初库存
-     *
-     * @param stockList 库存集合
-     * @param updateSupport 是否更新已存在数据
-     * @param operator 操作人
-     * @return 导入结果
-     */
     @Override
     public String importWmsStock(List<WmsStock> stockList, Boolean updateSupport, String operator)
     {
         if (StringUtils.isNull(stockList) || stockList.isEmpty())
         {
             throw new ServiceException("导入库存数据不能为空");
+        }
+        if (finGeneralLedgerService != null)
+        {
+            finGeneralLedgerService.assertPeriodOpen(new Date());
         }
         int successNumber = 0;
         StringBuilder failureMessage = new StringBuilder();
@@ -75,19 +91,44 @@ public class WmsStockServiceImpl implements IWmsStockService
             try
             {
                 validateImportStock(stock);
-                fillDefaultStockValue(stock);
+                if (bizScopeHelper != null)
+                {
+                    bizScopeHelper.assertWarehouseAccess(stock.getWarehouseId());
+                }
+                if (stock.getLocationId() == null)
+                {
+                    stock.setLocationId(0L);
+                }
+                stock.setBatchNo(StringUtils.isEmpty(stock.getBatchNo()) ? "" : stock.getBatchNo().trim());
                 WmsStock existingStock = wmsStockMapper.selectWmsStockByKey(stock);
                 if (existingStock == null)
                 {
+                    fillDefaultStockValue(stock);
                     stock.setCreateBy(operator);
-                    insertWmsStock(stock);
+                    wmsStockMapper.insertWmsStock(stock);
                     successNumber++;
                 }
                 else if (Boolean.TRUE.equals(updateSupport))
                 {
+                    if (defaultBigDecimal(existingStock.getLockedQuantity()).compareTo(BigDecimal.ZERO) > 0
+                        || defaultBigDecimal(existingStock.getFrozenQuantity()).compareTo(BigDecimal.ZERO) > 0)
+                    {
+                        throw new ServiceException("该库存维度存在锁定或冻结数量，禁止期初导入覆盖");
+                    }
                     stock.setStockId(existingStock.getStockId());
+                    stock.setLockedQuantity(defaultBigDecimal(existingStock.getLockedQuantity()));
+                    stock.setFrozenQuantity(defaultBigDecimal(existingStock.getFrozenQuantity()));
+                    if (stock.getWarningMinQty() == null)
+                    {
+                        stock.setWarningMinQty(defaultBigDecimal(existingStock.getWarningMinQty()));
+                    }
+                    if (stock.getWarningMaxQty() == null)
+                    {
+                        stock.setWarningMaxQty(defaultBigDecimal(existingStock.getWarningMaxQty()));
+                    }
+                    stock.setVersion(existingStock.getVersion() == null ? 0L : existingStock.getVersion());
                     stock.setUpdateBy(operator);
-                    updateWmsStock(stock);
+                    wmsStockMapper.updateWmsStock(stock);
                     successNumber++;
                 }
                 else
@@ -107,30 +148,20 @@ public class WmsStockServiceImpl implements IWmsStockService
         return "库存导入成功，共 " + successNumber + " 条";
     }
 
-    /**
-     * 查询库存预警列表
-     *
-     * @param wmsStock 库存信息
-     * @return 预警库存集合
-     */
     @Override
+    @WarehouseScope(column = "warehouse_id")
     public List<WmsStock> selectWmsStockWarningList(WmsStock wmsStock)
     {
         List<WmsStock> stockList = wmsStockMapper.selectWmsStockWarningList(wmsStock);
         for (WmsStock stock : stockList)
         {
-            fillAvailableQuantity(stock);
+            fillAvailableAndExpiry(stock);
         }
         return stockList;
     }
 
-    /**
-     * 查询库存风险列表
-     *
-     * @param wmsStock 库存信息
-     * @return 库存风险集合
-     */
     @Override
+    @WarehouseScope(warehouseAlias = "stock", column = "warehouse_id")
     public List<WmsStock> selectWmsStockRiskList(WmsStock wmsStock)
     {
         if (wmsStock.getWarningDays() == null)
@@ -140,79 +171,475 @@ public class WmsStockServiceImpl implements IWmsStockService
         List<WmsStock> stockList = wmsStockMapper.selectWmsStockRiskList(wmsStock);
         for (WmsStock stock : stockList)
         {
-            fillAvailableQuantity(stock);
+            fillAvailableAndExpiry(stock);
         }
         return stockList;
     }
 
-    /**
-     * 新增库存
-     *
-     * @param wmsStock 库存信息
-     * @return 结果
-     */
+    @Override
+    @WarehouseScope(warehouseAlias = "s", column = "warehouse_id")
+    public List<WmsStock> selectExpiryWarningList(WmsStock wmsStock)
+    {
+        if (wmsStock.getWarningDays() == null)
+        {
+            wmsStock.setWarningDays(getDefaultExpiryWarningDays());
+        }
+        List<WmsStock> stockList = wmsStockMapper.selectExpiryWarningList(wmsStock);
+        for (WmsStock stock : stockList)
+        {
+            fillAvailableAndExpiry(stock);
+        }
+        return stockList;
+    }
+
+    @Override
+    public List<WmsStock> selectFefoBatchList(Long warehouseId, Long productId)
+    {
+        if (warehouseId == null || productId == null)
+        {
+            throw new ServiceException("查询 FEFO 批次时仓库和商品不能为空");
+        }
+        if (bizScopeHelper != null)
+        {
+            bizScopeHelper.assertWarehouseAccess(warehouseId);
+        }
+        List<WmsStock> list = wmsStockMapper.selectFefoStockList(warehouseId, productId);
+        for (WmsStock stock : list)
+        {
+            fillAvailableAndExpiry(stock);
+        }
+        return list;
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public WmsStock freezeStock(Long stockId, BigDecimal freezeQty, String reason, String operator)
+    {
+        if (stockId == null || freezeQty == null || freezeQty.compareTo(BigDecimal.ZERO) <= 0)
+        {
+            throw new ServiceException("冻结数量必须大于0");
+        }
+        if (StringUtils.isEmpty(reason))
+        {
+            throw new ServiceException("冻结库存必须填写冻结原因");
+        }
+        if (finGeneralLedgerService != null)
+        {
+            finGeneralLedgerService.assertPeriodOpen(new Date());
+        }
+        WmsStock stock = wmsStockMapper.selectWmsStockByIdForUpdate(stockId);
+        if (stock == null)
+        {
+            throw new ServiceException("库存记录不存在");
+        }
+        if (bizScopeHelper != null)
+        {
+            bizScopeHelper.assertWarehouseAccess(stock.getWarehouseId());
+        }
+        BigDecimal available = calculateAvailableQuantity(stock);
+        if (freezeQty.compareTo(available) > 0)
+        {
+            throw new ServiceException("冻结数量(" + freezeQty + ")不能超过当前可用库存(" + available + ")");
+        }
+        BigDecimal newFrozen = defaultBigDecimal(stock.getFrozenQuantity()).add(freezeQty);
+        stock.setFrozenQuantity(newFrozen);
+        stock.setUpdateBy(operator);
+        wmsStockMapper.updateWmsStock(stock);
+        recordStockActionLog(stock, "stock_freeze", stockId, "2", freezeQty, operator);
+        fillAvailableAndExpiry(stock);
+        return stock;
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public WmsStock unfreezeStock(Long stockId, BigDecimal unfreezeQty, String reason, String operator)
+    {
+        if (stockId == null || unfreezeQty == null || unfreezeQty.compareTo(BigDecimal.ZERO) <= 0)
+        {
+            throw new ServiceException("解冻数量必须大于0");
+        }
+        if (finGeneralLedgerService != null)
+        {
+            finGeneralLedgerService.assertPeriodOpen(new Date());
+        }
+        WmsStock stock = wmsStockMapper.selectWmsStockByIdForUpdate(stockId);
+        if (stock == null)
+        {
+            throw new ServiceException("库存记录不存在");
+        }
+        if (bizScopeHelper != null)
+        {
+            bizScopeHelper.assertWarehouseAccess(stock.getWarehouseId());
+        }
+        BigDecimal currentFrozen = defaultBigDecimal(stock.getFrozenQuantity());
+        if (unfreezeQty.compareTo(currentFrozen) > 0)
+        {
+            throw new ServiceException("解冻数量(" + unfreezeQty + ")不能超过当前冻结数量(" + currentFrozen + ")");
+        }
+        stock.setFrozenQuantity(currentFrozen.subtract(unfreezeQty));
+        stock.setUpdateBy(operator);
+        wmsStockMapper.updateWmsStock(stock);
+        recordStockActionLog(stock, "stock_unfreeze", stockId, "1", unfreezeQty, operator);
+        fillAvailableAndExpiry(stock);
+        return stock;
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void lockStockForSaleOrder(Long warehouseId, Long productId, BigDecimal lockQty, Long orderId, String operator)
+    {
+        if (warehouseId == null || productId == null || lockQty == null || lockQty.compareTo(BigDecimal.ZERO) <= 0)
+        {
+            return;
+        }
+        List<WmsStock> rows = wmsStockMapper.selectWmsStockByWarehouseAndProductForUpdate(warehouseId, productId);
+        Date todayStart = startOfToday();
+        List<WmsStock> eligibleRows = new ArrayList<WmsStock>();
+        BigDecimal totalAvail = BigDecimal.ZERO;
+        if (rows != null)
+        {
+            for (WmsStock row : rows)
+            {
+                // 跳过已过期批次，防止锁定无法出库的过期商品
+                if (row.getExpiryDate() != null && row.getExpiryDate().before(todayStart))
+                {
+                    continue;
+                }
+                BigDecimal avail = calculateAvailableQuantity(row);
+                if (avail.compareTo(BigDecimal.ZERO) > 0)
+                {
+                    totalAvail = totalAvail.add(avail);
+                    eligibleRows.add(row);
+                }
+            }
+        }
+        if (totalAvail.compareTo(lockQty) < 0)
+        {
+            throw new ServiceException("仓库 #" + warehouseId + " 商品 #" + productId + " 未过期可用库存不足(" + totalAvail + " < " + lockQty + ")，无法锁库审批");
+        }
+        BigDecimal remaining = lockQty;
+        for (WmsStock row : eligibleRows)
+        {
+            if (remaining.compareTo(BigDecimal.ZERO) <= 0)
+            {
+                break;
+            }
+            BigDecimal avail = calculateAvailableQuantity(row);
+            if (avail.compareTo(BigDecimal.ZERO) <= 0)
+            {
+                continue;
+            }
+            BigDecimal take = avail.min(remaining);
+            row.setLockedQuantity(defaultBigDecimal(row.getLockedQuantity()).add(take));
+            row.setUpdateBy(operator);
+            wmsStockMapper.updateWmsStock(row);
+
+            if (wmsStockLockMapper != null && orderId != null)
+            {
+                WmsStockLock lock = new WmsStockLock();
+                lock.setOrderId(orderId);
+                lock.setWarehouseId(warehouseId);
+                lock.setProductId(productId);
+                lock.setLocationId(row.getLocationId() == null ? 0L : row.getLocationId());
+                lock.setBatchNo(row.getBatchNo() == null ? "" : row.getBatchNo());
+                lock.setStockId(row.getStockId());
+                lock.setLockedQty(take);
+                lock.setReleasedQty(BigDecimal.ZERO);
+                lock.setStatus("0");
+                lock.setCreateBy(operator);
+                wmsStockLockMapper.insertWmsStockLock(lock);
+            }
+            remaining = remaining.subtract(take);
+        }
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void releaseStockLockForSaleOrder(Long warehouseId, Long productId, BigDecimal releaseQty, Long orderId, String operator)
+    {
+        releaseStockLockForSaleOrder(warehouseId, productId, null, null, releaseQty, orderId, operator);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void releaseStockLockForSaleOrder(Long warehouseId, Long productId, Long locationId, String batchNo,
+                                             BigDecimal releaseQty, Long orderId, String operator)
+    {
+        if (warehouseId == null || productId == null || releaseQty == null || releaseQty.compareTo(BigDecimal.ZERO) <= 0)
+        {
+            return;
+        }
+        // 优先严格按订单锁库明细台账释放，绝不跨单窃解其他订单的锁定库存
+        if (wmsStockLockMapper != null && orderId != null)
+        {
+            List<WmsStockLock> orderLocks = wmsStockLockMapper.selectActiveLocksByOrderAndProductForUpdate(orderId, productId);
+            if (orderLocks != null && !orderLocks.isEmpty())
+            {
+                BigDecimal remaining = releaseQty;
+                String normBatch = batchNo == null ? "" : batchNo.trim();
+                // 两轮：第1轮优先释放匹配当前拣货库位+批次的锁行，第2轮释放同订单下其余锁行
+                for (int pass = 0; pass < 2 && remaining.compareTo(BigDecimal.ZERO) > 0; pass++)
+                {
+                    for (WmsStockLock lk : orderLocks)
+                    {
+                        if (remaining.compareTo(BigDecimal.ZERO) <= 0)
+                        {
+                            break;
+                        }
+                        BigDecimal lockRem = lk.getRemainingLockedQty();
+                        if (lockRem.compareTo(BigDecimal.ZERO) <= 0)
+                        {
+                            continue;
+                        }
+                        boolean exactMatch = locationId != null
+                            && locationId.equals(lk.getLocationId() == null ? 0L : lk.getLocationId())
+                            && normBatch.equals(lk.getBatchNo() == null ? "" : lk.getBatchNo());
+                        if (pass == 0 && locationId != null && !exactMatch)
+                        {
+                            continue;
+                        }
+                        if (pass == 1 && exactMatch)
+                        {
+                            continue;
+                        }
+                        BigDecimal rel = lockRem.min(remaining);
+                        WmsStock stockRow = wmsStockMapper.selectWmsStockByIdForUpdate(lk.getStockId());
+                        if (stockRow != null)
+                        {
+                            BigDecimal curLocked = defaultBigDecimal(stockRow.getLockedQuantity());
+                            BigDecimal actualRel = curLocked.min(rel);
+                            stockRow.setLockedQuantity(curLocked.subtract(actualRel));
+                            stockRow.setUpdateBy(operator);
+                            wmsStockMapper.updateWmsStock(stockRow);
+                        }
+                        BigDecimal newReleased = defaultBigDecimal(lk.getReleasedQty()).add(rel);
+                        lk.setReleasedQty(newReleased);
+                        lk.setStatus(newReleased.compareTo(defaultBigDecimal(lk.getLockedQty())) >= 0 ? "1" : "0");
+                        lk.setUpdateBy(operator);
+                        wmsStockLockMapper.updateWmsStockLock(lk);
+                        remaining = remaining.subtract(rel);
+                    }
+                }
+                return;
+            }
+        }
+
+        // 兜底兼容历史未建台账的锁库（仅当 orderId 为空或该订单无台账记录时）
+        List<WmsStock> rows = wmsStockMapper.selectWmsStockByWarehouseAndProductForUpdate(warehouseId, productId);
+        if (rows == null || rows.isEmpty())
+        {
+            return;
+        }
+        BigDecimal remaining = releaseQty;
+        String normBatch = batchNo == null ? "" : batchNo.trim();
+        for (int pass = 0; pass < 2 && remaining.compareTo(BigDecimal.ZERO) > 0; pass++)
+        {
+            for (WmsStock row : rows)
+            {
+                if (remaining.compareTo(BigDecimal.ZERO) <= 0)
+                {
+                    break;
+                }
+                BigDecimal locked = defaultBigDecimal(row.getLockedQuantity());
+                if (locked.compareTo(BigDecimal.ZERO) <= 0)
+                {
+                    continue;
+                }
+                boolean exactMatch = locationId != null
+                    && locationId.equals(row.getLocationId() == null ? 0L : row.getLocationId())
+                    && normBatch.equals(row.getBatchNo() == null ? "" : row.getBatchNo());
+                if (pass == 0 && locationId != null && !exactMatch)
+                {
+                    continue;
+                }
+                if (pass == 1 && exactMatch)
+                {
+                    continue;
+                }
+                BigDecimal rel = locked.min(remaining);
+                row.setLockedQuantity(locked.subtract(rel));
+                row.setUpdateBy(operator);
+                wmsStockMapper.updateWmsStock(row);
+                remaining = remaining.subtract(rel);
+            }
+        }
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void releaseAllRemainingLocksForOrder(Long orderId, String operator)
+    {
+        if (orderId == null || wmsStockLockMapper == null)
+        {
+            return;
+        }
+        List<WmsStockLock> orderLocks = wmsStockLockMapper.selectActiveLocksByOrderForUpdate(orderId);
+        if (orderLocks == null || orderLocks.isEmpty())
+        {
+            return;
+        }
+        for (WmsStockLock lk : orderLocks)
+        {
+            BigDecimal rem = lk.getRemainingLockedQty();
+            if (rem.compareTo(BigDecimal.ZERO) <= 0)
+            {
+                lk.setStatus("1");
+                lk.setUpdateBy(operator);
+                wmsStockLockMapper.updateWmsStockLock(lk);
+                continue;
+            }
+            WmsStock stockRow = wmsStockMapper.selectWmsStockByIdForUpdate(lk.getStockId());
+            if (stockRow != null)
+            {
+                BigDecimal curLocked = defaultBigDecimal(stockRow.getLockedQuantity());
+                BigDecimal actualRel = curLocked.min(rem);
+                stockRow.setLockedQuantity(curLocked.subtract(actualRel));
+                stockRow.setUpdateBy(operator);
+                wmsStockMapper.updateWmsStock(stockRow);
+            }
+            lk.setReleasedQty(defaultBigDecimal(lk.getLockedQty()));
+            lk.setStatus("1");
+            lk.setUpdateBy(operator);
+            wmsStockLockMapper.updateWmsStockLock(lk);
+        }
+    }
+
     @Override
     public int insertWmsStock(WmsStock wmsStock)
     {
-        return wmsStockMapper.insertWmsStock(wmsStock);
+        throw new ServiceException("禁止直接手工新增库存台账，请通过入库单、盘点单或期初库存导入维护库存");
     }
 
-    /**
-     * 修改库存
-     *
-     * @param wmsStock 库存信息
-     * @return 结果
-     */
     @Override
     public int updateWmsStock(WmsStock wmsStock)
     {
-        return wmsStockMapper.updateWmsStock(wmsStock);
+        if (wmsStock == null || wmsStock.getStockId() == null)
+        {
+            throw new ServiceException("库存记录ID不能为空");
+        }
+        WmsStock existing = wmsStockMapper.selectWmsStockById(wmsStock.getStockId());
+        if (existing == null)
+        {
+            throw new ServiceException("库存记录不存在");
+        }
+        if (bizScopeHelper != null)
+        {
+            bizScopeHelper.assertWarehouseAccess(existing.getWarehouseId());
+        }
+        // 仅允许修改上下限预警阈值，严禁直接手工篡改账面/锁定/冻结数量
+        WmsStock safePatch = new WmsStock();
+        safePatch.setStockId(existing.getStockId());
+        safePatch.setWarningMinQty(wmsStock.getWarningMinQty() != null ? wmsStock.getWarningMinQty() : existing.getWarningMinQty());
+        safePatch.setWarningMaxQty(wmsStock.getWarningMaxQty() != null ? wmsStock.getWarningMaxQty() : existing.getWarningMaxQty());
+        safePatch.setUpdateBy(wmsStock.getUpdateBy());
+        return wmsStockMapper.updateWmsStock(safePatch);
     }
 
-    /**
-     * 删除库存
-     *
-     * @param stockId 库存id
-     * @return 结果
-     */
     @Override
     public int deleteWmsStockById(Long stockId)
     {
-        return wmsStockMapper.deleteWmsStockById(stockId);
+        throw new ServiceException("禁止直接删除库存台账记录，请通过出库单、盘点单或红冲单据归零库存");
     }
 
-    /**
-     * 批量删除库存
-     *
-     * @param stockIds 需要删除的库存id
-     * @return 结果
-     */
     @Override
     public int deleteWmsStockByIds(Long[] stockIds)
     {
-        return wmsStockMapper.deleteWmsStockByIds(stockIds);
+        throw new ServiceException("禁止直接删除库存台账记录，请通过出库单、盘点单或红冲单据归零库存");
     }
 
-    /**
-     * 填充可用库存数量
-     *
-     * @param stock 库存信息
-     */
-    private void fillAvailableQuantity(WmsStock stock)
+    private void recordStockActionLog(WmsStock stock, String billType, Long billId, String inOut, BigDecimal qty, String operator)
+    {
+        if (wmsStockLogMapper == null)
+        {
+            return;
+        }
+        WmsStockLog log = new WmsStockLog();
+        log.setWarehouseId(stock.getWarehouseId());
+        log.setProductId(stock.getProductId());
+        log.setLocationId(stock.getLocationId() == null ? 0L : stock.getLocationId());
+        log.setBatchNo(stock.getBatchNo() == null ? "" : stock.getBatchNo());
+        log.setBillType(billType);
+        log.setBillId(billId);
+        log.setInOut(inOut);
+        log.setQuantity(qty);
+        log.setPrice(BigDecimal.ZERO);
+        log.setAmount(BigDecimal.ZERO);
+        log.setBeforeQty(defaultBigDecimal(stock.getQuantity()));
+        log.setAfterQty(defaultBigDecimal(stock.getQuantity()));
+        log.setCreateBy(operator);
+        wmsStockLogMapper.insertWmsStockLog(log);
+    }
+
+    private void fillAvailableAndExpiry(WmsStock stock)
     {
         if (stock == null)
         {
             return;
         }
         stock.setAvailableQuantity(calculateAvailableQuantity(stock));
+        int defaultDays = getDefaultExpiryWarningDays();
+        if (stock.getExpiryDate() != null)
+        {
+            long diffDays = TimeUnit.MILLISECONDS.toDays(truncateDate(stock.getExpiryDate()).getTime() - startOfToday().getTime());
+            stock.setRemainDays((int) diffDays);
+            if (diffDays < 0)
+            {
+                stock.setExpiryStatus("expired");
+            }
+            else if (diffDays <= defaultDays)
+            {
+                stock.setExpiryStatus("near_expiry");
+            }
+            else
+            {
+                stock.setExpiryStatus("normal");
+            }
+        }
+        else if (StringUtils.isEmpty(stock.getExpiryStatus()))
+        {
+            stock.setExpiryStatus("normal");
+        }
     }
 
-    /**
-     * 计算可用库存数量
-     *
-     * @param stock 库存信息
-     * @return 可用库存数量
-     */
+    private int getDefaultExpiryWarningDays()
+    {
+        if (sysConfigService != null)
+        {
+            String val = sysConfigService.selectConfigByKey("canglian.stock.expiryWarningDays");
+            if (StringUtils.isNotEmpty(val))
+            {
+                try
+                {
+                    int parsed = Integer.parseInt(val.trim());
+                    if (parsed > 0)
+                    {
+                        return parsed;
+                    }
+                }
+                catch (Exception ignored)
+                {
+                }
+            }
+        }
+        return 30;
+    }
+
+    private Date startOfToday()
+    {
+        return truncateDate(new Date());
+    }
+
+    private Date truncateDate(Date d)
+    {
+        Calendar cal = Calendar.getInstance();
+        cal.setTime(d);
+        cal.set(Calendar.HOUR_OF_DAY, 0);
+        cal.set(Calendar.MINUTE, 0);
+        cal.set(Calendar.SECOND, 0);
+        cal.set(Calendar.MILLISECOND, 0);
+        return cal.getTime();
+    }
+
     private BigDecimal calculateAvailableQuantity(WmsStock stock)
     {
         BigDecimal quantity = defaultBigDecimal(stock.getQuantity());
@@ -221,22 +648,11 @@ public class WmsStockServiceImpl implements IWmsStockService
         return quantity.subtract(lockedQuantity).subtract(frozenQuantity);
     }
 
-    /**
-     * 空值转换
-     *
-     * @param value 数值
-     * @return 转换后的数值
-     */
     private BigDecimal defaultBigDecimal(BigDecimal value)
     {
         return value == null ? BigDecimal.ZERO : value;
     }
 
-    /**
-     * 校验导入库存
-     *
-     * @param stock 库存信息
-     */
     private void validateImportStock(WmsStock stock)
     {
         if (stock.getWarehouseId() == null)
@@ -247,27 +663,19 @@ public class WmsStockServiceImpl implements IWmsStockService
         {
             throw new ServiceException("商品编号不能为空");
         }
-        if (stock.getQuantity() == null)
+        if (stock.getQuantity() == null || stock.getQuantity().compareTo(BigDecimal.ZERO) < 0)
         {
-            throw new ServiceException("库存数量不能为空");
+            throw new ServiceException("库存数量不能为空且不能为负数");
         }
     }
 
-    /**
-     * 填充导入库存默认值
-     *
-     * @param stock 库存信息
-     */
     private void fillDefaultStockValue(WmsStock stock)
     {
         if (stock.getLocationId() == null)
         {
             stock.setLocationId(0L);
         }
-        if (StringUtils.isEmpty(stock.getBatchNo()))
-        {
-            stock.setBatchNo("");
-        }
+        stock.setBatchNo(StringUtils.isEmpty(stock.getBatchNo()) ? "" : stock.getBatchNo().trim());
         if (stock.getLockedQuantity() == null)
         {
             stock.setLockedQuantity(BigDecimal.ZERO);
@@ -290,4 +698,3 @@ public class WmsStockServiceImpl implements IWmsStockService
         }
     }
 }
-

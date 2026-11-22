@@ -44,6 +44,9 @@ public class ReplenishmentServiceImpl implements IReplenishmentService
     @Autowired
     private MdProductMapper mdProductMapper;
 
+    @Autowired(required = false)
+    private BizScopeHelper bizScopeHelper;
+
     /**
      * 查询补货建议列表
      * 
@@ -54,6 +57,14 @@ public class ReplenishmentServiceImpl implements IReplenishmentService
     public List<ReplenishmentSuggestion> selectReplenishmentSuggestionList(Long warehouseId)
     {
         WmsStock queryWmsStock = new WmsStock();
+        if (bizScopeHelper != null)
+        {
+            if (warehouseId != null)
+            {
+                bizScopeHelper.assertWarehouseAccess(warehouseId);
+            }
+            bizScopeHelper.applyScopeFilter(queryWmsStock, "", false, true);
+        }
         queryWmsStock.setWarehouseId(warehouseId);
         List<WmsStock> warningStockList = wmsStockMapper.selectWmsStockList(queryWmsStock);
         Map<String, ReplenishmentSuggestion> suggestionMap = new LinkedHashMap<String, ReplenishmentSuggestion>();
@@ -66,14 +77,6 @@ public class ReplenishmentServiceImpl implements IReplenishmentService
             }
             MdProduct mdProduct = loadProduct(wmsStock.getProductId(), productCacheMap);
             BigDecimal warningMinQty = resolveWarningMinQty(wmsStock, mdProduct);
-            if (warningMinQty.compareTo(BigDecimal.ZERO) <= 0)
-            {
-                continue;
-            }
-            if (defaultAmount(wmsStock.getQuantity()).compareTo(warningMinQty) >= 0)
-            {
-                continue;
-            }
             String suggestionKey = buildSuggestionKey(wmsStock.getWarehouseId(), wmsStock.getProductId());
             ReplenishmentSuggestion replenishmentSuggestion = suggestionMap.get(suggestionKey);
             if (replenishmentSuggestion == null)
@@ -91,14 +94,17 @@ public class ReplenishmentServiceImpl implements IReplenishmentService
         List<ReplenishmentSuggestion> replenishmentSuggestionList = new ArrayList<ReplenishmentSuggestion>();
         for (ReplenishmentSuggestion replenishmentSuggestion : suggestionMap.values())
         {
-            BigDecimal recentOutboundQty = calculateRecentOutboundQty(replenishmentSuggestion.getWarehouseId(), replenishmentSuggestion.getProductId());
-            BigDecimal pendingPurchaseQty = calculatePendingPurchaseQty(replenishmentSuggestion.getWarehouseId(), replenishmentSuggestion.getProductId());
-            if (pendingPurchaseQty.compareTo(BigDecimal.ZERO) > 0)
+            BigDecimal warningMinQty = defaultAmount(replenishmentSuggestion.getWarningMinQty());
+            BigDecimal currentQty = defaultAmount(replenishmentSuggestion.getCurrentQty());
+            if (warningMinQty.compareTo(BigDecimal.ZERO) <= 0 || currentQty.compareTo(warningMinQty) >= 0)
             {
                 continue;
             }
-            BigDecimal suggestedQty = recentOutboundQty.add(defaultAmount(replenishmentSuggestion.getWarningMinQty()))
-                .subtract(defaultAmount(replenishmentSuggestion.getCurrentQty()));
+            BigDecimal recentOutboundQty = calculateRecentOutboundQty(replenishmentSuggestion.getWarehouseId(), replenishmentSuggestion.getProductId());
+            BigDecimal pendingPurchaseQty = calculatePendingPurchaseQty(replenishmentSuggestion.getWarehouseId(), replenishmentSuggestion.getProductId());
+            BigDecimal suggestedQty = recentOutboundQty.add(warningMinQty)
+                .subtract(currentQty)
+                .subtract(pendingPurchaseQty);
             if (suggestedQty.compareTo(BigDecimal.ZERO) <= 0)
             {
                 continue;
@@ -106,7 +112,7 @@ public class ReplenishmentServiceImpl implements IReplenishmentService
             replenishmentSuggestion.setRecentOutboundQty(recentOutboundQty);
             replenishmentSuggestion.setPendingPurchaseQty(pendingPurchaseQty);
             replenishmentSuggestion.setSuggestedQty(suggestedQty);
-            replenishmentSuggestion.setSuggestionReason("近30天销量 + 最小库存阈值");
+            replenishmentSuggestion.setSuggestionReason("近30天销量 + 最小库存阈值 - 当前库存 - 在途采购");
             replenishmentSuggestionList.add(replenishmentSuggestion);
         }
         return replenishmentSuggestionList;
@@ -187,7 +193,16 @@ public class ReplenishmentServiceImpl implements IReplenishmentService
             {
                 if (productId.equals(purOrderItem.getProductId()))
                 {
-                    pendingPurchaseQty = pendingPurchaseQty.add(defaultAmount(purOrderItem.getQuantity()));
+                    BigDecimal ordered = purOrderItem.getBaseQuantity() != null && purOrderItem.getBaseQuantity().compareTo(BigDecimal.ZERO) > 0
+                        ? purOrderItem.getBaseQuantity() : defaultAmount(purOrderItem.getQuantity());
+                    BigDecimal received = defaultAmount(purOrderItem.getReceivedQty());
+                    BigDecimal ratio = purOrderItem.getConvertRatio() != null && purOrderItem.getConvertRatio().compareTo(BigDecimal.ZERO) > 0
+                        ? purOrderItem.getConvertRatio() : BigDecimal.ONE;
+                    BigDecimal remaining = ordered.subtract(received.multiply(ratio));
+                    if (remaining.compareTo(BigDecimal.ZERO) > 0)
+                    {
+                        pendingPurchaseQty = pendingPurchaseQty.add(remaining);
+                    }
                 }
             }
         }

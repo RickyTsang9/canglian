@@ -1,6 +1,7 @@
 package com.canglian.business.mapper;
 
 import java.util.List;
+import org.apache.ibatis.annotations.Param;
 import com.canglian.business.domain.FinReceivable;
 
 /**
@@ -33,6 +34,11 @@ public interface FinReceivableMapper
      * @return 最大应收单号
      */
     public String selectMaxReceivableNoByPrefix(String receivableNoPrefix);
+
+    /**
+     * 按来源单据查询应收单（用于防重与退货红字幂等）
+     */
+    public FinReceivable selectFinReceivableBySource(@Param("sourceBillType") String sourceBillType, @Param("sourceBillId") Long sourceBillId);
 
     /**
      * 新增应收单

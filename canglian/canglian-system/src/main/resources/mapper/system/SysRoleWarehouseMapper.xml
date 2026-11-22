@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.canglian.system.mapper.SysRoleWarehouseMapper">
+
+    <select id="selectWarehouseIdsByRoleId" parameterType="Long" resultType="Long">
+        select warehouse_id from sys_role_warehouse where role_id = #{roleId} order by warehouse_id asc
+    </select>
+
+    <select id="selectAuthorizedWarehouseIdsByUserId" parameterType="Long" resultType="Long">
+        select distinct rw.warehouse_id
+        from sys_role_warehouse rw
+        inner join sys_user_role ur on ur.role_id = rw.role_id
+        inner join sys_role r on r.role_id = ur.role_id
+        where ur.user_id = #{userId}
+          and r.del_flag = '0'
+          and r.status = '0'
+        order by rw.warehouse_id asc
+    </select>
+
+    <delete id="deleteRoleWarehouseByRoleId" parameterType="Long">
+        delete from sys_role_warehouse where role_id = #{roleId}
+    </delete>
+
+    <insert id="batchInsertRoleWarehouse">
+        insert ignore into sys_role_warehouse (role_id, warehouse_id) values
+        <foreach collection="warehouseIds" item="warehouseId" separator=",">
+            (#{roleId}, #{warehouseId})
+        </foreach>
+    </insert>
+</mapper>

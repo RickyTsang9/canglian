@@ -98,6 +98,10 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         delete from fin_cost_layer where cost_layer_id = #{costLayerId}
     </delete>
 
+    <delete id="deleteFinCostLayerByAccountId" parameterType="Long">
+        delete from fin_cost_layer where cost_account_id = #{costAccountId}
+    </delete>
+
     <delete id="deleteFinCostLayerByIds" parameterType="Long">
         delete from fin_cost_layer where cost_layer_id in
         <foreach collection="array" item="costLayerId" open="(" separator="," close=")">

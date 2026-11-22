@@ -8,13 +8,23 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         <id     property="saleReturnItemId" column="sale_return_item_id" />
         <result property="saleReturnId"     column="sale_return_id" />
         <result property="productId"        column="product_id" />
+        <result property="locationId"       column="location_id" />
+        <result property="batchNo"          column="batch_no" />
+        <result property="unitName"         column="unit_name" />
+        <result property="convertRatio"     column="convert_ratio" />
+        <result property="baseQuantity"     column="base_quantity" />
+        <result property="productionDate"   column="production_date" />
+        <result property="expiryDate"       column="expiry_date" />
+        <result property="snCodes"          column="sn_codes" />
         <result property="quantity"         column="quantity" />
         <result property="price"            column="price" />
         <result property="amount"           column="amount" />
     </resultMap>
 
     <sql id="selectWmsSaleReturnItemVo">
-        select sale_return_item_id, sale_return_id, product_id, quantity, price, amount
+        select sale_return_item_id, sale_return_id, product_id, location_id, batch_no,
+               unit_name, convert_ratio, base_quantity, production_date, expiry_date, sn_codes,
+               quantity, price, amount
         from wms_sale_return_item
     </sql>
 
@@ -26,12 +36,8 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
     <select id="selectWmsSaleReturnItemList" parameterType="WmsSaleReturnItem" resultMap="WmsSaleReturnItemResult">
         <include refid="selectWmsSaleReturnItemVo"/>
         <where>
-            <if test="saleReturnId != null">
-                and sale_return_id = #{saleReturnId}
-            </if>
-            <if test="productId != null">
-                and product_id = #{productId}
-            </if>
+            <if test="saleReturnId != null">and sale_return_id = #{saleReturnId}</if>
+            <if test="productId != null">and product_id = #{productId}</if>
         </where>
     </select>
 
@@ -40,6 +46,14 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         <trim prefix="(" suffix=")" suffixOverrides=",">
             <if test="saleReturnId != null">sale_return_id,</if>
             <if test="productId != null">product_id,</if>
+            <if test="locationId != null">location_id,</if>
+            <if test="batchNo != null">batch_no,</if>
+            <if test="unitName != null">unit_name,</if>
+            <if test="convertRatio != null">convert_ratio,</if>
+            <if test="baseQuantity != null">base_quantity,</if>
+            <if test="productionDate != null">production_date,</if>
+            <if test="expiryDate != null">expiry_date,</if>
+            <if test="snCodes != null">sn_codes,</if>
             <if test="quantity != null">quantity,</if>
             <if test="price != null">price,</if>
             <if test="amount != null">amount,</if>
@@ -47,6 +61,14 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         <trim prefix="values (" suffix=")" suffixOverrides=",">
             <if test="saleReturnId != null">#{saleReturnId},</if>
             <if test="productId != null">#{productId},</if>
+            <if test="locationId != null">#{locationId},</if>
+            <if test="batchNo != null">#{batchNo},</if>
+            <if test="unitName != null">#{unitName},</if>
+            <if test="convertRatio != null">#{convertRatio},</if>
+            <if test="baseQuantity != null">#{baseQuantity},</if>
+            <if test="productionDate != null">#{productionDate},</if>
+            <if test="expiryDate != null">#{expiryDate},</if>
+            <if test="snCodes != null">#{snCodes},</if>
             <if test="quantity != null">#{quantity},</if>
             <if test="price != null">#{price},</if>
             <if test="amount != null">#{amount},</if>
@@ -58,12 +80,24 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         <set>
             <if test="saleReturnId != null">sale_return_id = #{saleReturnId},</if>
             <if test="productId != null">product_id = #{productId},</if>
+            <if test="locationId != null">location_id = #{locationId},</if>
+            <if test="batchNo != null">batch_no = #{batchNo},</if>
+            <if test="unitName != null">unit_name = #{unitName},</if>
+            <if test="convertRatio != null">convert_ratio = #{convertRatio},</if>
+            <if test="baseQuantity != null">base_quantity = #{baseQuantity},</if>
+            <if test="productionDate != null">production_date = #{productionDate},</if>
+            <if test="expiryDate != null">expiry_date = #{expiryDate},</if>
+            <if test="snCodes != null">sn_codes = #{snCodes},</if>
             <if test="quantity != null">quantity = #{quantity},</if>
             <if test="price != null">price = #{price},</if>
             <if test="amount != null">amount = #{amount},</if>
         </set>
         where sale_return_item_id = #{saleReturnItemId}
     </update>
+
+    <delete id="deleteWmsSaleReturnItemBySaleReturnId" parameterType="Long">
+        delete from wms_sale_return_item where sale_return_id = #{saleReturnId}
+    </delete>
 
     <delete id="deleteWmsSaleReturnItemById" parameterType="Long">
         delete from wms_sale_return_item where sale_return_item_id = #{saleReturnItemId}
@@ -76,4 +110,3 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         </foreach>
     </delete>
 </mapper>
-

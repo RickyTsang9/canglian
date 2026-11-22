@@ -6,7 +6,7 @@ spring:
         druid:
             # 主库数据源
             master:
-                url: ${MYSQL_URL:jdbc:mysql://192.168.2.155:3307/sale_erp?characterEncoding=utf-8&useSSL=false&serverTimezone=Hongkong}
+                url: ${MYSQL_URL:jdbc:mysql://192.168.2.155:3307/canglian?characterEncoding=utf-8&useSSL=false&serverTimezone=Hongkong}
                 username: ${MYSQL_USERNAME:root}
                 password: ${MYSQL_PASSWORD:123456}
             # 从库数据源
@@ -42,13 +42,13 @@ spring:
             webStatFilter: 
                 enabled: true
             statViewServlet:
-                enabled: true
-                # 设置白名单，不填则允许所有访问
-                allow:
+                enabled: ${DRUID_STAT_VIEW_ENABLED:true}
+                # 设置白名单，默认仅允许本机访问
+                allow: ${DRUID_ALLOW:127.0.0.1}
                 url-pattern: /druid/*
                 # 控制台管理用户名和密码
-                login-username: canglian
-                login-password: 123456
+                login-username: ${DRUID_USERNAME:canglian}
+                login-password: ${DRUID_PASSWORD:123456}
             filter:
                 stat:
                     enabled: true

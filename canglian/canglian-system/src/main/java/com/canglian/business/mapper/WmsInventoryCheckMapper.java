@@ -18,6 +18,8 @@ public interface WmsInventoryCheckMapper
      */
     public WmsInventoryCheck selectWmsInventoryCheckById(Long checkId);
 
+    public WmsInventoryCheck selectWmsInventoryCheckByIdForUpdate(Long checkId);
+
     /**
      * 查询盘点单列表
      * 

@@ -18,6 +18,8 @@ public interface WmsOutboundMapper
      */
     public WmsOutbound selectWmsOutboundById(Long outboundId);
 
+    public WmsOutbound selectWmsOutboundByIdForUpdate(Long outboundId);
+
     /**
      * 查询出库单列表
      * 

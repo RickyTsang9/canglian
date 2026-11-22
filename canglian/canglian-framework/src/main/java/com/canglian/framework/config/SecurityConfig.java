@@ -1,6 +1,7 @@
 package com.canglian.framework.config;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -66,6 +67,9 @@ public class SecurityConfig
     @Autowired
     private PermitAllUrlProperties permitAllUrl;
 
+    @Value("${swagger.enabled:false}")
+    private boolean swaggerEnabled;
+
     /**
      * 身份验证实现
      */
@@ -110,11 +114,19 @@ public class SecurityConfig
             // 注解标记允许匿名访问的url
             .authorizeHttpRequests((requests) -> {
                 permitAllUrl.getUrls().forEach(url -> requests.antMatchers(url).permitAll());
+                if (!swaggerEnabled)
+                {
+                    requests.antMatchers("/swagger-ui/**", "/swagger-ui.html", "/swagger-resources/**", "/*/api-docs", "/v2/api-docs", "/v3/api-docs").denyAll();
+                }
+                else
+                {
+                    requests.antMatchers("/swagger-ui/**", "/swagger-ui.html", "/swagger-resources/**", "/*/api-docs", "/v2/api-docs", "/v3/api-docs").permitAll();
+                }
                 // 对于登录login 注册register 验证码captchaImage 允许匿名访问
                 requests.antMatchers("/login", "/register", "/captchaImage").permitAll()
                     // 静态资源，可匿名访问
                     .antMatchers(HttpMethod.GET, "/", "/*.html", "/**/*.html", "/**/*.css", "/**/*.js", "/profile/**").permitAll()
-                    .antMatchers("/swagger-ui.html", "/swagger-resources/**", "/webjars/**", "/*/api-docs", "/druid/**").permitAll()
+                    .antMatchers("/webjars/**", "/druid/**").permitAll()
                     // 除上面外的所有请求全部需要鉴权认证
                     .anyRequest().authenticated();
             })

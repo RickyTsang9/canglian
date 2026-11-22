@@ -5,22 +5,30 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
 <mapper namespace="com.canglian.business.mapper.FinPaymentMapper">
 
     <resultMap type="FinPayment" id="FinPaymentResult">
-        <id     property="paymentId"  column="payment_id"  />
-        <result property="paymentNo"  column="payment_no"  />
-        <result property="supplierId" column="supplier_id" />
-        <result property="payableId"  column="payable_id"  />
-        <result property="amount"     column="amount"      />
-        <result property="paymentDate" column="payment_date" />
-        <result property="payChannel" column="pay_channel"  />
-        <result property="createBy"   column="create_by"   />
-        <result property="createTime" column="create_time" />
-        <result property="updateBy"   column="update_by"   />
-        <result property="updateTime" column="update_time" />
-        <result property="remark"     column="remark"      />
+        <id     property="paymentId"     column="payment_id"      />
+        <result property="paymentNo"     column="payment_no"      />
+        <result property="supplierId"    column="supplier_id"     />
+        <result property="payableId"     column="payable_id"      />
+        <result property="fundAccountId" column="fund_account_id" />
+        <result property="deptId"        column="dept_id"         />
+        <result property="ownerUserId"   column="owner_user_id"   />
+        <result property="amount"        column="amount"          />
+        <result property="paymentDate"   column="payment_date"    />
+        <result property="payChannel"    column="pay_channel"     />
+        <result property="status"        column="status"          />
+        <result property="bizStatus"     column="biz_status"      />
+        <result property="auditBy"       column="audit_by"        />
+        <result property="auditTime"     column="audit_time"      />
+        <result property="createBy"      column="create_by"       />
+        <result property="createTime"    column="create_time"     />
+        <result property="updateBy"      column="update_by"       />
+        <result property="updateTime"    column="update_time"     />
+        <result property="remark"        column="remark"          />
     </resultMap>
 
     <sql id="selectFinPaymentVo">
-        select payment_id, payment_no, supplier_id, payable_id, amount, payment_date, pay_channel,
+        select payment_id, payment_no, supplier_id, payable_id, fund_account_id, dept_id, owner_user_id,
+               amount, payment_date, pay_channel, status, biz_status, audit_by, audit_time,
                create_by, create_time, update_by, update_time, remark
         from fin_payment
     </sql>
@@ -33,25 +41,20 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
     <select id="selectFinPaymentList" parameterType="FinPayment" resultMap="FinPaymentResult">
         <include refid="selectFinPaymentVo"/>
         <where>
-            <if test="paymentNo != null and paymentNo != ''">
-                and payment_no like concat('%', #{paymentNo}, '%')
-            </if>
-            <if test="supplierId != null">
-                and supplier_id = #{supplierId}
-            </if>
-            <if test="payableId != null">
-                and payable_id = #{payableId}
-            </if>
-            <if test="payChannel != null and payChannel != ''">
-                and pay_channel = #{payChannel}
-            </if>
+            <if test="paymentNo != null and paymentNo != ''">and payment_no like concat('%', #{paymentNo}, '%')</if>
+            <if test="supplierId != null">and supplier_id = #{supplierId}</if>
+            <if test="payableId != null">and payable_id = #{payableId}</if>
+            <if test="fundAccountId != null">and fund_account_id = #{fundAccountId}</if>
+            <if test="payChannel != null and payChannel != ''">and pay_channel = #{payChannel}</if>
+            <if test="status != null and status != ''">and status = #{status}</if>
+            <if test="bizStatus != null and bizStatus != ''">and biz_status = #{bizStatus}</if>
+            ${params.dataScope}
         </where>
+        order by create_time desc, payment_id desc
     </select>
 
     <select id="selectMaxPaymentNoByPrefix" parameterType="String" resultType="String">
-        select max(payment_no)
-        from fin_payment
-        where payment_no like concat(#{paymentNoPrefix}, '%')
+        select payment_no from fin_payment where payment_no like concat(#{paymentNoPrefix}, '%') order by length(payment_no) desc, payment_no desc limit 1
     </select>
 
     <insert id="insertFinPayment" parameterType="FinPayment" useGeneratedKeys="true" keyProperty="paymentId">
@@ -60,9 +63,16 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             <if test="paymentNo != null and paymentNo != ''">payment_no,</if>
             <if test="supplierId != null">supplier_id,</if>
             <if test="payableId != null">payable_id,</if>
+            <if test="fundAccountId != null">fund_account_id,</if>
+            <if test="deptId != null">dept_id,</if>
+            <if test="ownerUserId != null">owner_user_id,</if>
             <if test="amount != null">amount,</if>
             <if test="paymentDate != null">payment_date,</if>
             <if test="payChannel != null">pay_channel,</if>
+            <if test="status != null">status,</if>
+            <if test="bizStatus != null">biz_status,</if>
+            <if test="auditBy != null">audit_by,</if>
+            <if test="auditTime != null">audit_time,</if>
             <if test="createBy != null and createBy != ''">create_by,</if>
             create_time,
             <if test="updateBy != null and updateBy != ''">update_by,</if>
@@ -72,9 +82,16 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             <if test="paymentNo != null and paymentNo != ''">#{paymentNo},</if>
             <if test="supplierId != null">#{supplierId},</if>
             <if test="payableId != null">#{payableId},</if>
+            <if test="fundAccountId != null">#{fundAccountId},</if>
+            <if test="deptId != null">#{deptId},</if>
+            <if test="ownerUserId != null">#{ownerUserId},</if>
             <if test="amount != null">#{amount},</if>
             <if test="paymentDate != null">#{paymentDate},</if>
             <if test="payChannel != null">#{payChannel},</if>
+            <if test="status != null">#{status},</if>
+            <if test="bizStatus != null">#{bizStatus},</if>
+            <if test="auditBy != null">#{auditBy},</if>
+            <if test="auditTime != null">#{auditTime},</if>
             <if test="createBy != null and createBy != ''">#{createBy},</if>
             sysdate(),
             <if test="updateBy != null and updateBy != ''">#{updateBy},</if>
@@ -87,10 +104,15 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         <set>
             <if test="paymentNo != null and paymentNo != ''">payment_no = #{paymentNo},</if>
             <if test="supplierId != null">supplier_id = #{supplierId},</if>
-            <if test="payableId != null">payable_id = #{payableId},</if>
+            payable_id = #{payableId},
+            fund_account_id = #{fundAccountId},
             <if test="amount != null">amount = #{amount},</if>
             <if test="paymentDate != null">payment_date = #{paymentDate},</if>
             <if test="payChannel != null">pay_channel = #{payChannel},</if>
+            <if test="status != null">status = #{status},</if>
+            <if test="bizStatus != null">biz_status = #{bizStatus},</if>
+            <if test="auditBy != null">audit_by = #{auditBy},</if>
+            audit_time = #{auditTime},
             <if test="updateBy != null and updateBy != ''">update_by = #{updateBy},</if>
             update_time = sysdate(),
             <if test="remark != null">remark = #{remark},</if>
@@ -109,4 +131,3 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         </foreach>
     </delete>
 </mapper>
-

@@ -35,7 +35,7 @@
                     <span class="business-no">{{ inboundItem.billNo || '-' }}</span>
                     <span class="business-qty">x {{ formatIntegerValue(inboundItem.totalQuantity) }}</span>
                   </div>
-                  <div class="business-sub">{{ inboundItem.summary || getBusinessTypeLabel(inboundItem.businessType, true) }}</div>
+                  <div class="business-sub">{{ formatOperationSummary(inboundItem.summary, inboundItem.businessType, true) }}</div>
                 </div>
               </li>
             </ul>
@@ -142,7 +142,7 @@
                     <span class="business-no">{{ outboundItem.billNo || '-' }}</span>
                     <span class="business-qty">x {{ formatIntegerValue(outboundItem.totalQuantity) }}</span>
                   </div>
-                  <div class="business-sub">{{ outboundItem.summary || getBusinessTypeLabel(outboundItem.businessType, false) }}</div>
+                  <div class="business-sub">{{ formatOperationSummary(outboundItem.summary, outboundItem.businessType, false) }}</div>
                 </div>
               </li>
             </ul>
@@ -153,8 +153,8 @@
 
     <el-card class="panel-card product-panel" shadow="never">
       <div class="product-tabs">
-        <el-button type="primary" size="small">产品实时库存查询</el-button>
-        <el-button size="small" disabled>库存趋势图表</el-button>
+        <el-button :type="productRankMetric === 'quantity' ? 'primary' : 'default'" size="small" @click="switchRankMetric('quantity')">产品实时库存排行（数量）</el-button>
+        <el-button :type="productRankMetric === 'amount' ? 'primary' : 'default'" size="small" @click="switchRankMetric('amount')">产品库存价值排行（金额）</el-button>
       </div>
 
       <el-row :gutter="12" class="product-content">
@@ -214,6 +214,7 @@ const queryRef = ref()
 const productRankChartRef = ref()
 const warehouseOptions = ref([])
 const productRankDimension = ref("productName")
+const productRankMetric = ref("quantity")
 const dateRange = ref([])
 const quickRangeKey = ref("today")
 
@@ -343,15 +344,32 @@ function formatNumberValue(value) {
   return Number(value || 0).toLocaleString("zh-CN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 }
 
+const RAW_TYPE_LABELS = {
+  purchase: "采购入库",
+  purchase_order: "采购订单入库",
+  sale: "销售出库",
+  sale_order: "销货订单出库",
+  other: "其他出入库",
+  transfer_in: "调拨入库",
+  transfer_out: "调拨出库",
+  inventory_check: "盘点调整",
+  inbound: "入库单",
+  outbound: "出库单",
+  inventory: "库存调整"
+}
+
+function formatOperationSummary(summary, businessType, isInbound) {
+  if (!summary) return getBusinessTypeLabel(businessType, isInbound)
+  const key = String(summary).trim()
+  return RAW_TYPE_LABELS[key] || summary
+}
+
 function getBusinessTypeLabel(businessType, isInbound) {
   if (businessType === "inventory") {
     return isInbound ? "库存调入" : "库存调出"
   }
-  if (businessType === "inbound") {
-    return "入库单"
-  }
-  if (businessType === "outbound") {
-    return "出库单"
+  if (RAW_TYPE_LABELS[businessType]) {
+    return RAW_TYPE_LABELS[businessType]
   }
   return "未知类型"
 }
@@ -458,19 +476,32 @@ function handleWarehouseChange() {
   loadOverviewData()
 }
 
+function switchRankMetric(metric) {
+  if (productRankMetric.value !== metric) {
+    productRankMetric.value = metric
+    renderProductRankChart()
+  }
+}
+
 function renderProductRankChart() {
   if (!productRankChartRef.value || overviewData.productRankList.length === 0) {
     if (productRankChartInstance) {
-      productRankChartInstance.clear()
+      productRankChartInstance.dispose()
+      productRankChartInstance = null
     }
     return
+  }
+  if (productRankChartInstance && productRankChartInstance.getDom() !== productRankChartRef.value) {
+    productRankChartInstance.dispose()
+    productRankChartInstance = null
   }
   if (!productRankChartInstance) {
     productRankChartInstance = echarts.init(productRankChartRef.value)
   }
   const categoryFieldName = productRankDimension.value
+  const isAmount = productRankMetric.value === "amount"
   const categoryLabels = overviewData.productRankList.map(rankItem => rankItem[categoryFieldName] || "未命名")
-  const quantityData = overviewData.productRankList.map(rankItem => Number(rankItem.availableQuantity || 0))
+  const chartValues = overviewData.productRankList.map(rankItem => Number(isAmount ? (rankItem.stockAmount || 0) : (rankItem.availableQuantity || 0)))
   productRankChartInstance.setOption({
     tooltip: { trigger: "axis", axisPointer: { type: "shadow" } },
     xAxis: {
@@ -486,9 +517,9 @@ function renderProductRankChart() {
     },
     series: [
       {
-        name: "可用库存",
+        name: isAmount ? "库存金额(元)" : "可用库存(件)",
         type: "bar",
-        data: quantityData,
+        data: chartValues,
         barMaxWidth: 48,
         itemStyle: {
           borderRadius: [6, 6, 0, 0],
@@ -546,7 +577,7 @@ watch(() => overviewData.productRankList, () => {
 
 <style lang="scss" scoped>
 .warehouse-statistics-page {
-  background: #f3f7ff;
+  background: var(--el-bg-color-page, #f3f7ff);
 
   .panel-row,
   .panel-card {

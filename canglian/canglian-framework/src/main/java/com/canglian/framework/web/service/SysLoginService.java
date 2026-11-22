@@ -2,6 +2,7 @@ package com.canglian.framework.web.service;
 
 import javax.annotation.Resource;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -50,6 +51,9 @@ public class SysLoginService
 
     @Autowired
     private ISysConfigService configService;
+
+    @Value("${canglian.security.enforceCaptcha:false}")
+    private boolean enforceCaptcha;
 
     /**
      * 登录验证
@@ -109,7 +113,7 @@ public class SysLoginService
      */
     public void validateCaptcha(String username, String code, String uuid)
     {
-        boolean captchaEnabled = configService.selectCaptchaEnabled();
+        boolean captchaEnabled = enforceCaptcha || configService.selectCaptchaEnabled();
         if (captchaEnabled)
         {
             String verifyKey = CacheConstants.CAPTCHA_CODE_KEY + StringUtils.nvl(uuid, "");

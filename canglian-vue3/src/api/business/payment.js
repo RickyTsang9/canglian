@@ -1,44 +1,29 @@
 import request from '@/utils/request'
 
-// 查询付款单列表
 export function listPayment(query) {
-  return request({
-    url: '/business/payment/list',
-    method: 'get',
-    params: query
-  })
+  return request({ url: '/business/payment/list', method: 'get', params: query })
 }
 
-// 查询付款单详细
 export function getPayment(paymentId) {
-  return request({
-    url: '/business/payment/' + paymentId,
-    method: 'get'
-  })
+  return request({ url: '/business/payment/' + paymentId, method: 'get' })
 }
 
-// 新增付款单
 export function addPayment(data) {
-  return request({
-    url: '/business/payment',
-    method: 'post',
-    data: data
-  })
+  return request({ url: '/business/payment', method: 'post', data })
 }
 
-// 修改付款单
 export function updatePayment(data) {
-  return request({
-    url: '/business/payment',
-    method: 'put',
-    data: data
-  })
+  return request({ url: '/business/payment', method: 'put', data })
 }
 
-// 删除付款单
+export function confirmPayment(paymentId) {
+  return request({ url: '/business/payment/confirm/' + paymentId, method: 'post' })
+}
+
+export function unconfirmPayment(paymentId) {
+  return request({ url: '/business/payment/unconfirm/' + paymentId, method: 'post' })
+}
+
 export function delPayment(paymentId) {
-  return request({
-    url: '/business/payment/' + paymentId,
-    method: 'delete'
-  })
+  return request({ url: '/business/payment/' + paymentId, method: 'delete' })
 }

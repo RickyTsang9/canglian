@@ -49,7 +49,7 @@ create table if not exists fin_account_subject (
   remark varchar(500) default null comment '备注',
   primary key (subject_id),
   unique key uk_fin_account_subject_code (subject_code)
-) engine=innodb auto_increment=1 default charset=utf8mb4 comment='会计科目';
+) engine=innodb auto_increment=1 comment='会计科目';
 
 create table if not exists fin_auxiliary_item (
   auxiliary_id bigint(20) not null auto_increment comment '辅助核算id',
@@ -65,7 +65,7 @@ create table if not exists fin_auxiliary_item (
   remark varchar(500) default null comment '备注',
   primary key (auxiliary_id),
   unique key uk_fin_auxiliary_item (auxiliary_type, item_code)
-) engine=innodb auto_increment=1 default charset=utf8mb4 comment='辅助核算项目';
+) engine=innodb auto_increment=1 comment='辅助核算项目';
 
 create table if not exists fin_fiscal_period (
   period_id bigint(20) not null auto_increment comment '会计期间id',
@@ -82,7 +82,7 @@ create table if not exists fin_fiscal_period (
   remark varchar(500) default null comment '备注',
   primary key (period_id),
   unique key uk_fin_fiscal_period_code (period_code)
-) engine=innodb auto_increment=1 default charset=utf8mb4 comment='会计期间';
+) engine=innodb auto_increment=1 comment='会计期间';
 
 insert into fin_account_subject(subject_code, subject_name, subject_type, balance_direction, status, create_by, create_time, remark)
 select '1001', '库存现金', 'asset', 'debit', '0', 'admin', sysdate(), '星辰轻量总账预置科目'
@@ -145,49 +145,92 @@ insert into fin_fiscal_period(period_code, start_date, end_date, close_status, c
 select '2026-04', '2026-04-01', '2026-04-30', 'open', 'admin', sysdate(), '星辰轻量总账预置期间'
 from dual where not exists (select 1 from fin_fiscal_period where period_code = '2026-04');
 
-insert into sys_menu
-select '2400', '基础总账接口', '2200', '15', 'generalLedger', 'business/generalLedger/index', '', '', 1, 0, 'C', '0', '0', 'business:generalLedger:query', 'form', 'admin', sysdate(), '', null, '基础总账接口菜单'
-from dual
-where not exists (select 1 from sys_menu where menu_id = '2400');
+insert into fin_fiscal_period(period_code, start_date, end_date, close_status, create_by, create_time, remark)
+select '2026-05', '2026-05-01', '2026-05-31', 'open', 'admin', sysdate(), '星辰轻量总账预置期间'
+from dual where not exists (select 1 from fin_fiscal_period where period_code = '2026-05');
 
-insert into sys_menu
-select '2401', '经营分析报表', '2200', '16', 'operationReport', 'business/operationReport/index', '', '', 1, 0, 'C', '0', '0', 'business:report:query', 'chart', 'admin', sysdate(), '', null, '经营分析报表菜单'
-from dual
-where not exists (select 1 from sys_menu where menu_id = '2401');
+insert into fin_fiscal_period(period_code, start_date, end_date, close_status, create_by, create_time, remark)
+select '2026-06', '2026-06-01', '2026-06-30', 'open', 'admin', sysdate(), '星辰轻量总账预置期间'
+from dual where not exists (select 1 from fin_fiscal_period where period_code = '2026-06');
 
-insert into sys_menu
-select '2410', '凭证生成', '2269', '1', '#', '', '', '', 1, 0, 'F', '0', '0', 'business:voucherEvent:generate', '#', 'admin', sysdate(), '', null, ''
-from dual
-where not exists (select 1 from sys_menu where menu_id = '2410');
+insert into fin_fiscal_period(period_code, start_date, end_date, close_status, create_by, create_time, remark)
+select '2026-07', '2026-07-01', '2026-07-31', 'open', 'admin', sysdate(), '星辰轻量总账预置期间'
+from dual where not exists (select 1 from fin_fiscal_period where period_code = '2026-07');
 
-insert into sys_menu
-select '2411', '凭证回写', '2269', '2', '#', '', '', '', 1, 0, 'F', '0', '0', 'business:voucherEvent:writeback', '#', 'admin', sysdate(), '', null, ''
-from dual
-where not exists (select 1 from sys_menu where menu_id = '2411');
+insert into fin_fiscal_period(period_code, start_date, end_date, close_status, create_by, create_time, remark)
+select '2026-08', '2026-08-01', '2026-08-31', 'open', 'admin', sysdate(), '星辰轻量总账预置期间'
+from dual where not exists (select 1 from fin_fiscal_period where period_code = '2026-08');
 
-insert into sys_menu
-select '2412', '凭证冲销', '2269', '3', '#', '', '', '', 1, 0, 'F', '0', '0', 'business:voucherEvent:reverse', '#', 'admin', sysdate(), '', null, ''
-from dual
-where not exists (select 1 from sys_menu where menu_id = '2412');
+insert into fin_fiscal_period(period_code, start_date, end_date, close_status, create_by, create_time, remark)
+select '2026-09', '2026-09-01', '2026-09-30', 'open', 'admin', sysdate(), '星辰轻量总账预置期间'
+from dual where not exists (select 1 from fin_fiscal_period where period_code = '2026-09');
 
-insert into sys_menu
-select '2420', '总账查询', '2400', '1', '#', '', '', '', 1, 0, 'F', '0', '0', 'business:generalLedger:query', '#', 'admin', sysdate(), '', null, ''
-from dual
-where not exists (select 1 from sys_menu where menu_id = '2420');
+insert into fin_fiscal_period(period_code, start_date, end_date, close_status, create_by, create_time, remark)
+select '2026-10', '2026-10-01', '2026-10-31', 'open', 'admin', sysdate(), '星辰轻量总账预置期间'
+from dual where not exists (select 1 from fin_fiscal_period where period_code = '2026-10');
 
-insert into sys_menu
-select '2421', '期间结账', '2400', '2', '#', '', '', '', 1, 0, 'F', '0', '0', 'business:generalLedger:close', '#', 'admin', sysdate(), '', null, ''
-from dual
-where not exists (select 1 from sys_menu where menu_id = '2421');
+insert into fin_fiscal_period(period_code, start_date, end_date, close_status, create_by, create_time, remark)
+select '2026-11', '2026-11-01', '2026-11-30', 'open', 'admin', sysdate(), '星辰轻量总账预置期间'
+from dual where not exists (select 1 from fin_fiscal_period where period_code = '2026-11');
 
-insert into sys_menu
-select '2422', '期间反结账', '2400', '3', '#', '', '', '', 1, 0, 'F', '0', '0', 'business:generalLedger:reopen', '#', 'admin', sysdate(), '', null, ''
+insert into fin_fiscal_period(period_code, start_date, end_date, close_status, create_by, create_time, remark)
+select '2026-12', '2026-12-01', '2026-12-31', 'open', 'admin', sysdate(), '星辰轻量总账预置期间'
+from dual where not exists (select 1 from fin_fiscal_period where period_code = '2026-12');
+
+insert into sys_menu(menu_id, menu_name, parent_id, order_num, path, component, query, route_name, is_frame, is_cache, menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time, remark)
+select 2600, '基础总账接口', 2200, 15, 'generalLedger', 'business/generalLedger/index', '', '', 1, 0, 'C', '0', '0', 'business:generalLedger:query', 'form', 'admin', sysdate(), '', null, '基础总账接口菜单'
 from dual
-where not exists (select 1 from sys_menu where menu_id = '2422');
+where not exists (select 1 from sys_menu where menu_id = 2600 or path = 'generalLedger');
+
+insert into sys_menu(menu_id, menu_name, parent_id, order_num, path, component, query, route_name, is_frame, is_cache, menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time, remark)
+select 2601, '经营分析报表', 2200, 16, 'operationReport', 'business/operationReport/index', '', '', 1, 0, 'C', '0', '0', 'business:report:query', 'chart', 'admin', sysdate(), '', null, '经营分析报表菜单'
+from dual
+where not exists (select 1 from sys_menu where menu_id = 2601 or path = 'operationReport');
+
+insert into sys_menu(menu_id, menu_name, parent_id, order_num, path, component, query, route_name, is_frame, is_cache, menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time, remark)
+select 2610, '凭证生成', 2269, 1, '#', '', '', '', 1, 0, 'F', '0', '0', 'business:voucherEvent:generate', '#', 'admin', sysdate(), '', null, ''
+from dual
+where not exists (select 1 from sys_menu where menu_id = 2610 or perms = 'business:voucherEvent:generate');
+
+insert into sys_menu(menu_id, menu_name, parent_id, order_num, path, component, query, route_name, is_frame, is_cache, menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time, remark)
+select 2611, '凭证回写', 2269, 2, '#', '', '', '', 1, 0, 'F', '0', '0', 'business:voucherEvent:writeback', '#', 'admin', sysdate(), '', null, ''
+from dual
+where not exists (select 1 from sys_menu where menu_id = 2611 or perms = 'business:voucherEvent:writeback');
+
+insert into sys_menu(menu_id, menu_name, parent_id, order_num, path, component, query, route_name, is_frame, is_cache, menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time, remark)
+select 2612, '凭证冲销', 2269, 3, '#', '', '', '', 1, 0, 'F', '0', '0', 'business:voucherEvent:reverse', '#', 'admin', sysdate(), '', null, ''
+from dual
+where not exists (select 1 from sys_menu where menu_id = 2612 or perms = 'business:voucherEvent:reverse');
+
+insert into sys_menu(menu_id, menu_name, parent_id, order_num, path, component, query, route_name, is_frame, is_cache, menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time, remark)
+select 2613, '凭证查询', 2269, 4, '#', '', '', '', 1, 0, 'F', '0', '0', 'business:voucherEvent:query', '#', 'admin', sysdate(), '', null, ''
+from dual
+where not exists (select 1 from sys_menu where menu_id = 2613 or perms = 'business:voucherEvent:query');
+
+insert into sys_menu(menu_id, menu_name, parent_id, order_num, path, component, query, route_name, is_frame, is_cache, menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time, remark)
+select 2614, '凭证删除', 2269, 5, '#', '', '', '', 1, 0, 'F', '0', '0', 'business:voucherEvent:remove', '#', 'admin', sysdate(), '', null, ''
+from dual
+where not exists (select 1 from sys_menu where menu_id = 2614 or perms = 'business:voucherEvent:remove');
+
+insert into sys_menu(menu_id, menu_name, parent_id, order_num, path, component, query, route_name, is_frame, is_cache, menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time, remark)
+select 2620, '总账查询', 2600, 1, '#', '', '', '', 1, 0, 'F', '0', '0', 'business:generalLedger:query', '#', 'admin', sysdate(), '', null, ''
+from dual
+where not exists (select 1 from sys_menu where menu_id = 2620);
+
+insert into sys_menu(menu_id, menu_name, parent_id, order_num, path, component, query, route_name, is_frame, is_cache, menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time, remark)
+select 2621, '期间结账', 2600, 2, '#', '', '', '', 1, 0, 'F', '0', '0', 'business:generalLedger:close', '#', 'admin', sysdate(), '', null, ''
+from dual
+where not exists (select 1 from sys_menu where menu_id = 2621 or perms = 'business:generalLedger:close');
+
+insert into sys_menu(menu_id, menu_name, parent_id, order_num, path, component, query, route_name, is_frame, is_cache, menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time, remark)
+select 2622, '期间反结账', 2600, 3, '#', '', '', '', 1, 0, 'F', '0', '0', 'business:generalLedger:reopen', '#', 'admin', sysdate(), '', null, ''
+from dual
+where not exists (select 1 from sys_menu where menu_id = 2622 or perms = 'business:generalLedger:reopen');
 
 insert ignore into sys_role_menu (role_id, menu_id)
-select 1, menu_id
-from sys_menu
-where menu_id in (2400, 2401, 2410, 2411, 2412, 2420, 2421, 2422);
+select r.role_id, m.menu_id
+from sys_role r
+join sys_menu m on m.menu_id in (2600, 2601, 2610, 2611, 2612, 2613, 2614, 2620, 2621, 2622)
+where r.role_id in (1, 2, 6);
 
 drop procedure if exists add_column_if_absent;

@@ -44,6 +44,12 @@ public class WarehouseStatisticsServiceImpl implements IWarehouseStatisticsServi
     @Autowired
     private WarehouseStatisticsMapper warehouseStatisticsMapper;
 
+    @Autowired(required = false)
+    private BizScopeHelper bizScopeHelper;
+
+    @Autowired(required = false)
+    private com.canglian.business.service.IFinCostCalculateService finCostCalculateService;
+
     /**
      * 查询仓库统计总览
      * 
@@ -54,6 +60,16 @@ public class WarehouseStatisticsServiceImpl implements IWarehouseStatisticsServi
     public WarehouseStatisticsOverview selectWarehouseStatisticsOverview(WarehouseStatisticsQuery warehouseStatisticsQuery)
     {
         WarehouseStatisticsQuery normalizedQuery = normalizeQuery(warehouseStatisticsQuery);
+        if (bizScopeHelper != null)
+        {
+            if (normalizedQuery.getWarehouseId() != null)
+            {
+                bizScopeHelper.assertWarehouseAccess(normalizedQuery.getWarehouseId());
+            }
+            bizScopeHelper.applyScopeFilter(normalizedQuery, "", false, true);
+        }
+        String activeCostMethod = finCostCalculateService != null ? finCostCalculateService.getGlobalCostMethod() : "moving";
+        normalizedQuery.getParams().put("costMethod", activeCostMethod);
         WarehouseStatisticsCardData inboundCard = buildInboundCard(normalizedQuery);
         WarehouseStatisticsCardData outboundCard = buildOutboundCard(normalizedQuery);
 
@@ -247,12 +263,24 @@ public class WarehouseStatisticsServiceImpl implements IWarehouseStatisticsServi
         else if (startTime != null && endTime == null)
         {
             LocalDateTime startDateTime = LocalDateTime.ofInstant(startTime.toInstant(), ZoneId.systemDefault());
-            endTime = DateUtils.toDate(startDateTime.toLocalDate().atTime(LocalTime.MAX));
+            endTime = DateUtils.toDate(startDateTime.toLocalDate().atTime(23, 59, 59));
         }
         else if (startTime == null)
         {
             LocalDateTime endDateTime = LocalDateTime.ofInstant(endTime.toInstant(), ZoneId.systemDefault());
             startTime = DateUtils.toDate(endDateTime.toLocalDate());
+            if (endDateTime.toLocalTime().equals(LocalTime.MIDNIGHT))
+            {
+                endTime = DateUtils.toDate(endDateTime.toLocalDate().atTime(23, 59, 59));
+            }
+        }
+        else
+        {
+            LocalDateTime endDateTime = LocalDateTime.ofInstant(endTime.toInstant(), ZoneId.systemDefault());
+            if (endDateTime.toLocalTime().equals(LocalTime.MIDNIGHT))
+            {
+                endTime = DateUtils.toDate(endDateTime.toLocalDate().atTime(23, 59, 59));
+            }
         }
 
         if (startTime.after(endTime))
@@ -341,7 +369,7 @@ public class WarehouseStatisticsServiceImpl implements IWarehouseStatisticsServi
             List<WarehouseStatisticsOperationItem> operationItemList, Integer operationLimit)
     {
         operationItemList.sort(Comparator.comparing(WarehouseStatisticsOperationItem::getBusinessTime,
-                Comparator.nullsLast(Date::compareTo)).reversed());
+                Comparator.nullsLast(Comparator.reverseOrder())));
         int endIndex = Math.min(operationItemList.size(), operationLimit);
         return new ArrayList<>(operationItemList.subList(0, endIndex));
     }

@@ -29,6 +29,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             <if test="locationCode != null  and locationCode != ''"> and location_code like concat('%', #{locationCode}, '%')</if>
             <if test="locationName != null  and locationName != ''"> and location_name like concat('%', #{locationName}, '%')</if>
             <if test="status != null  and status != ''"> and status = #{status}</if>
+            ${params.warehouseScope}
         </where>
     </select>
     
@@ -92,5 +93,18 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             #{locationId}
         </foreach>
     </delete>
+
+    <select id="countLocationReferences" parameterType="Long" resultType="int">
+        select
+            (select count(1) from wms_stock where location_id = #{locationId})
+          + (select count(1) from wms_inbound_item where location_id = #{locationId})
+          + (select count(1) from wms_outbound_item where location_id = #{locationId})
+          + (select count(1) from wms_transfer_item where out_location_id = #{locationId} or in_location_id = #{locationId})
+          + (select count(1) from wms_inventory_check_item where location_id = #{locationId})
+          + (select count(1) from wms_purchase_return_item where location_id = #{locationId})
+          + (select count(1) from wms_sale_return_item where location_id = #{locationId})
+          + (select count(1) from wms_stock_log where location_id = #{locationId})
+          + (select count(1) from wms_serial_no where location_id = #{locationId})
+    </select>
 </mapper>
 

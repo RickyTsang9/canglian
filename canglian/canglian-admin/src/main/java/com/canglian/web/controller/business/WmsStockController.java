@@ -1,6 +1,8 @@
 package com.canglian.web.controller.business;
 
+import java.math.BigDecimal;
 import java.util.List;
+import java.util.Map;
 import javax.servlet.http.HttpServletResponse;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -12,6 +14,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 import com.canglian.common.annotation.Log;
@@ -71,6 +74,7 @@ public class WmsStockController extends BaseController
      *
      * @param response 响应对象
      */
+    @PreAuthorize("@ss.hasPermi('business:stock:import') or @ss.hasPermi('business:stock:importTemplate')")
     @PostMapping("/importTemplate")
     public void importTemplate(HttpServletResponse response)
     {
@@ -85,6 +89,56 @@ public class WmsStockController extends BaseController
         startPage();
         List<WmsStock> list = wmsStockService.selectWmsStockRiskList(wmsStock);
         return getDataTable(list);
+    }
+
+    /**
+     * 查询效期预警库存（已过期与临期批次）
+     */
+    @PreAuthorize("@ss.hasPermi('business:stock:list')")
+    @GetMapping("/expiryWarning")
+    public TableDataInfo expiryWarning(WmsStock wmsStock)
+    {
+        startPage();
+        List<WmsStock> list = wmsStockService.selectExpiryWarningList(wmsStock);
+        return getDataTable(list);
+    }
+
+    /**
+     * 查询 FEFO（先到期先出）推荐拣货批次
+     */
+    @PreAuthorize("@ss.hasPermi('business:stock:list')")
+    @GetMapping("/fefo")
+    public AjaxResult fefo(@RequestParam Long warehouseId, @RequestParam Long productId)
+    {
+        return success(wmsStockService.selectFefoBatchList(warehouseId, productId));
+    }
+
+    /**
+     * 手工冻结库存
+     */
+    @PreAuthorize("@ss.hasPermi('business:stock:freeze')")
+    @Log(title = "库存冻结", businessType = BusinessType.UPDATE)
+    @PostMapping("/freeze")
+    public AjaxResult freeze(@RequestBody Map<String, Object> payload)
+    {
+        Long stockId = payload.get("stockId") == null ? null : Long.valueOf(String.valueOf(payload.get("stockId")));
+        BigDecimal qty = payload.get("quantity") == null ? null : new BigDecimal(String.valueOf(payload.get("quantity")));
+        String reason = payload.get("reason") == null ? null : String.valueOf(payload.get("reason"));
+        return success(wmsStockService.freezeStock(stockId, qty, reason, getUsername()));
+    }
+
+    /**
+     * 手工解冻库存
+     */
+    @PreAuthorize("@ss.hasPermi('business:stock:freeze')")
+    @Log(title = "库存解冻", businessType = BusinessType.UPDATE)
+    @PostMapping("/unfreeze")
+    public AjaxResult unfreeze(@RequestBody Map<String, Object> payload)
+    {
+        Long stockId = payload.get("stockId") == null ? null : Long.valueOf(String.valueOf(payload.get("stockId")));
+        BigDecimal qty = payload.get("quantity") == null ? null : new BigDecimal(String.valueOf(payload.get("quantity")));
+        String reason = payload.get("reason") == null ? null : String.valueOf(payload.get("reason"));
+        return success(wmsStockService.unfreezeStock(stockId, qty, reason, getUsername()));
     }
 
     /**

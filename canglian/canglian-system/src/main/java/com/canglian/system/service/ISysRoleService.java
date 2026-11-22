@@ -60,6 +60,11 @@ public interface ISysRoleService
     public SysRole selectRoleById(Long roleId);
 
     /**
+     * 查询角色已授权的仓库ID列表
+     */
+    public List<Long> selectWarehouseIdsByRoleId(Long roleId);
+
+    /**
      * 校验角色名称是否唯一
      * 
      * @param role 角色信息

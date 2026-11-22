@@ -18,6 +18,8 @@ public interface WmsTransferMapper
      */
     public WmsTransfer selectWmsTransferById(Long transferId);
 
+    public WmsTransfer selectWmsTransferByIdForUpdate(Long transferId);
+
     /**
      * 查询调拨单列表
      * 

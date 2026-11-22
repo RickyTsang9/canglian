@@ -3,78 +3,52 @@ package com.canglian.business.domain;
 import java.math.BigDecimal;
 import org.apache.commons.lang3.builder.ToStringBuilder;
 import org.apache.commons.lang3.builder.ToStringStyle;
+import com.canglian.common.annotation.Excel;
 
 /**
- * 收支汇总对象
- * 
+ * 现金收支汇总对象（收付实现制）
+ *
  * @author canglian
  */
 public class FinRevenueExpenseReport
 {
-    /** 收入金额 */
+    /** 现金收款收入 */
+    @Excel(name = "现金收款金额")
     private BigDecimal incomeAmount;
 
-    /** 支出金额 */
+    /** 现金支出金额（采购付款+已确认费用） */
+    @Excel(name = "现金支出金额")
     private BigDecimal expenseAmount;
 
-    /** 净额 */
+    /** 现金净流量 */
+    @Excel(name = "现金净额")
     private BigDecimal netAmount;
 
-    /**
-     * 获取收入金额
-     * 
-     * @return 收入金额
-     */
     public BigDecimal getIncomeAmount()
     {
         return incomeAmount;
     }
 
-    /**
-     * 设置收入金额
-     * 
-     * @param incomeAmount 收入金额
-     */
     public void setIncomeAmount(BigDecimal incomeAmount)
     {
         this.incomeAmount = incomeAmount;
     }
 
-    /**
-     * 获取支出金额
-     * 
-     * @return 支出金额
-     */
     public BigDecimal getExpenseAmount()
     {
         return expenseAmount;
     }
 
-    /**
-     * 设置支出金额
-     * 
-     * @param expenseAmount 支出金额
-     */
     public void setExpenseAmount(BigDecimal expenseAmount)
     {
         this.expenseAmount = expenseAmount;
     }
 
-    /**
-     * 获取净额
-     * 
-     * @return 净额
-     */
     public BigDecimal getNetAmount()
     {
         return netAmount;
     }
 
-    /**
-     * 设置净额
-     * 
-     * @param netAmount 净额
-     */
     public void setNetAmount(BigDecimal netAmount)
     {
         this.netAmount = netAmount;
@@ -90,4 +64,3 @@ public class FinRevenueExpenseReport
             .toString();
     }
 }
-

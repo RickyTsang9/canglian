@@ -115,6 +115,14 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         delete from fin_cost_log where cost_log_id = #{costLogId}
     </delete>
 
+    <delete id="deleteFinCostLogByAccountId" parameterType="Long">
+        delete from fin_cost_log where cost_account_id = #{costAccountId}
+    </delete>
+
+    <select id="countAllCostLogs" resultType="long">
+        select count(1) from fin_cost_log
+    </select>
+
     <delete id="deleteFinCostLogByIds" parameterType="Long">
         delete from fin_cost_log where cost_log_id in
         <foreach collection="array" item="costLogId" open="(" separator="," close=")">

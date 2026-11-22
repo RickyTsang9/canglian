@@ -18,6 +18,8 @@ public interface FinFundAccountMapper
      */
     public FinFundAccount selectFinFundAccountById(Long accountId);
 
+    public FinFundAccount selectFinFundAccountByIdForUpdate(Long accountId);
+
     /**
      * 查询资金账户列表
      * 

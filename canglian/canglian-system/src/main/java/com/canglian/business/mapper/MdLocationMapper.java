@@ -57,5 +57,7 @@ public interface MdLocationMapper
      * @return 结果
      */
     public int deleteMdLocationByLocationIds(Long[] locationIds);
+
+    public int countLocationReferences(Long locationId);
 }
 

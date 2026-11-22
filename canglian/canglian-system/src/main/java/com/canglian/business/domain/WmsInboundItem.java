@@ -1,12 +1,14 @@
 package com.canglian.business.domain;
 
 import java.math.BigDecimal;
+import java.util.Date;
+import com.fasterxml.jackson.annotation.JsonFormat;
 import org.apache.commons.lang3.builder.ToStringBuilder;
 import org.apache.commons.lang3.builder.ToStringStyle;
 
 /**
  * 入库单明细
- * 
+ *
  * @author canglian
  */
 public class WmsInboundItem
@@ -15,176 +17,96 @@ public class WmsInboundItem
 
     private Long inboundId;
 
+    private Long sourceItemId;
+
     private Long productId;
 
     private Long locationId;
 
     private String batchNo;
 
+    private String unitName;
+
+    private BigDecimal convertRatio;
+
+    private BigDecimal baseQuantity;
+
+    @JsonFormat(pattern = "yyyy-MM-dd")
+    private Date productionDate;
+
+    @JsonFormat(pattern = "yyyy-MM-dd")
+    private Date expiryDate;
+
     private BigDecimal quantity;
 
     private BigDecimal price;
 
+    private BigDecimal discountRate;
+
+    private BigDecimal taxRate;
+
+    private BigDecimal taxAmount;
+
     private BigDecimal amount;
 
-    /**
-     * 获取入库明细id
-     * 
-     * @return 入库明细id
-     */
-    public Long getInboundItemId()
-    {
-        return inboundItemId;
-    }
+    private String snCodes;
 
-    /**
-     * 设置入库明细id
-     * 
-     * @param inboundItemId 入库明细id
-     */
-    public void setInboundItemId(Long inboundItemId)
-    {
-        this.inboundItemId = inboundItemId;
-    }
+    public BigDecimal getDiscountRate() { return discountRate; }
+    public void setDiscountRate(BigDecimal discountRate) { this.discountRate = discountRate; }
+    public BigDecimal getTaxRate() { return taxRate; }
+    public void setTaxRate(BigDecimal taxRate) { this.taxRate = taxRate; }
+    public BigDecimal getTaxAmount() { return taxAmount; }
+    public void setTaxAmount(BigDecimal taxAmount) { this.taxAmount = taxAmount; }
+    public String getSnCodes() { return snCodes; }
+    public void setSnCodes(String snCodes) { this.snCodes = snCodes; }
 
-    /**
-     * 获取入库单id
-     * 
-     * @return 入库单id
-     */
-    public Long getInboundId()
-    {
-        return inboundId;
-    }
+    public Long getInboundItemId() { return inboundItemId; }
+    public void setInboundItemId(Long inboundItemId) { this.inboundItemId = inboundItemId; }
+    public Long getInboundId() { return inboundId; }
+    public void setInboundId(Long inboundId) { this.inboundId = inboundId; }
+    public Long getSourceItemId() { return sourceItemId; }
+    public void setSourceItemId(Long sourceItemId) { this.sourceItemId = sourceItemId; }
+    public Long getProductId() { return productId; }
+    public void setProductId(Long productId) { this.productId = productId; }
+    public Long getLocationId() { return locationId; }
+    public void setLocationId(Long locationId) { this.locationId = locationId; }
+    public String getBatchNo() { return batchNo; }
+    public void setBatchNo(String batchNo) { this.batchNo = batchNo; }
+    public String getUnitName() { return unitName; }
+    public void setUnitName(String unitName) { this.unitName = unitName; }
+    public BigDecimal getConvertRatio() { return convertRatio; }
+    public void setConvertRatio(BigDecimal convertRatio) { this.convertRatio = convertRatio; }
+    public BigDecimal getBaseQuantity() { return baseQuantity; }
+    public void setBaseQuantity(BigDecimal baseQuantity) { this.baseQuantity = baseQuantity; }
+    public Date getProductionDate() { return productionDate; }
+    public void setProductionDate(Date productionDate) { this.productionDate = productionDate; }
+    public Date getExpiryDate() { return expiryDate; }
+    public void setExpiryDate(Date expiryDate) { this.expiryDate = expiryDate; }
+    public BigDecimal getQuantity() { return quantity; }
+    public void setQuantity(BigDecimal quantity) { this.quantity = quantity; }
+    public BigDecimal getPrice() { return price; }
+    public void setPrice(BigDecimal price) { this.price = price; }
+    public BigDecimal getAmount() { return amount; }
+    public void setAmount(BigDecimal amount) { this.amount = amount; }
 
-    /**
-     * 设置入库单id
-     * 
-     * @param inboundId 入库单id
-     */
-    public void setInboundId(Long inboundId)
-    {
-        this.inboundId = inboundId;
-    }
-
-    /**
-     * 获取商品id
-     * 
-     * @return 商品id
-     */
-    public Long getProductId()
-    {
-        return productId;
-    }
-
-    /**
-     * 设置商品id
-     * 
-     * @param productId 商品id
-     */
-    public void setProductId(Long productId)
-    {
-        this.productId = productId;
-    }
-
-    public Long getLocationId()
-    {
-        return locationId;
-    }
-
-    public void setLocationId(Long locationId)
-    {
-        this.locationId = locationId;
-    }
-
-    public String getBatchNo()
-    {
-        return batchNo;
-    }
-
-    public void setBatchNo(String batchNo)
-    {
-        this.batchNo = batchNo;
-    }
-
-    /**
-     * 获取数量
-     * 
-     * @return 数量
-     */
-    public BigDecimal getQuantity()
-    {
-        return quantity;
-    }
-
-    /**
-     * 设置数量
-     * 
-     * @param quantity 数量
-     */
-    public void setQuantity(BigDecimal quantity)
-    {
-        this.quantity = quantity;
-    }
-
-    /**
-     * 获取单价
-     * 
-     * @return 单价
-     */
-    public BigDecimal getPrice()
-    {
-        return price;
-    }
-
-    /**
-     * 设置单价
-     * 
-     * @param price 单价
-     */
-    public void setPrice(BigDecimal price)
-    {
-        this.price = price;
-    }
-
-    /**
-     * 获取金额
-     * 
-     * @return 金额
-     */
-    public BigDecimal getAmount()
-    {
-        return amount;
-    }
-
-    /**
-     * 设置金额
-     * 
-     * @param amount 金额
-     */
-    public void setAmount(BigDecimal amount)
-    {
-        this.amount = amount;
-    }
-
-    /**
-     * 获取入库单明细字符串
-     * 
-     * @return 入库单明细字符串
-     */
     @Override
     public String toString()
     {
         return new ToStringBuilder(this, ToStringStyle.MULTI_LINE_STYLE)
             .append("inboundItemId", getInboundItemId())
             .append("inboundId", getInboundId())
+            .append("sourceItemId", getSourceItemId())
             .append("productId", getProductId())
             .append("locationId", getLocationId())
             .append("batchNo", getBatchNo())
+            .append("unitName", getUnitName())
+            .append("convertRatio", getConvertRatio())
+            .append("baseQuantity", getBaseQuantity())
+            .append("productionDate", getProductionDate())
+            .append("expiryDate", getExpiryDate())
             .append("quantity", getQuantity())
             .append("price", getPrice())
             .append("amount", getAmount())
             .toString();
     }
 }
-

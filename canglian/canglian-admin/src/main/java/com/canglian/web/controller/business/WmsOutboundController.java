@@ -1,5 +1,6 @@
 package com.canglian.web.controller.business;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.HashMap;
 import java.util.Map;
@@ -41,6 +42,9 @@ public class WmsOutboundController extends BaseController
     @Autowired
     private IWmsOutboundItemService wmsOutboundItemService;
 
+    @Autowired(required = false)
+    private PrintPayloadEnricher printPayloadEnricher;
+
     /**
      * 获取出库单列表
      */
@@ -78,6 +82,23 @@ public class WmsOutboundController extends BaseController
         Map<String, Object> printData = new HashMap<String, Object>();
         printData.put("header", outbound);
         printData.put("items", outboundItemList);
+        if (printPayloadEnricher != null)
+        {
+            List<Long> pids = new ArrayList<Long>();
+            List<Long> lids = new ArrayList<Long>();
+            if (outboundItemList != null)
+            {
+                for (WmsOutboundItem item : outboundItemList)
+                {
+                    if (item.getProductId() != null) pids.add(item.getProductId());
+                    if (item.getLocationId() != null) lids.add(item.getLocationId());
+                }
+            }
+            printData.put("displayNames", printPayloadEnricher.buildDisplayNames(
+                printPayloadEnricher.resolveCustomerName(outbound.getCustomerId()),
+                printPayloadEnricher.resolveWarehouseName(outbound.getWarehouseId()),
+                null, null, pids, lids));
+        }
         return success(printData);
     }
 
@@ -114,6 +135,28 @@ public class WmsOutboundController extends BaseController
     public AjaxResult audit(@PathVariable Long outboundId)
     {
         return toAjax(wmsOutboundService.auditWmsOutbound(outboundId, getUsername()));
+    }
+
+    /**
+     * 出库单反审核
+     */
+    @PreAuthorize("@ss.hasPermi('business:outbound:unaudit') or @ss.hasPermi('business:outbound:audit')")
+    @Log(title = "出库反审核", businessType = BusinessType.UPDATE)
+    @PutMapping("/unaudit/{outboundId}")
+    public AjaxResult unaudit(@PathVariable Long outboundId)
+    {
+        return toAjax(wmsOutboundService.unauditWmsOutbound(outboundId, getUsername()));
+    }
+
+    /**
+     * 出库单一键红冲
+     */
+    @PreAuthorize("@ss.hasPermi('business:outbound:reverse') or @ss.hasPermi('business:outbound:audit')")
+    @Log(title = "出库红冲", businessType = BusinessType.INSERT)
+    @PostMapping("/reverse/{outboundId}")
+    public AjaxResult reverse(@PathVariable Long outboundId)
+    {
+        return success(wmsOutboundService.reverseWmsOutbound(outboundId, getUsername()));
     }
 
     /**
@@ -167,9 +210,12 @@ public class WmsOutboundController extends BaseController
     @PreAuthorize("@ss.hasPermi('business:outbound:return')")
     @Log(title = "出库退货", businessType = BusinessType.UPDATE)
     @PutMapping("/return/{outboundId}")
-    public AjaxResult returnOrder(@PathVariable Long outboundId, @RequestParam(required = false) BigDecimal refundAmount, @RequestParam(required = false) Long receivableId)
+    public AjaxResult returnOrder(@PathVariable Long outboundId,
+                                  @RequestParam(required = false) BigDecimal refundAmount,
+                                  @RequestParam(required = false) Long receivableId,
+                                  @RequestParam(required = false) Long fundAccountId)
     {
-        return toAjax(wmsOutboundService.returnWmsOutbound(outboundId, refundAmount, receivableId, getUsername()));
+        return toAjax(wmsOutboundService.returnWmsOutbound(outboundId, refundAmount, receivableId, fundAccountId, getUsername()));
     }
 }
 

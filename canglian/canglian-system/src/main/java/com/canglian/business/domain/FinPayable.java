@@ -30,6 +30,9 @@ public class FinPayable extends BaseEntity
 
     private BigDecimal amount;
 
+    /** 单据方向(1正向应付 2红字退货冲减) */
+    private String billDirection;
+
     private BigDecimal paidAmount;
 
     private String status;
@@ -136,6 +139,16 @@ public class FinPayable extends BaseEntity
     public void setAmount(BigDecimal amount)
     {
         this.amount = amount;
+    }
+
+    public String getBillDirection()
+    {
+        return billDirection;
+    }
+
+    public void setBillDirection(String billDirection)
+    {
+        this.billDirection = billDirection;
     }
 
     public BigDecimal getPaidAmount()

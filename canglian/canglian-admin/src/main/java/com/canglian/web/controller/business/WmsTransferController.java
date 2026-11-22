@@ -1,5 +1,6 @@
 package com.canglian.web.controller.business;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.HashMap;
 import java.util.Map;
@@ -34,6 +35,9 @@ public class WmsTransferController extends BaseController
     @Autowired
     private IWmsTransferItemService wmsTransferItemService;
 
+    @Autowired(required = false)
+    private PrintPayloadEnricher printPayloadEnricher;
+
     @PreAuthorize("@ss.hasPermi('business:transfer:list')")
     @GetMapping("/list")
     public TableDataInfo list(WmsTransfer wmsTransfer)
@@ -65,6 +69,25 @@ public class WmsTransferController extends BaseController
         Map<String, Object> printData = new HashMap<String, Object>();
         printData.put("header", transfer);
         printData.put("items", transferItemList);
+        if (printPayloadEnricher != null)
+        {
+            List<Long> pids = new ArrayList<Long>();
+            List<Long> lids = new ArrayList<Long>();
+            if (transferItemList != null)
+            {
+                for (WmsTransferItem item : transferItemList)
+                {
+                    if (item.getProductId() != null) pids.add(item.getProductId());
+                    if (item.getOutLocationId() != null) lids.add(item.getOutLocationId());
+                    if (item.getInLocationId() != null) lids.add(item.getInLocationId());
+                }
+            }
+            printData.put("displayNames", printPayloadEnricher.buildDisplayNames(
+                null, null,
+                printPayloadEnricher.resolveWarehouseName(transfer.getOutWarehouseId()),
+                printPayloadEnricher.resolveWarehouseName(transfer.getInWarehouseId()),
+                pids, lids));
+        }
         return success(printData);
     }
 
@@ -103,6 +126,22 @@ public class WmsTransferController extends BaseController
     public AjaxResult audit(@PathVariable Long transferId)
     {
         return toAjax(wmsTransferService.auditWmsTransfer(transferId, getUsername()));
+    }
+
+    @PreAuthorize("@ss.hasPermi('business:transfer:unaudit') or @ss.hasPermi('business:transfer:audit')")
+    @Log(title = "调拨反审核", businessType = BusinessType.UPDATE)
+    @PutMapping("/unaudit/{transferId}")
+    public AjaxResult unaudit(@PathVariable Long transferId)
+    {
+        return toAjax(wmsTransferService.unauditWmsTransfer(transferId, getUsername()));
+    }
+
+    @PreAuthorize("@ss.hasPermi('business:transfer:unaudit') or @ss.hasPermi('business:transfer:audit')")
+    @Log(title = "调拨红冲", businessType = BusinessType.INSERT)
+    @PostMapping("/reverse/{transferId}")
+    public AjaxResult reverse(@PathVariable Long transferId)
+    {
+        return success(wmsTransferService.reverseWmsTransfer(transferId, getUsername()));
     }
 }
 

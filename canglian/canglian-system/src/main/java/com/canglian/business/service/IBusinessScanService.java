@@ -41,6 +41,8 @@ public interface IBusinessScanService
      */
     public Map<String, Object> scanStock(String barCode, Long warehouseId, String locationCode);
 
+    public Map<String, Object> scanStock(String barCode, Long warehouseId, String locationCode, String batchNo);
+
     /**
      * 扫码快速生成销货订单
      * 
@@ -67,4 +69,12 @@ public interface IBusinessScanService
      * @return 调拨单
      */
     public WmsTransfer createTransfer(ScanTransferRequest scanTransferRequest, String operator);
+
+    /** 扫码快速入库建单（支持批次/效期与包装条码解析） */
+    public Map<String, Object> createQuickInbound(Map<String, Object> payload, String operator);
+
+    /** 扫码出库核验（按出库单号与扫码条码列表逐一核对数量） */
+    public Map<String, Object> verifyOutboundByScan(Long outboundId, java.util.List<Map<String, Object>> scannedItems);
+
+    public Map<String, Object> verifyOutboundByScan(Long outboundId, java.util.List<Map<String, Object>> scannedItems, String operator);
 }

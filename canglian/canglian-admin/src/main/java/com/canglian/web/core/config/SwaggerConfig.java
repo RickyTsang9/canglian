@@ -115,7 +115,7 @@ public class SwaggerConfig
                 // 设置标题
                 .title("标题：仓链管理系统_接口文档")
                 // 描述
-                .description("描述：用于管理集团旗下公司的人员信息,具体包括XXX,XXX模块...")
+                .description("描述：仓链轻量级进销存与业财一体化管理系统接口文档，覆盖基础档案、购销订单、仓储作业、应收应付、成本核算及经营分析模块")
                 // 作者信息
                 .contact(new Contact(canglianConfig.getName(), null, null))
                 // 版本

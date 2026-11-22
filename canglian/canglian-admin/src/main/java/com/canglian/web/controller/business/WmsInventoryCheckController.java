@@ -72,6 +72,22 @@ public class WmsInventoryCheckController extends BaseController
         return toAjax(wmsInventoryCheckService.auditWmsInventoryCheck(checkId, getUsername()));
     }
 
+    @PreAuthorize("@ss.hasPermi('business:inventoryCheck:unaudit') or @ss.hasPermi('business:inventoryCheck:audit')")
+    @Log(title = "盘点反审核", businessType = BusinessType.UPDATE)
+    @PutMapping("/unaudit/{checkId}")
+    public AjaxResult unaudit(@PathVariable Long checkId)
+    {
+        return toAjax(wmsInventoryCheckService.unauditWmsInventoryCheck(checkId, getUsername()));
+    }
+
+    @PreAuthorize("@ss.hasPermi('business:inventoryCheck:unaudit') or @ss.hasPermi('business:inventoryCheck:audit')")
+    @Log(title = "盘点红冲", businessType = BusinessType.INSERT)
+    @PostMapping("/reverse/{checkId}")
+    public AjaxResult reverse(@PathVariable Long checkId)
+    {
+        return success(wmsInventoryCheckService.reverseWmsInventoryCheck(checkId, getUsername()));
+    }
+
     @PreAuthorize("@ss.hasPermi('business:inventoryCheck:remove')")
     @Log(title = "盘点单", businessType = BusinessType.DELETE)
     @DeleteMapping("/{checkIds}")

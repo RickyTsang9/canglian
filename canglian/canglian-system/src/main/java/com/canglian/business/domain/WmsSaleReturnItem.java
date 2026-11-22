@@ -1,6 +1,8 @@
 package com.canglian.business.domain;
 
 import java.math.BigDecimal;
+import java.util.Date;
+import com.fasterxml.jackson.annotation.JsonFormat;
 import org.apache.commons.lang3.builder.ToStringBuilder;
 import org.apache.commons.lang3.builder.ToStringStyle;
 import com.canglian.common.core.domain.BaseEntity;
@@ -20,11 +22,42 @@ public class WmsSaleReturnItem extends BaseEntity
 
     private Long productId;
 
+    private Long locationId;
+
+    private String batchNo;
+
+    private String unitName;
+
+    private BigDecimal convertRatio;
+
+    private BigDecimal baseQuantity;
+
+    @JsonFormat(pattern = "yyyy-MM-dd")
+    private Date productionDate;
+
+    @JsonFormat(pattern = "yyyy-MM-dd")
+    private Date expiryDate;
+
+    private String snCodes;
+
     private BigDecimal quantity;
 
     private BigDecimal price;
 
     private BigDecimal amount;
+
+    public String getUnitName() { return unitName; }
+    public void setUnitName(String unitName) { this.unitName = unitName; }
+    public BigDecimal getConvertRatio() { return convertRatio; }
+    public void setConvertRatio(BigDecimal convertRatio) { this.convertRatio = convertRatio; }
+    public BigDecimal getBaseQuantity() { return baseQuantity; }
+    public void setBaseQuantity(BigDecimal baseQuantity) { this.baseQuantity = baseQuantity; }
+    public Date getProductionDate() { return productionDate; }
+    public void setProductionDate(Date productionDate) { this.productionDate = productionDate; }
+    public Date getExpiryDate() { return expiryDate; }
+    public void setExpiryDate(Date expiryDate) { this.expiryDate = expiryDate; }
+    public String getSnCodes() { return snCodes; }
+    public void setSnCodes(String snCodes) { this.snCodes = snCodes; }
 
     /**
      * 获取销售退货明细id
@@ -84,6 +117,26 @@ public class WmsSaleReturnItem extends BaseEntity
     public void setProductId(Long productId)
     {
         this.productId = productId;
+    }
+
+    public Long getLocationId()
+    {
+        return locationId;
+    }
+
+    public void setLocationId(Long locationId)
+    {
+        this.locationId = locationId;
+    }
+
+    public String getBatchNo()
+    {
+        return batchNo;
+    }
+
+    public void setBatchNo(String batchNo)
+    {
+        this.batchNo = batchNo;
     }
 
     /**

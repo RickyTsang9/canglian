@@ -18,8 +18,10 @@
 
 <script setup>
 import { updateUserPwd } from "@/api/system/user"
+import useUserStore from "@/store/modules/user"
 
 const { proxy } = getCurrentInstance()
+const userStore = useUserStore()
 
 const user = reactive({
   oldPassword: undefined,
@@ -46,6 +48,7 @@ function submit() {
   proxy.$refs.pwdRef.validate(valid => {
     if (valid) {
       updateUserPwd(user.oldPassword, user.newPassword).then(response => {
+        userStore.needChangePassword = false
         proxy.$modal.msgSuccess("修改成功")
       })
     }

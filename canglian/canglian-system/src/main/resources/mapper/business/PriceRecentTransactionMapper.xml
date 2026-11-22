@@ -9,6 +9,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         <result property="customerId" column="customer_id" />
         <result property="productId" column="product_id" />
         <result property="salePrice" column="sale_price" />
+        <result property="unitName" column="unit_name" />
         <result property="sourceBillType" column="source_bill_type" />
         <result property="sourceBillId" column="source_bill_id" />
         <result property="businessDate" column="business_date" />
@@ -20,7 +21,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
     </resultMap>
 
     <sql id="selectPriceRecentTransactionVo">
-        select recent_price_id, customer_id, product_id, sale_price, source_bill_type, source_bill_id, business_date,
+        select recent_price_id, customer_id, product_id, sale_price, unit_name, source_bill_type, source_bill_id, business_date,
                create_by, create_time, update_by, update_time, remark
         from price_recent_transaction
     </sql>
@@ -49,6 +50,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             <if test="customerId != null">customer_id,</if>
             <if test="productId != null">product_id,</if>
             <if test="salePrice != null">sale_price,</if>
+            <if test="unitName != null">unit_name,</if>
             <if test="sourceBillType != null">source_bill_type,</if>
             <if test="sourceBillId != null">source_bill_id,</if>
             <if test="businessDate != null">business_date,</if>
@@ -61,6 +63,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             <if test="customerId != null">#{customerId},</if>
             <if test="productId != null">#{productId},</if>
             <if test="salePrice != null">#{salePrice},</if>
+            <if test="unitName != null">#{unitName},</if>
             <if test="sourceBillType != null">#{sourceBillType},</if>
             <if test="sourceBillId != null">#{sourceBillId},</if>
             <if test="businessDate != null">#{businessDate},</if>
@@ -77,6 +80,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             <if test="customerId != null">customer_id = #{customerId},</if>
             <if test="productId != null">product_id = #{productId},</if>
             <if test="salePrice != null">sale_price = #{salePrice},</if>
+            <if test="unitName != null">unit_name = #{unitName},</if>
             <if test="sourceBillType != null">source_bill_type = #{sourceBillType},</if>
             <if test="sourceBillId != null">source_bill_id = #{sourceBillId},</if>
             <if test="businessDate != null">business_date = #{businessDate},</if>
@@ -96,5 +100,9 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         <foreach collection="array" item="recentPriceId" open="(" separator="," close=")">
             #{recentPriceId}
         </foreach>
+    </delete>
+
+    <delete id="deleteBySourceBill">
+        delete from price_recent_transaction where source_bill_type = #{sourceBillType} and source_bill_id = #{sourceBillId}
     </delete>
 </mapper>

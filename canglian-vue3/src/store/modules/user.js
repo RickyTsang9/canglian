@@ -15,7 +15,8 @@ const useUserStore = defineStore(
       nickName: '',
       avatar: '',
       roles: [],
-      permissions: []
+      permissions: [],
+      needChangePassword: false
     }),
     actions: {
       // 登录
@@ -53,8 +54,9 @@ const useUserStore = defineStore(
             this.name = user.userName
             this.nickName = user.nickName
             this.avatar = avatar
+            this.needChangePassword = Boolean(res.needChangePassword)
             /* 初始密码提示 */
-            if(res.isDefaultModifyPwd) {
+            if (!this.needChangePassword && res.isDefaultModifyPwd) {
               ElMessageBox.confirm('您的密码还是初始密码，请修改密码！',  '安全提示', {  confirmButtonText: '确定',  cancelButtonText: '取消',  type: 'warning' }).then(() => {
                 router.push({ name: 'Profile', params: { activeTab: 'resetPwd' } })
               }).catch(() => {})
@@ -78,6 +80,7 @@ const useUserStore = defineStore(
             this.token = ''
             this.roles = []
             this.permissions = []
+            this.needChangePassword = false
             removeToken()
             resolve()
           }).catch(error => {

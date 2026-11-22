@@ -17,6 +17,53 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         order by subject_code asc
     </select>
 
+    <select id="selectAccountSubjectById" resultType="map">
+        select subject_id as subjectId, subject_code as subjectCode, subject_name as subjectName,
+               subject_type as subjectType, balance_direction as balanceDirection, status,
+               create_by as createBy, create_time as createTime, update_by as updateBy, update_time as updateTime, remark
+        from fin_account_subject
+        where subject_id = #{subjectId}
+    </select>
+
+    <select id="countAccountSubjectByCode" resultType="int">
+        select count(1)
+        from fin_account_subject
+        where subject_code = #{subjectCode}
+        <if test="excludeId != null">
+          and subject_id != #{excludeId}
+        </if>
+    </select>
+
+    <insert id="insertAccountSubject" parameterType="map" useGeneratedKeys="true" keyProperty="subjectId">
+        insert into fin_account_subject (
+            subject_code, subject_name, subject_type, balance_direction, status,
+            create_by, create_time, remark
+        ) values (
+            #{subjectCode}, #{subjectName}, coalesce(#{subjectType}, 'asset'),
+            coalesce(#{balanceDirection}, 'debit'), coalesce(#{status}, '0'),
+            coalesce(#{createBy}, 'admin'), sysdate(), #{remark}
+        )
+    </insert>
+
+    <update id="updateAccountSubject" parameterType="map">
+        update fin_account_subject
+        <set>
+            <if test="subjectCode != null and subjectCode != ''">subject_code = #{subjectCode},</if>
+            <if test="subjectName != null and subjectName != ''">subject_name = #{subjectName},</if>
+            <if test="subjectType != null and subjectType != ''">subject_type = #{subjectType},</if>
+            <if test="balanceDirection != null and balanceDirection != ''">balance_direction = #{balanceDirection},</if>
+            <if test="status != null and status != ''">status = #{status},</if>
+            <if test="remark != null">remark = #{remark},</if>
+            update_by = coalesce(#{updateBy}, 'admin'),
+            update_time = sysdate()
+        </set>
+        where subject_id = #{subjectId}
+    </update>
+
+    <delete id="deleteAccountSubjectById">
+        delete from fin_account_subject where subject_id = #{subjectId}
+    </delete>
+
     <select id="selectAuxiliaryItemList" resultType="map">
         select auxiliary_id as auxiliaryId, auxiliary_type as auxiliaryType, item_code as itemCode,
                item_name as itemName, relation_id as relationId, status,
@@ -28,6 +75,51 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             </if>
         </where>
         order by auxiliary_type asc, item_code asc
+    </select>
+
+    <select id="countAuxiliaryItem" resultType="int">
+        select count(1)
+        from fin_auxiliary_item
+        where auxiliary_type = #{auxiliaryType}
+          and relation_id = #{relationId}
+    </select>
+
+    <insert id="insertAuxiliaryItem">
+        insert into fin_auxiliary_item (
+            auxiliary_type, item_code, item_name, relation_id, status, create_by, create_time, remark
+        ) values (
+            #{auxiliaryType}, #{itemCode}, #{itemName}, #{relationId}, coalesce(#{status}, '0'),
+            coalesce(#{operator}, 'admin'), sysdate(), '主数据自动同步'
+        )
+    </insert>
+
+    <update id="updateAuxiliaryItem">
+        update fin_auxiliary_item
+        set item_code = #{itemCode},
+            item_name = #{itemName},
+            status = coalesce(#{status}, '0'),
+            update_by = coalesce(#{operator}, 'admin'),
+            update_time = sysdate()
+        where auxiliary_type = #{auxiliaryType}
+          and relation_id = #{relationId}
+    </update>
+
+    <select id="selectActiveCustomersForAux" resultType="map">
+        select customer_id as relationId, customer_code as itemCode, customer_name as itemName, status
+        from md_customer
+        where coalesce(del_flag, '0') = '0'
+    </select>
+
+    <select id="selectActiveSuppliersForAux" resultType="map">
+        select supplier_id as relationId, supplier_code as itemCode, supplier_name as itemName, status
+        from md_supplier
+        where coalesce(del_flag, '0') = '0'
+    </select>
+
+    <select id="selectActiveWarehousesForAux" resultType="map">
+        select warehouse_id as relationId, warehouse_code as itemCode, warehouse_name as itemName, status
+        from md_warehouse
+        where coalesce(del_flag, '0') = '0'
     </select>
 
     <select id="selectFiscalPeriodList" resultType="map">
@@ -43,6 +135,47 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         order by period_code desc
     </select>
 
+    <select id="selectFiscalPeriodById" resultType="map">
+        select period_id as periodId, period_code as periodCode, start_date as startDate, end_date as endDate,
+               close_status as closeStatus, close_by as closeBy, close_time as closeTime
+        from fin_fiscal_period
+        where period_id = #{periodId}
+    </select>
+
+    <select id="countFiscalPeriodByCode" resultType="int">
+        select count(1) from fin_fiscal_period where period_code = #{periodCode}
+    </select>
+
+    <insert id="insertFiscalPeriod">
+        insert into fin_fiscal_period (
+            period_code, start_date, end_date, close_status, create_by, create_time, remark
+        ) values (
+            #{periodCode}, #{startDate}, #{endDate}, 'open', coalesce(#{operator}, 'admin'), sysdate(), #{remark}
+        )
+    </insert>
+
+    <select id="selectClosedPeriodCodeByDate" resultType="String">
+        select period_code
+        from fin_fiscal_period
+        where close_status = 'closed'
+          and date(#{targetDate}) between start_date and end_date
+        limit 1
+    </select>
+
+    <select id="countEarlierOpenPeriods" resultType="int">
+        select count(1)
+        from fin_fiscal_period
+        where period_code &lt; #{periodCode}
+          and close_status != 'closed'
+    </select>
+
+    <select id="countLaterClosedPeriods" resultType="int">
+        select count(1)
+        from fin_fiscal_period
+        where period_code &gt; #{periodCode}
+          and close_status = 'closed'
+    </select>
+
     <update id="updateFiscalPeriodCloseStatus">
         update fin_fiscal_period
         set close_status = #{closeStatus},
@@ -52,4 +185,94 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             update_time = sysdate()
         where period_id = #{periodId}
     </update>
+
+    <select id="countDraftInboundInPeriod" resultType="int">
+        select count(1) from wms_inbound
+        where status = '0'
+          and date(coalesce(business_date, create_time)) between date(#{startDate}) and date(#{endDate})
+    </select>
+
+    <select id="countDraftOutboundInPeriod" resultType="int">
+        select count(1) from wms_outbound
+        where status = '0'
+          and date(coalesce(business_date, create_time)) between date(#{startDate}) and date(#{endDate})
+    </select>
+
+    <select id="countDraftTransferInPeriod" resultType="int">
+        select count(1) from wms_transfer
+        where status = '0'
+          and date(coalesce(business_date, create_time)) between date(#{startDate}) and date(#{endDate})
+    </select>
+
+    <select id="countDraftInventoryCheckInPeriod" resultType="int">
+        select count(1) from wms_inventory_check
+        where status = '0'
+          and date(coalesce(business_date, create_time)) between date(#{startDate}) and date(#{endDate})
+    </select>
+
+    <select id="countDraftPurchaseReturnInPeriod" resultType="int">
+        select count(1) from wms_purchase_return
+        where status = '0'
+          and date(coalesce(business_date, create_time)) between date(#{startDate}) and date(#{endDate})
+    </select>
+
+    <select id="countDraftSaleReturnInPeriod" resultType="int">
+        select count(1) from wms_sale_return
+        where status = '0'
+          and date(coalesce(business_date, create_time)) between date(#{startDate}) and date(#{endDate})
+    </select>
+
+    <select id="countDraftReceiptInPeriod" resultType="int">
+        select count(1) from fin_receipt
+        where status = '0'
+          and date(coalesce(receipt_date, create_time)) between date(#{startDate}) and date(#{endDate})
+    </select>
+
+    <select id="countDraftPaymentInPeriod" resultType="int">
+        select count(1) from fin_payment
+        where status = '0'
+          and date(coalesce(payment_date, create_time)) between date(#{startDate}) and date(#{endDate})
+    </select>
+
+    <select id="countDraftExpenseInPeriod" resultType="int">
+        select count(1) from fin_expense
+        where status = '0'
+          and date(coalesce(expense_date, create_time)) between date(#{startDate}) and date(#{endDate})
+    </select>
+
+    <select id="countDraftInvoiceInPeriod" resultType="int">
+        select count(1) from fin_invoice
+        where status = '0'
+          and date(coalesce(business_date, invoice_date, create_time)) between date(#{startDate}) and date(#{endDate})
+    </select>
+
+    <select id="countDraftWriteOffInPeriod" resultType="int">
+        select count(1) from fin_write_off
+        where status = '0'
+          and date(coalesce(write_off_date, create_time)) between date(#{startDate}) and date(#{endDate})
+    </select>
+
+    <select id="countDraftBadDebtInPeriod" resultType="int">
+        select count(1) from fin_bad_debt
+        where status = '0'
+          and date(coalesce(bad_debt_date, create_time)) between date(#{startDate}) and date(#{endDate})
+    </select>
+
+    <select id="countDraftFundTransferInPeriod" resultType="int">
+        select count(1) from fin_fund_transfer
+        where status = '0'
+          and date(coalesce(transfer_date, create_time)) between date(#{startDate}) and date(#{endDate})
+    </select>
+
+    <select id="countPendingVoucherEventInPeriod" resultType="int">
+        select count(1) from fin_voucher_event
+        where status = '0'
+          and date(coalesce(event_date, create_time)) between date(#{startDate}) and date(#{endDate})
+    </select>
+
+    <select id="countUnwrittenBackVoucherInPeriod" resultType="int">
+        select count(1) from fin_voucher_event
+        where status = '1'
+          and date(coalesce(event_date, create_time)) between date(#{startDate}) and date(#{endDate})
+    </select>
 </mapper>

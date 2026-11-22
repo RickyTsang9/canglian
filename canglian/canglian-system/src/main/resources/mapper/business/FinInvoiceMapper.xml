@@ -8,8 +8,12 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         <id property="invoiceId" column="invoice_id" />
         <result property="invoiceNo" column="invoice_no" />
         <result property="invoiceType" column="invoice_type" />
+        <result property="invoiceKind" column="invoice_kind" />
+        <result property="originInvoiceId" column="origin_invoice_id" />
         <result property="customerId" column="customer_id" />
         <result property="supplierId" column="supplier_id" />
+        <result property="deptId" column="dept_id" />
+        <result property="ownerUserId" column="owner_user_id" />
         <result property="sourceBillType" column="source_bill_type" />
         <result property="sourceBillId" column="source_bill_id" />
         <result property="sourceBillNo" column="source_bill_no" />
@@ -31,9 +35,11 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
     </resultMap>
 
     <sql id="selectFinInvoiceVo">
-        select invoice_id, invoice_no, invoice_type, customer_id, supplier_id, source_bill_type, source_bill_id,
-               source_bill_no, business_date, invoice_date, invoice_amount, tax_rate, tax_amount, untaxed_amount,
-               status, biz_status, confirm_by, confirm_time, create_by, create_time, update_by, update_time, remark
+        select invoice_id, invoice_no, invoice_type, coalesce(invoice_kind, 'blue') as invoice_kind,
+               origin_invoice_id, customer_id, supplier_id, dept_id, owner_user_id,
+               source_bill_type, source_bill_id, source_bill_no, business_date, invoice_date,
+               invoice_amount, tax_rate, tax_amount, untaxed_amount, status, biz_status,
+               confirm_by, confirm_time, create_by, create_time, update_by, update_time, remark
         from fin_invoice
     </sql>
 
@@ -45,29 +51,20 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
     <select id="selectFinInvoiceList" parameterType="FinInvoice" resultMap="FinInvoiceResult">
         <include refid="selectFinInvoiceVo"/>
         <where>
-            <if test="invoiceNo != null and invoiceNo != ''">
-                and invoice_no like concat('%', #{invoiceNo}, '%')
-            </if>
-            <if test="invoiceType != null and invoiceType != ''">
-                and invoice_type = #{invoiceType}
-            </if>
-            <if test="customerId != null">
-                and customer_id = #{customerId}
-            </if>
-            <if test="supplierId != null">
-                and supplier_id = #{supplierId}
-            </if>
-            <if test="sourceBillNo != null and sourceBillNo != ''">
-                and source_bill_no like concat('%', #{sourceBillNo}, '%')
-            </if>
-            <if test="bizStatus != null and bizStatus != ''">
-                and biz_status = #{bizStatus}
-            </if>
-            <if test="status != null and status != ''">
-                and status = #{status}
-            </if>
+            <if test="invoiceNo != null and invoiceNo != ''">and invoice_no like concat('%', #{invoiceNo}, '%')</if>
+            <if test="invoiceType != null and invoiceType != ''">and invoice_type = #{invoiceType}</if>
+            <if test="invoiceKind != null and invoiceKind != ''">and coalesce(invoice_kind, 'blue') = #{invoiceKind}</if>
+            <if test="originInvoiceId != null">and origin_invoice_id = #{originInvoiceId}</if>
+            <if test="customerId != null">and customer_id = #{customerId}</if>
+            <if test="supplierId != null">and supplier_id = #{supplierId}</if>
+            <if test="sourceBillType != null and sourceBillType != ''">and source_bill_type = #{sourceBillType}</if>
+            <if test="sourceBillId != null">and source_bill_id = #{sourceBillId}</if>
+            <if test="sourceBillNo != null and sourceBillNo != ''">and source_bill_no like concat('%', #{sourceBillNo}, '%')</if>
+            <if test="bizStatus != null and bizStatus != ''">and biz_status = #{bizStatus}</if>
+            <if test="status != null and status != ''">and status = #{status}</if>
+            ${params.dataScope}
         </where>
-        order by create_time desc
+        order by create_time desc, invoice_id desc
     </select>
 
     <insert id="insertFinInvoice" parameterType="FinInvoice" useGeneratedKeys="true" keyProperty="invoiceId">
@@ -75,8 +72,12 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         <trim prefix="(" suffix=")" suffixOverrides=",">
             <if test="invoiceNo != null and invoiceNo != ''">invoice_no,</if>
             <if test="invoiceType != null">invoice_type,</if>
+            <if test="invoiceKind != null">invoice_kind,</if>
+            <if test="originInvoiceId != null">origin_invoice_id,</if>
             <if test="customerId != null">customer_id,</if>
             <if test="supplierId != null">supplier_id,</if>
+            <if test="deptId != null">dept_id,</if>
+            <if test="ownerUserId != null">owner_user_id,</if>
             <if test="sourceBillType != null">source_bill_type,</if>
             <if test="sourceBillId != null">source_bill_id,</if>
             <if test="sourceBillNo != null and sourceBillNo != ''">source_bill_no,</if>
@@ -98,8 +99,12 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         <trim prefix="values (" suffix=")" suffixOverrides=",">
             <if test="invoiceNo != null and invoiceNo != ''">#{invoiceNo},</if>
             <if test="invoiceType != null">#{invoiceType},</if>
+            <if test="invoiceKind != null">#{invoiceKind},</if>
+            <if test="originInvoiceId != null">#{originInvoiceId},</if>
             <if test="customerId != null">#{customerId},</if>
             <if test="supplierId != null">#{supplierId},</if>
+            <if test="deptId != null">#{deptId},</if>
+            <if test="ownerUserId != null">#{ownerUserId},</if>
             <if test="sourceBillType != null">#{sourceBillType},</if>
             <if test="sourceBillId != null">#{sourceBillId},</if>
             <if test="sourceBillNo != null and sourceBillNo != ''">#{sourceBillNo},</if>
@@ -125,8 +130,10 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         <set>
             <if test="invoiceNo != null and invoiceNo != ''">invoice_no = #{invoiceNo},</if>
             <if test="invoiceType != null">invoice_type = #{invoiceType},</if>
-            <if test="customerId != null">customer_id = #{customerId},</if>
-            <if test="supplierId != null">supplier_id = #{supplierId},</if>
+            <if test="invoiceKind != null">invoice_kind = #{invoiceKind},</if>
+            <if test="originInvoiceId != null">origin_invoice_id = #{originInvoiceId},</if>
+            customer_id = #{customerId},
+            supplier_id = #{supplierId},
             <if test="sourceBillType != null">source_bill_type = #{sourceBillType},</if>
             <if test="sourceBillId != null">source_bill_id = #{sourceBillId},</if>
             <if test="sourceBillNo != null and sourceBillNo != ''">source_bill_no = #{sourceBillNo},</if>
@@ -159,6 +166,6 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
     </delete>
 
     <select id="selectMaxInvoiceNoByPrefix" parameterType="String" resultType="String">
-        select max(invoice_no) from fin_invoice where invoice_no like concat(#{invoiceNoPrefix}, '%')
+        select invoice_no from fin_invoice where invoice_no like concat(#{invoiceNoPrefix}, '%') order by length(invoice_no) desc, invoice_no desc limit 1
     </select>
 </mapper>

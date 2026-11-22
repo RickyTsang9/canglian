@@ -1,5 +1,6 @@
 package com.canglian.web.controller.business;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -15,6 +16,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import com.canglian.business.domain.PurOrder;
+import com.canglian.business.domain.PurOrderItem;
 import com.canglian.business.service.IPurOrderService;
 import com.canglian.common.annotation.Log;
 import com.canglian.common.core.controller.BaseController;
@@ -24,7 +26,7 @@ import com.canglian.common.enums.BusinessType;
 
 /**
  * 购货订单控制器
- * 
+ *
  * @author canglian
  */
 @RestController
@@ -34,12 +36,9 @@ public class PurOrderController extends BaseController
     @Autowired
     private IPurOrderService purOrderService;
 
-    /**
-     * 查询购货订单列表
-     * 
-     * @param purOrder 购货订单
-     * @return 购货订单列表
-     */
+    @Autowired(required = false)
+    private PrintPayloadEnricher printPayloadEnricher;
+
     @PreAuthorize("@ss.hasPermi('business:purOrder:list')")
     @GetMapping("/list")
     public TableDataInfo list(PurOrder purOrder)
@@ -49,12 +48,6 @@ public class PurOrderController extends BaseController
         return getDataTable(purOrderList);
     }
 
-    /**
-     * 查询购货订单详情
-     * 
-     * @param purchaseOrderId 购货订单id
-     * @return 购货订单详情
-     */
     @PreAuthorize("@ss.hasPermi('business:purOrder:query')")
     @GetMapping("/{purchaseOrderId}")
     public AjaxResult getInfo(@PathVariable Long purchaseOrderId)
@@ -62,12 +55,6 @@ public class PurOrderController extends BaseController
         return success(purOrderService.selectPurOrderById(purchaseOrderId));
     }
 
-    /**
-     * 新增购货订单
-     * 
-     * @param purOrder 购货订单
-     * @return 结果
-     */
     @PreAuthorize("@ss.hasPermi('business:purOrder:add')")
     @Log(title = "购货订单", businessType = BusinessType.INSERT)
     @PostMapping
@@ -77,12 +64,6 @@ public class PurOrderController extends BaseController
         return toAjax(purOrderService.insertPurOrder(purOrder));
     }
 
-    /**
-     * 修改购货订单
-     * 
-     * @param purOrder 购货订单
-     * @return 结果
-     */
     @PreAuthorize("@ss.hasPermi('business:purOrder:edit')")
     @Log(title = "购货订单", businessType = BusinessType.UPDATE)
     @PutMapping
@@ -92,12 +73,6 @@ public class PurOrderController extends BaseController
         return toAjax(purOrderService.updatePurOrder(purOrder));
     }
 
-    /**
-     * 审批购货订单
-     * 
-     * @param purchaseOrderId 购货订单id
-     * @return 结果
-     */
     @PreAuthorize("@ss.hasPermi('business:purOrder:approve')")
     @Log(title = "购货订单审批", businessType = BusinessType.UPDATE)
     @PutMapping("/approve/{purchaseOrderId}")
@@ -106,26 +81,32 @@ public class PurOrderController extends BaseController
         return toAjax(purOrderService.approvePurOrder(purchaseOrderId, getUsername()));
     }
 
-    /**
-     * 下推入库单
-     * 
-     * @param purchaseOrderId 购货订单id
-     * @return 结果
-     */
+    @PreAuthorize("@ss.hasPermi('business:purOrder:close') or @ss.hasPermi('business:purOrder:approve')")
+    @Log(title = "购货订单反审批", businessType = BusinessType.UPDATE)
+    @PutMapping("/unapprove/{purchaseOrderId}")
+    public AjaxResult unapprove(@PathVariable Long purchaseOrderId)
+    {
+        return toAjax(purOrderService.unapprovePurOrder(purchaseOrderId, getUsername()));
+    }
+
+    @PreAuthorize("@ss.hasPermi('business:purOrder:close') or @ss.hasPermi('business:purOrder:approve')")
+    @Log(title = "购货订单强制关闭", businessType = BusinessType.UPDATE)
+    @PutMapping("/close/{purchaseOrderId}")
+    public AjaxResult close(@PathVariable Long purchaseOrderId, @RequestBody(required = false) Map<String, Object> body)
+    {
+        String reason = body != null && body.get("closeReason") != null ? String.valueOf(body.get("closeReason")) : null;
+        return toAjax(purOrderService.closePurOrder(purchaseOrderId, reason, getUsername()));
+    }
+
     @PreAuthorize("@ss.hasPermi('business:purOrder:pushInbound')")
     @Log(title = "购货订单下推入库单", businessType = BusinessType.UPDATE)
     @PutMapping("/pushInbound/{purchaseOrderId}")
-    public AjaxResult pushInbound(@PathVariable Long purchaseOrderId)
+    public AjaxResult pushInbound(@PathVariable Long purchaseOrderId,
+                                  @RequestBody(required = false) List<Map<String, Object>> pushItems)
     {
-        return toAjax(purOrderService.pushPurOrderToInbound(purchaseOrderId, getUsername()));
+        return toAjax(purOrderService.pushPurOrderToInbound(purchaseOrderId, pushItems, getUsername()));
     }
 
-    /**
-     * 查询打印数据
-     * 
-     * @param purchaseOrderId 购货订单id
-     * @return 打印数据
-     */
     @PreAuthorize("@ss.hasPermi('business:purOrder:print')")
     @GetMapping("/print/{purchaseOrderId}")
     public AjaxResult printData(@PathVariable Long purchaseOrderId)
@@ -138,15 +119,27 @@ public class PurOrderController extends BaseController
         Map<String, Object> printData = new HashMap<String, Object>();
         printData.put("header", purOrder);
         printData.put("items", purOrder.getOrderItemList());
+        if (printPayloadEnricher != null)
+        {
+            List<Long> pids = new ArrayList<Long>();
+            if (purOrder.getOrderItemList() != null)
+            {
+                for (PurOrderItem item : purOrder.getOrderItemList())
+                {
+                    if (item.getProductId() != null)
+                    {
+                        pids.add(item.getProductId());
+                    }
+                }
+            }
+            printData.put("displayNames", printPayloadEnricher.buildDisplayNames(
+                printPayloadEnricher.resolveSupplierName(purOrder.getSupplierId()),
+                printPayloadEnricher.resolveWarehouseName(purOrder.getWarehouseId()),
+                null, null, pids, null));
+        }
         return success(printData);
     }
 
-    /**
-     * 删除购货订单
-     * 
-     * @param purchaseOrderIds 购货订单id集合
-     * @return 结果
-     */
     @PreAuthorize("@ss.hasPermi('business:purOrder:remove')")
     @Log(title = "购货订单", businessType = BusinessType.DELETE)
     @DeleteMapping("/{purchaseOrderIds}")

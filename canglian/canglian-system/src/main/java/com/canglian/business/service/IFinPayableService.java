@@ -1,5 +1,7 @@
 package com.canglian.business.service;
 
+import java.math.BigDecimal;
+import java.util.Date;
 import java.util.List;
 import com.canglian.business.domain.FinPayable;
 
@@ -10,61 +12,37 @@ import com.canglian.business.domain.FinPayable;
  */
 public interface IFinPayableService
 {
-    /**
-     * 查询应付单信息
-     * 
-     * @param payableId 应付单id
-     * @return 应付单信息
-     */
     public FinPayable selectFinPayableById(Long payableId);
 
-    /**
-     * 查询应付单列表
-     * 
-     * @param finPayable 应付单信息
-     * @return 应付单集合
-     */
     public List<FinPayable> selectFinPayableList(FinPayable finPayable);
 
-    /**
-     * 新增应付单
-     * 
-     * @param finPayable 应付单信息
-     * @return 结果
-     */
     public int insertFinPayable(FinPayable finPayable);
 
-    /**
-     * 修改应付单
-     * 
-     * @param finPayable 应付单信息
-     * @return 结果
-     */
     public int updateFinPayable(FinPayable finPayable);
 
-    /**
-     * 删除应付单
-     * 
-     * @param payableId 应付单id
-     * @return 结果
-     */
     public int deleteFinPayableById(Long payableId);
 
-    /**
-     * 批量删除应付单
-     * 
-     * @param payableIds 需要删除的应付单id
-     * @return 结果
-     */
     public int deleteFinPayableByIds(Long[] payableIds);
 
-    /**
-     * 审核应付单
-     * 
-     * @param payableId 应付单id
-     * @param operator 操作人
-     * @return 结果
-     */
     public int auditFinPayable(Long payableId, String operator);
-}
 
+    /** 反确认应付单（开放账期、未发生付款/对冲且非业务单据自动生成） */
+    public int unconfirmFinPayable(Long payableId, String operator);
+
+    /**
+     * 采购退货自动生成已确认的红字应付冲减单（幂等）
+     */
+    public FinPayable createRedPayableForReturn(Long supplierId, String sourceBillType, Long sourceBillId,
+        String sourceBillNo, Date businessDate, BigDecimal returnAmount, String operator, String remark);
+
+    /**
+     * 红蓝应付单互冲核销（将红字待抵扣余额冲抵指定正向应付单未付余额）
+     */
+    public int offsetRedPayable(Long redPayableId, Long targetPayableId, BigDecimal offsetAmount, String operator);
+
+    /** 查询应付红蓝对冲台账 */
+    public List<com.canglian.business.domain.FinOffsetLog> selectOffsetLogs(Long payableId);
+
+    /** 撤销应付红蓝对冲 */
+    public int unoffsetRedPayable(Long offsetId, String operator);
+}

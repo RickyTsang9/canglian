@@ -89,6 +89,14 @@ public class FinWriteOffController extends BaseController
         return toAjax(finWriteOffService.confirmFinWriteOff(writeOffId, getUsername()));
     }
 
+    @PreAuthorize("@ss.hasPermi('business:writeOff:confirm')")
+    @Log(title = "核销反确认", businessType = BusinessType.UPDATE)
+    @PostMapping("/unconfirm/{writeOffId}")
+    public AjaxResult unconfirm(@PathVariable Long writeOffId)
+    {
+        return toAjax(finWriteOffService.unconfirmFinWriteOff(writeOffId, getUsername()));
+    }
+
     /**
      * 删除核销
      */

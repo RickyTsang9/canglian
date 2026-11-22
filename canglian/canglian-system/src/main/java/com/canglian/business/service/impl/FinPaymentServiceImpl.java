@@ -3,25 +3,30 @@ package com.canglian.business.service.impl;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
+import java.util.Date;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Objects;
+import java.util.Set;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
-import com.canglian.business.domain.FinPayment;
-import com.canglian.business.domain.FinPayable;
-import com.canglian.business.domain.FinWriteOff;
-import com.canglian.business.mapper.FinPaymentMapper;
-import com.canglian.business.mapper.FinPayableMapper;
-import com.canglian.business.mapper.FinWriteOffMapper;
-import com.canglian.business.service.IFinPaymentService;
-import com.canglian.common.exception.ServiceException;
-import com.canglian.common.utils.SecurityUtils;
-import com.canglian.common.utils.StringUtils;
 import org.springframework.transaction.annotation.Transactional;
+import com.canglian.business.domain.FinPayable;
+import com.canglian.business.domain.FinPayment;
+import com.canglian.business.domain.FinWriteOff;
+import com.canglian.business.mapper.FinPayableMapper;
+import com.canglian.business.mapper.FinPaymentMapper;
+import com.canglian.business.mapper.FinWriteOffMapper;
+import com.canglian.business.service.IFinFundLogService;
+import com.canglian.business.service.IFinGeneralLedgerService;
+import com.canglian.business.service.IFinPaymentService;
+import com.canglian.business.service.IFinVoucherEventService;
+import com.canglian.common.exception.ServiceException;
+import com.canglian.common.utils.StringUtils;
 
 /**
- * 付款单 服务层实现
- * 
+ * 付款单 服务层实现（草稿 -> 确认记账 -> 反确认 状态机 + 资金流水）
+ *
  * @author canglian
  */
 @Service
@@ -38,122 +43,219 @@ public class FinPaymentServiceImpl implements IFinPaymentService
     @Autowired
     private FinWriteOffMapper finWriteOffMapper;
 
-    /**
-     * 查询付款单信息
-     * 
-     * @param paymentId 付款单id
-     * @return 付款单信息
-     */
+    @Autowired
+    private IFinFundLogService finFundLogService;
+
+    @Autowired
+    private IFinGeneralLedgerService finGeneralLedgerService;
+
+    @Autowired(required = false)
+    private IFinVoucherEventService finVoucherEventService;
+
+    @Autowired(required = false)
+    private BizScopeHelper bizScopeHelper;
+
     @Override
     public FinPayment selectFinPaymentById(Long paymentId)
     {
-        return finPaymentMapper.selectFinPaymentById(paymentId);
+        FinPayment payment = finPaymentMapper.selectFinPaymentById(paymentId);
+        if (payment != null && bizScopeHelper != null)
+        {
+            bizScopeHelper.assertRecordAccess(payment.getDeptId(), payment.getOwnerUserId(), null);
+        }
+        return payment;
     }
 
-    /**
-     * 查询付款单列表
-     * 
-     * @param finPayment 付款单信息
-     * @return 付款单集合
-     */
     @Override
     public List<FinPayment> selectFinPaymentList(FinPayment finPayment)
     {
+        if (bizScopeHelper != null)
+        {
+            bizScopeHelper.applyScopeFilter(finPayment, "", true, false);
+        }
         return finPaymentMapper.selectFinPaymentList(finPayment);
     }
 
-    /**
-     * 新增付款单
-     * 
-     * @param finPayment 付款单信息
-     * @return 结果
-     */
     @Override
-    @Transactional
+    @Transactional(rollbackFor = Exception.class)
     public int insertFinPayment(FinPayment finPayment)
     {
+        if (bizScopeHelper != null)
+        {
+            if (finPayment.getDeptId() == null) finPayment.setDeptId(bizScopeHelper.currentDeptId());
+            if (finPayment.getOwnerUserId() == null) finPayment.setOwnerUserId(bizScopeHelper.currentUserId());
+        }
         if (StringUtils.isEmpty(finPayment.getPaymentNo()))
         {
             finPayment.setPaymentNo(generatePaymentNo());
         }
+        if (finPayment.getPaymentDate() == null)
+        {
+            finPayment.setPaymentDate(new Date());
+        }
+        finGeneralLedgerService.assertPeriodOpen(finPayment.getPaymentDate());
         validatePaymentAmount(finPayment.getAmount());
-        syncPayablePaidAmount(null, finPayment, finPayment.getCreateBy());
+        if (finPayment.getPayableId() != null)
+        {
+            FinPayable ap = getExistingPayable(finPayment.getPayableId());
+            validatePayableRelation(ap, finPayment);
+        }
+        finPayment.setStatus("0");
+        finPayment.setBizStatus("draft");
+        finPayment.setAuditBy(null);
+        finPayment.setAuditTime(null);
         return finPaymentMapper.insertFinPayment(finPayment);
     }
 
-    /**
-     * 修改付款单
-     * 
-     * @param finPayment 付款单信息
-     * @return 结果
-     */
     @Override
-    @Transactional
+    @Transactional(rollbackFor = Exception.class)
     public int updateFinPayment(FinPayment finPayment)
     {
-        FinPayment existingFinPayment = getExistingPayment(finPayment.getPaymentId());
+        FinPayment existing = getExistingPayment(finPayment.getPaymentId());
+        if (bizScopeHelper != null) bizScopeHelper.assertRecordAccess(existing.getDeptId(), existing.getOwnerUserId(), null);
+        if ("1".equals(existing.getStatus()) || "confirmed".equals(existing.getBizStatus()))
+        {
+            throw new ServiceException("付款单已确认入账，禁止直接修改，请先反确认");
+        }
+        finGeneralLedgerService.assertPeriodOpen(existing.getPaymentDate() == null ? new Date() : existing.getPaymentDate());
+        if (finPayment.getPaymentDate() != null) finGeneralLedgerService.assertPeriodOpen(finPayment.getPaymentDate());
         validatePaymentAmount(finPayment.getAmount());
-        validateWriteOffImpact(existingFinPayment, finPayment);
-        syncPayablePaidAmount(existingFinPayment, finPayment, finPayment.getUpdateBy());
+        if (finPayment.getPayableId() != null)
+        {
+            FinPayable ap = getExistingPayable(finPayment.getPayableId());
+            validatePayableRelation(ap, finPayment);
+        }
+        finPayment.setPaymentNo(existing.getPaymentNo());
+        finPayment.setStatus("0");
+        finPayment.setBizStatus("draft");
+        finPayment.setAuditBy(null);
+        finPayment.setAuditTime(null);
         return finPaymentMapper.updateFinPayment(finPayment);
     }
 
-    /**
-     * 删除付款单
-     * 
-     * @param paymentId 付款单id
-     * @return 结果
-     */
     @Override
-    @Transactional
+    @Transactional(rollbackFor = Exception.class)
+    public int confirmFinPayment(Long paymentId, String operator)
+    {
+        FinPayment payment = getExistingPayment(paymentId);
+        if (bizScopeHelper != null) bizScopeHelper.assertRecordAccess(payment.getDeptId(), payment.getOwnerUserId(), null);
+        if ("1".equals(payment.getStatus()) || "confirmed".equals(payment.getBizStatus()))
+        {
+            throw new ServiceException("付款单已确认入账，请勿重复确认");
+        }
+        if (payment.getFundAccountId() == null)
+        {
+            throw new ServiceException("确认付款出账必须选择资金账户");
+        }
+        Date bizDate = payment.getPaymentDate() == null ? new Date() : payment.getPaymentDate();
+        finGeneralLedgerService.assertPeriodOpen(bizDate);
+        validatePaymentAmount(payment.getAmount());
+
+        if (payment.getPayableId() != null)
+        {
+            FinPayable ap = getExistingPayable(payment.getPayableId());
+            validatePayableRelation(ap, payment);
+            adjustPayablePaidAmount(ap, payment.getAmount(), operator);
+        }
+        finFundLogService.recordBalanceChange(payment.getFundAccountId(), "payment",
+            payment.getPaymentId(), payment.getPaymentNo(), defaultAmount(payment.getAmount()).negate(),
+            bizDate, "供应商#" + payment.getSupplierId() + " 付款确认", payment.getRemark(), operator);
+
+        payment.setStatus("1");
+        payment.setBizStatus("confirmed");
+        payment.setAuditBy(operator);
+        payment.setAuditTime(new Date());
+        payment.setUpdateBy(operator);
+        int rows = finPaymentMapper.updateFinPayment(payment);
+        if (rows > 0 && finVoucherEventService != null)
+        {
+            finVoucherEventService.recordVoucherEvent("payment", payment.getPaymentId(), payment.getPaymentNo(),
+                "payment_confirm", bizDate, payment.getAmount(), operator, "付款确认出账待生成凭证");
+        }
+        return rows;
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public int unconfirmFinPayment(Long paymentId, String operator)
+    {
+        FinPayment payment = getExistingPayment(paymentId);
+        if (bizScopeHelper != null) bizScopeHelper.assertRecordAccess(payment.getDeptId(), payment.getOwnerUserId(), null);
+        if (!"1".equals(payment.getStatus()) && !"confirmed".equals(payment.getBizStatus()))
+        {
+            throw new ServiceException("仅已确认状态的付款单允许反确认");
+        }
+        Date bizDate = payment.getPaymentDate() == null ? new Date() : payment.getPaymentDate();
+        finGeneralLedgerService.assertPeriodOpen(bizDate);
+        FinWriteOff woQ = new FinWriteOff();
+        woQ.setPaymentId(paymentId);
+        List<FinWriteOff> linkedWos = finWriteOffMapper.selectFinWriteOffList(woQ);
+        if (linkedWos != null && !linkedWos.isEmpty())
+        {
+            throw new ServiceException("该付款单存在关联核销单(" + linkedWos.get(0).getWriteOffNo() + ")，请先反确认/删除核销单后再反确认付款单");
+        }
+        if (finVoucherEventService != null)
+        {
+            finVoucherEventService.cancelPendingVoucherEvents("payment", paymentId);
+        }
+
+        if (payment.getPayableId() != null)
+        {
+            FinPayable ap = getExistingPayable(payment.getPayableId());
+            adjustPayablePaidAmount(ap, defaultAmount(payment.getAmount()).negate(), operator);
+        }
+        if (payment.getFundAccountId() != null)
+        {
+            finFundLogService.recordBalanceChange(payment.getFundAccountId(), "unconfirm",
+                payment.getPaymentId(), payment.getPaymentNo(), defaultAmount(payment.getAmount()),
+                new Date(), "付款单反确认冲回", "反确认原付款单：" + payment.getPaymentNo(), operator);
+        }
+
+        payment.setStatus("0");
+        payment.setBizStatus("draft");
+        payment.setAuditBy("");
+        payment.setAuditTime(null);
+        payment.setUpdateBy(operator);
+        return finPaymentMapper.updateFinPayment(payment);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
     public int deleteFinPaymentById(Long paymentId)
     {
-        FinPayment finPayment = getExistingPayment(paymentId);
-        checkPaymentDeletable(finPayment);
-        rollbackPayablePaidAmount(finPayment, resolveOperator(finPayment.getUpdateBy()));
+        FinPayment p = getExistingPayment(paymentId);
+        if (bizScopeHelper != null) bizScopeHelper.assertRecordAccess(p.getDeptId(), p.getOwnerUserId(), null);
+        checkPaymentDeletable(p);
+        finGeneralLedgerService.assertPeriodOpen(p.getPaymentDate() == null ? new Date() : p.getPaymentDate());
         return finPaymentMapper.deleteFinPaymentById(paymentId);
     }
 
-    /**
-     * 批量删除付款单
-     * 
-     * @param paymentIds 需要删除的付款单id
-     * @return 结果
-     */
     @Override
-    @Transactional
+    @Transactional(rollbackFor = Exception.class)
     public int deleteFinPaymentByIds(Long[] paymentIds)
     {
-        for (Long paymentId : paymentIds)
+        Set<Long> uniqueIds = new LinkedHashSet<Long>();
+        for (Long id : paymentIds)
         {
-            FinPayment finPayment = getExistingPayment(paymentId);
-            checkPaymentDeletable(finPayment);
-            rollbackPayablePaidAmount(finPayment, resolveOperator(finPayment.getUpdateBy()));
+            if (id != null) uniqueIds.add(id);
         }
-        return finPaymentMapper.deleteFinPaymentByIds(paymentIds);
+        for (Long id : uniqueIds)
+        {
+            FinPayment p = getExistingPayment(id);
+            if (bizScopeHelper != null) bizScopeHelper.assertRecordAccess(p.getDeptId(), p.getOwnerUserId(), null);
+            checkPaymentDeletable(p);
+            finGeneralLedgerService.assertPeriodOpen(p.getPaymentDate() == null ? new Date() : p.getPaymentDate());
+        }
+        return finPaymentMapper.deleteFinPaymentByIds(uniqueIds.toArray(new Long[0]));
     }
 
-    /**
-     * 获取已存在的付款单
-     * 
-     * @param paymentId 付款单id
-     * @return 付款单信息
-     */
     private FinPayment getExistingPayment(Long paymentId)
     {
         FinPayment finPayment = finPaymentMapper.selectFinPaymentById(paymentId);
-        if (finPayment == null)
-        {
-            throw new ServiceException("付款单不存在");
-        }
+        if (finPayment == null) throw new ServiceException("付款单不存在");
         return finPayment;
     }
 
-    /**
-     * 校验付款金额
-     * 
-     * @param paymentAmount 付款金额
-     */
     private void validatePaymentAmount(BigDecimal paymentAmount)
     {
         if (paymentAmount == null || paymentAmount.compareTo(BigDecimal.ZERO) <= 0)
@@ -162,106 +264,25 @@ public class FinPaymentServiceImpl implements IFinPaymentService
         }
     }
 
-    /**
-     * 校验付款单修改是否影响已确认核销
-     * 
-     * @param existingFinPayment 已存在的付款单信息
-     * @param newFinPayment 新付款单信息
-     */
-    private void validateWriteOffImpact(FinPayment existingFinPayment, FinPayment newFinPayment)
-    {
-        BigDecimal confirmedWriteOffAmount = getConfirmedWriteOffAmount(existingFinPayment.getPaymentId());
-        if (confirmedWriteOffAmount.compareTo(BigDecimal.ZERO) <= 0)
-        {
-            return;
-        }
-        if (!Objects.equals(existingFinPayment.getSupplierId(), newFinPayment.getSupplierId()))
-        {
-            throw new ServiceException("付款单已存在确认核销记录，不允许修改供应商");
-        }
-        if (!Objects.equals(existingFinPayment.getPayableId(), newFinPayment.getPayableId()))
-        {
-            throw new ServiceException("付款单已存在确认核销记录，不允许修改关联应付单");
-        }
-        if (defaultAmount(newFinPayment.getAmount()).compareTo(confirmedWriteOffAmount) < 0)
-        {
-            throw new ServiceException("付款单金额不能小于已确认核销金额");
-        }
-    }
-
-    /**
-     * 校验付款单是否允许删除
-     * 
-     * @param finPayment 付款单信息
-     */
     private void checkPaymentDeletable(FinPayment finPayment)
     {
-        BigDecimal confirmedWriteOffAmount = getConfirmedWriteOffAmount(finPayment.getPaymentId());
-        if (confirmedWriteOffAmount.compareTo(BigDecimal.ZERO) > 0)
+        if ("1".equals(finPayment.getStatus()) || "confirmed".equals(finPayment.getBizStatus()))
+        {
+            throw new ServiceException("付款单已确认出账，禁止直接删除，请先执行反确认");
+        }
+        if (getConfirmedWriteOffAmount(finPayment.getPaymentId()).compareTo(BigDecimal.ZERO) > 0)
         {
             throw new ServiceException("付款单已存在确认核销记录，不允许删除");
         }
     }
 
-    /**
-     * 同步应付单已付金额
-     * 
-     * @param oldFinPayment 原付款单信息
-     * @param newFinPayment 新付款单信息
-     * @param operator 操作人
-     */
-    private void syncPayablePaidAmount(FinPayment oldFinPayment, FinPayment newFinPayment, String operator)
-    {
-        if (oldFinPayment != null)
-        {
-            rollbackPayablePaidAmount(oldFinPayment, operator);
-        }
-        if (newFinPayment.getPayableId() != null)
-        {
-            FinPayable finPayable = getExistingPayable(newFinPayment.getPayableId());
-            validatePayableRelation(finPayable, newFinPayment);
-            adjustPayablePaidAmount(finPayable, newFinPayment.getAmount(), operator);
-        }
-    }
-
-    /**
-     * 回滚应付单已付金额
-     * 
-     * @param finPayment 付款单信息
-     * @param operator 操作人
-     */
-    private void rollbackPayablePaidAmount(FinPayment finPayment, String operator)
-    {
-        if (finPayment.getPayableId() == null)
-        {
-            return;
-        }
-        FinPayable finPayable = getExistingPayable(finPayment.getPayableId());
-        adjustPayablePaidAmount(finPayable, defaultAmount(finPayment.getAmount()).negate(), operator);
-    }
-
-    /**
-     * 获取已存在的应付单
-     * 
-     * @param payableId 应付单id
-     * @return 应付单信息
-     */
     private FinPayable getExistingPayable(Long payableId)
     {
         FinPayable finPayable = finPayableMapper.selectFinPayableById(payableId);
-        if (finPayable == null)
-        {
-            throw new ServiceException("关联应付单不存在");
-        }
+        if (finPayable == null) throw new ServiceException("关联应付单不存在");
         return finPayable;
     }
 
-    /**
-     * 校验付款单与应付单关联关系
-     * 
-     * @param finPayable 应付单信息
-     * @param finPayment 付款单信息
-     */
     private void validatePayableRelation(FinPayable finPayable, FinPayment finPayment)
     {
         if (!"confirmed".equals(finPayable.getBizStatus()))
@@ -278,13 +299,6 @@ public class FinPaymentServiceImpl implements IFinPaymentService
         }
     }
 
-    /**
-     * 调整应付单已付金额
-     * 
-     * @param finPayable 应付单信息
-     * @param changeAmount 调整金额
-     * @param operator 操作人
-     */
     private void adjustPayablePaidAmount(FinPayable finPayable, BigDecimal changeAmount, String operator)
     {
         BigDecimal currentPaidAmount = defaultAmount(finPayable.getPaidAmount());
@@ -304,104 +318,39 @@ public class FinPaymentServiceImpl implements IFinPaymentService
         finPayableMapper.updateFinPayable(finPayable);
     }
 
-    /**
-     * 查询付款单已确认核销金额
-     * 
-     * @param paymentId 付款单id
-     * @return 已确认核销金额
-     */
     private BigDecimal getConfirmedWriteOffAmount(Long paymentId)
     {
-        FinWriteOff queryFinWriteOff = new FinWriteOff();
-        queryFinWriteOff.setPaymentId(paymentId);
-        queryFinWriteOff.setStatus("1");
-        return sumWriteOffAmount(finWriteOffMapper.selectFinWriteOffList(queryFinWriteOff));
+        FinWriteOff q = new FinWriteOff();
+        q.setPaymentId(paymentId);
+        q.setStatus("1");
+        List<FinWriteOff> list = finWriteOffMapper.selectFinWriteOffList(q);
+        BigDecimal total = BigDecimal.ZERO;
+        if (list != null)
+        {
+            for (FinWriteOff w : list) total = total.add(defaultAmount(w.getAmount()));
+        }
+        return total;
     }
 
-    /**
-     * 生成付款单号
-     * 
-     * @return 付款单号
-     */
     private String generatePaymentNo()
     {
-        String paymentNoPrefix = "pay" + LocalDate.now().format(DOCUMENT_DATE_FORMATTER);
-        String currentMaxPaymentNo = finPaymentMapper.selectMaxPaymentNoByPrefix(paymentNoPrefix);
-        int nextSequence = 1;
-        if (StringUtils.isNotEmpty(currentMaxPaymentNo) && currentMaxPaymentNo.length() > paymentNoPrefix.length())
+        String prefix = "pay" + LocalDate.now().format(DOCUMENT_DATE_FORMATTER);
+        String maxNo = finPaymentMapper.selectMaxPaymentNoByPrefix(prefix);
+        int nextSeq = 1;
+        if (StringUtils.isNotEmpty(maxNo) && maxNo.length() > prefix.length())
         {
-            String sequenceText = currentMaxPaymentNo.substring(paymentNoPrefix.length());
-            if (StringUtils.isNumeric(sequenceText))
-            {
-                nextSequence = Integer.parseInt(sequenceText) + 1;
-            }
+            String tail = maxNo.substring(prefix.length());
+            if (StringUtils.isNumeric(tail)) nextSeq = Integer.parseInt(tail) + 1;
         }
-        return paymentNoPrefix + String.format("%03d", nextSequence);
+        return prefix + String.format("%03d", nextSeq);
     }
 
-    /**
-     * 汇总核销金额
-     * 
-     * @param finWriteOffList 核销记录集合
-     * @return 核销金额
-     */
-    private BigDecimal sumWriteOffAmount(List<FinWriteOff> finWriteOffList)
-    {
-        BigDecimal totalWriteOffAmount = BigDecimal.ZERO;
-        for (FinWriteOff finWriteOff : finWriteOffList)
-        {
-            totalWriteOffAmount = totalWriteOffAmount.add(defaultAmount(finWriteOff.getAmount()));
-        }
-        return totalWriteOffAmount;
-    }
+    private BigDecimal defaultAmount(BigDecimal amount) { return amount == null ? BigDecimal.ZERO : amount; }
 
-    /**
-     * 空金额转默认值
-     * 
-     * @param amount 金额
-     * @return 默认金额
-     */
-    private BigDecimal defaultAmount(BigDecimal amount)
+    private String calculatePaymentStatus(BigDecimal paid, BigDecimal total)
     {
-        return amount == null ? BigDecimal.ZERO : amount;
-    }
-
-    /**
-     * 计算付款状态
-     * 
-     * @param paidAmount 已付金额
-     * @param payableAmount 应付金额
-     * @return 付款状态
-     */
-    private String calculatePaymentStatus(BigDecimal paidAmount, BigDecimal payableAmount)
-    {
-        if (defaultAmount(paidAmount).compareTo(BigDecimal.ZERO) <= 0)
-        {
-            return "0";
-        }
-        if (defaultAmount(paidAmount).compareTo(defaultAmount(payableAmount)) >= 0)
-        {
-            return "2";
-        }
+        if (defaultAmount(paid).compareTo(BigDecimal.ZERO) <= 0) return "0";
+        if (defaultAmount(paid).compareTo(defaultAmount(total)) >= 0) return "2";
         return "1";
     }
-
-    /**
-     * 解析当前操作人
-     * 
-     * @param fallbackOperator 兜底操作人
-     * @return 当前操作人
-     */
-    private String resolveOperator(String fallbackOperator)
-    {
-        try
-        {
-            return SecurityUtils.getUsername();
-        }
-        catch (Exception exception)
-        {
-            return fallbackOperator;
-        }
-    }
 }
-

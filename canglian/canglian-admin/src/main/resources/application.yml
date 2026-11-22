@@ -12,6 +12,10 @@ canglian:
   addressEnabled: false
   # 验证码类型 math 数字计算 char 字符验证
   captchaType: math
+  # 生产安全开关（可通过 application-prod.yml 或环境变量覆盖）
+  security:
+    enforceCaptcha: ${ENFORCE_CAPTCHA:false}
+    forcePasswordChange: ${FORCE_PASSWORD_CHANGE:false}
 
 # 开发环境配置
 server:
@@ -34,7 +38,7 @@ server:
 # 日志配置
 logging:
   level:
-    com.canglian: debug
+    com.canglian: ${LOG_LEVEL:info}
     org.springframework: warn
 
 # 用户配置
@@ -64,7 +68,7 @@ spring:
   devtools:
     restart:
       # 热部署开关
-      enabled: true
+      enabled: ${DEVTOOLS_ENABLED:false}
   # redis 配置
   redis:
     # 地址
@@ -92,10 +96,10 @@ spring:
 token:
   # 令牌自定义标识
   header: Authorization
-  # 令牌密钥
-  secret: abcdefghijklmnopqrstuvwxyz
+  # 令牌密钥（生产环境必须通过 JWT_SECRET 环境变量注入 >=32 字节强随机密钥）
+  secret: ${JWT_SECRET:abcdefghijklmnopqrstuvwxyz}
   # 令牌有效期（默认30分钟）
-  expireTime: 30
+  expireTime: ${JWT_EXPIRE_MINUTES:30}
 
 # MyBatis配置
 mybatis:
@@ -114,17 +118,23 @@ pagehelper:
 
 # Swagger配置
 swagger:
-  # 是否开启swagger
-  enabled: true
+  # 是否开启swagger（生产环境关闭）
+  enabled: ${SWAGGER_ENABLED:false}
   # 请求前缀
   pathMapping: /dev-api
+
+springfox:
+  documentation:
+    enabled: ${SWAGGER_ENABLED:false}
+    swagger-ui:
+      enabled: ${SWAGGER_ENABLED:false}
 
 # 防盗链配置
 referer:
   # 防盗链开关
-  enabled: false
+  enabled: ${REFERER_ENABLED:false}
   # 允许的域名列表
-  allowed-domains: localhost,127.0.0.1,canglian.vip,www.canglian.vip
+  allowed-domains: ${ALLOWED_DOMAINS:localhost,127.0.0.1,canglian.vip,www.canglian.vip}
 
 # 防止XSS攻击
 xss:

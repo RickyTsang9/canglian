@@ -23,6 +23,19 @@ public class MdSupplier extends BaseEntity
     @Excel(name = "付款账期")
     private Integer payableDays;
 
+    @Excel(name = "期初应付余额")
+    private java.math.BigDecimal openingPayable;
+
+    public java.math.BigDecimal getOpeningPayable()
+    {
+        return openingPayable;
+    }
+
+    public void setOpeningPayable(java.math.BigDecimal openingPayable)
+    {
+        this.openingPayable = openingPayable;
+    }
+
     @Excel(name = "联系人")
     private String contactPerson;
 

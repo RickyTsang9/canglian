@@ -5,57 +5,26 @@ import com.canglian.business.domain.FinPayment;
 
 /**
  * 付款单 服务层
- * 
+ *
  * @author canglian
  */
 public interface IFinPaymentService
 {
-    /**
-     * 查询付款单信息
-     * 
-     * @param paymentId 付款单id
-     * @return 付款单信息
-     */
     public FinPayment selectFinPaymentById(Long paymentId);
 
-    /**
-     * 查询付款单列表
-     * 
-     * @param finPayment 付款单信息
-     * @return 付款单集合
-     */
     public List<FinPayment> selectFinPaymentList(FinPayment finPayment);
 
-    /**
-     * 新增付款单
-     * 
-     * @param finPayment 付款单信息
-     * @return 结果
-     */
     public int insertFinPayment(FinPayment finPayment);
 
-    /**
-     * 修改付款单
-     * 
-     * @param finPayment 付款单信息
-     * @return 结果
-     */
     public int updateFinPayment(FinPayment finPayment);
 
-    /**
-     * 删除付款单
-     * 
-     * @param paymentId 付款单id
-     * @return 结果
-     */
+    /** 确认付款单（记入资金流水、同步应付已付、触发凭证事件） */
+    public int confirmFinPayment(Long paymentId, String operator);
+
+    /** 反确认付款单（开放账期且无后续核销/未生成凭证，逆向冲回资金与应付并恢复草稿） */
+    public int unconfirmFinPayment(Long paymentId, String operator);
+
     public int deleteFinPaymentById(Long paymentId);
 
-    /**
-     * 批量删除付款单
-     * 
-     * @param paymentIds 需要删除的付款单id
-     * @return 结果
-     */
     public int deleteFinPaymentByIds(Long[] paymentIds);
 }
-

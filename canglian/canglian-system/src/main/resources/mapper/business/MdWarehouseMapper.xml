@@ -52,6 +52,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             <if test="delFlag != null and delFlag != ''">
                 and del_flag = #{delFlag}
             </if>
+            ${params.warehouseScope}
         </where>
     </select>
 
@@ -112,5 +113,22 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             #{warehouseId}
         </foreach>
     </delete>
+
+    <select id="countWarehouseReferences" parameterType="Long" resultType="int">
+        select
+            (select count(1) from wms_stock where warehouse_id = #{warehouseId})
+          + (select count(1) from md_location where warehouse_id = #{warehouseId})
+          + (select count(1) from pur_order where warehouse_id = #{warehouseId})
+          + (select count(1) from sal_order where warehouse_id = #{warehouseId})
+          + (select count(1) from wms_inbound where warehouse_id = #{warehouseId})
+          + (select count(1) from wms_outbound where warehouse_id = #{warehouseId})
+          + (select count(1) from wms_transfer where out_warehouse_id = #{warehouseId} or in_warehouse_id = #{warehouseId})
+          + (select count(1) from wms_inventory_check where warehouse_id = #{warehouseId})
+          + (select count(1) from wms_purchase_return where warehouse_id = #{warehouseId})
+          + (select count(1) from wms_sale_return where warehouse_id = #{warehouseId})
+          + (select count(1) from wms_stock_log where warehouse_id = #{warehouseId})
+          + (select count(1) from wms_serial_no where warehouse_id = #{warehouseId})
+          + (select count(1) from fin_cost_account where warehouse_id = #{warehouseId})
+    </select>
 </mapper>
 

@@ -8,23 +8,55 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         <id property="purchaseOrderItemId" column="purchase_order_item_id" />
         <result property="purchaseOrderId" column="purchase_order_id" />
         <result property="productId" column="product_id" />
+        <result property="unitName" column="unit_name" />
+        <result property="convertRatio" column="convert_ratio" />
+        <result property="baseQuantity" column="base_quantity" />
         <result property="quantity" column="quantity" />
+        <result property="receivedQty" column="received_qty" />
         <result property="price" column="price" />
+        <result property="discountRate" column="discount_rate" />
+        <result property="taxRate" column="tax_rate" />
+        <result property="taxAmount" column="tax_amount" />
         <result property="amount" column="amount" />
         <result property="remark" column="remark" />
     </resultMap>
 
-    <select id="selectPurOrderItemListByOrderId" parameterType="Long" resultMap="PurOrderItemResult">
-        select purchase_order_item_id, purchase_order_id, product_id, quantity, price, amount, remark
+    <sql id="selectPurOrderItemVo">
+        select purchase_order_item_id, purchase_order_id, product_id, unit_name, convert_ratio, base_quantity,
+               quantity, coalesce(received_qty, 0) as received_qty, price,
+               coalesce(discount_rate, 100.00) as discount_rate, coalesce(tax_rate, 0.00) as tax_rate,
+               coalesce(tax_amount, 0.00) as tax_amount, amount, remark
         from pur_order_item
+    </sql>
+
+    <select id="selectPurOrderItemListByOrderId" parameterType="Long" resultMap="PurOrderItemResult">
+        <include refid="selectPurOrderItemVo"/>
         where purchase_order_id = #{purchaseOrderId}
         order by purchase_order_item_id asc
     </select>
 
+    <select id="selectPurOrderItemById" parameterType="Long" resultMap="PurOrderItemResult">
+        <include refid="selectPurOrderItemVo"/>
+        where purchase_order_item_id = #{purchaseOrderItemId}
+    </select>
+
     <insert id="insertPurOrderItem" parameterType="PurOrderItem" useGeneratedKeys="true" keyProperty="purchaseOrderItemId">
-        insert into pur_order_item(purchase_order_id, product_id, quantity, price, amount, remark)
-        values(#{purchaseOrderId}, #{productId}, #{quantity}, #{price}, #{amount}, #{remark})
+        insert into pur_order_item(
+            purchase_order_id, product_id, unit_name, convert_ratio, base_quantity,
+            quantity, received_qty, price, discount_rate, tax_rate, tax_amount, amount, remark
+        )
+        values(
+            #{purchaseOrderId}, #{productId}, #{unitName}, coalesce(#{convertRatio}, 1.0000), #{baseQuantity},
+            #{quantity}, coalesce(#{receivedQty}, 0), #{price}, coalesce(#{discountRate}, 100.00),
+            coalesce(#{taxRate}, 0.00), coalesce(#{taxAmount}, 0.00), #{amount}, #{remark}
+        )
     </insert>
+
+    <update id="updateReceivedQty">
+        update pur_order_item
+        set received_qty = #{receivedQty}
+        where purchase_order_item_id = #{purchaseOrderItemId}
+    </update>
 
     <delete id="deletePurOrderItemByOrderId" parameterType="Long">
         delete from pur_order_item where purchase_order_id = #{purchaseOrderId}

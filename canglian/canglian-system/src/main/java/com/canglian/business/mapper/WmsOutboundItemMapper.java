@@ -57,5 +57,7 @@ public interface WmsOutboundItemMapper
      * @return 结果
      */
     public int deleteWmsOutboundItemByIds(Long[] outboundItemIds);
+
+    public int deleteWmsOutboundItemByOutboundId(Long outboundId);
 }
 

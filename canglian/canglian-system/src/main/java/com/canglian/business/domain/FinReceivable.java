@@ -30,7 +30,13 @@ public class FinReceivable extends BaseEntity
 
     private BigDecimal amount;
 
+    /** 单据方向(1正向应收 2红字退货冲减) */
+    private String billDirection;
+
     private BigDecimal receivedAmount;
+
+    /** 已核销坏账金额（独立核算，避免与现金收款混淆） */
+    private BigDecimal badDebtAmount;
 
     private String status;
 
@@ -138,6 +144,16 @@ public class FinReceivable extends BaseEntity
         this.amount = amount;
     }
 
+    public String getBillDirection()
+    {
+        return billDirection;
+    }
+
+    public void setBillDirection(String billDirection)
+    {
+        this.billDirection = billDirection;
+    }
+
     public BigDecimal getReceivedAmount()
     {
         return receivedAmount;
@@ -146,6 +162,16 @@ public class FinReceivable extends BaseEntity
     public void setReceivedAmount(BigDecimal receivedAmount)
     {
         this.receivedAmount = receivedAmount;
+    }
+
+    public BigDecimal getBadDebtAmount()
+    {
+        return badDebtAmount;
+    }
+
+    public void setBadDebtAmount(BigDecimal badDebtAmount)
+    {
+        this.badDebtAmount = badDebtAmount;
     }
 
     public String getStatus()

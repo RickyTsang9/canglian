@@ -1,6 +1,8 @@
 # Root workspace metadata
 .trae/
 .git-backups/
+.playwright-mcp/
+*.class
 
 # Keep original child repositories independent
 canglian/.git/

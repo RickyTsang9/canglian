@@ -1,22 +1,25 @@
 <template>
-  <div class="sidebar-logo-container" :class="{ 'collapse': collapse }">
+  <div class="sidebar-logo-container" :class="{ 'collapse': collapse, 'is-dark': isDarkSidebar }">
     <transition name="sidebarLogoFade">
       <router-link v-if="collapse" key="collapse" class="sidebar-logo-link" to="/">
-        <img v-if="logo" :src="logo" class="sidebar-logo" />
-        <h1 v-else class="sidebar-title">{{ title }}</h1>
+        <img :src="logo" class="sidebar-logo" alt="仓链" />
       </router-link>
       <router-link v-else key="expand" class="sidebar-logo-link" to="/">
-        <img v-if="logo" :src="logo" class="sidebar-logo" />
-        <h1 class="sidebar-title">{{ title }}</h1>
+        <div class="brand-lockup">
+          <img :src="logo" class="sidebar-logo" alt="仓链" />
+          <div class="brand-text">
+            <h1 class="sidebar-title">{{ title }}</h1>
+            <span class="sidebar-badge">智能供应链云</span>
+          </div>
+        </div>
       </router-link>
     </transition>
   </div>
 </template>
 
 <script setup>
-import logo from '@/assets/logo/logo.png'
+import logo from '@/assets/logo/logo.svg'
 import useSettingsStore from '@/store/modules/settings'
-import variables from '@/assets/styles/variables.module.scss'
 
 defineProps({
   collapse: {
@@ -27,34 +30,17 @@ defineProps({
 
 const title = import.meta.env.VITE_APP_TITLE
 const settingsStore = useSettingsStore()
-const sideTheme = computed(() => settingsStore.sideTheme)
 
-// 获取Logo背景色
-const getLogoBackground = computed(() => {
-  if (settingsStore.isDark) {
-    return 'var(--sidebar-bg)'
-  }
-  if (settingsStore.navType == 3) {
-    return variables.menuLightBg
-  }
-  return sideTheme.value === 'theme-dark' ? variables.menuBg : variables.menuLightBg
-})
-
-// 获取Logo文字颜色
-const getLogoTextColor = computed(() => {
-  if (settingsStore.isDark) {
-    return 'var(--sidebar-text)'
-  }
-  if (settingsStore.navType == 3) {
-    return variables.menuLightText
-  }
-  return sideTheme.value === 'theme-dark' ? '#fff' : variables.menuLightText
+const isDarkSidebar = computed(() => {
+  if (settingsStore.isDark) return true
+  if (settingsStore.navType == 3) return false
+  return settingsStore.sideTheme === 'theme-dark'
 })
 </script>
 
 <style lang="scss" scoped>
 .sidebarLogoFade-enter-active {
-  transition: opacity 1.5s;
+  transition: opacity 0.25s ease;
 }
 
 .sidebarLogoFade-enter,
@@ -64,41 +50,83 @@ const getLogoTextColor = computed(() => {
 
 .sidebar-logo-container {
   position: relative;
-  height: 56px;
-  line-height: 56px;
-  background: v-bind(getLogoBackground);
-  text-align: center;
+  height: 58px;
+  background: transparent;
   overflow: hidden;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  border-bottom: 1px solid #eceef2;
+  display: flex;
+  align-items: center;
+
+  &.is-dark {
+    border-bottom-color: rgba(148, 163, 184, 0.14);
+
+    .sidebar-title {
+      color: #f8fafc;
+    }
+
+    .sidebar-badge {
+      color: #94a3b8;
+    }
+  }
 
   & .sidebar-logo-link {
     height: 100%;
     width: 100%;
+    display: flex !important;
+    align-items: center;
+    padding: 0 16px;
+    text-decoration: none;
+  }
 
-    & .sidebar-logo {
-      width: 34px;
-      height: 34px;
-      vertical-align: middle;
-      margin-right: 12px;
-      border-radius: 8px;
-    }
+  .brand-lockup {
+    display: flex;
+    align-items: center;
+    gap: 11px;
+    min-width: 0;
+  }
 
-    & .sidebar-title {
-      display: inline-block;
-      margin: 0;
-      color: v-bind(getLogoTextColor);
-      font-weight: 600;
-      line-height: 56px;
-      font-size: 15px;
-      font-family: Inter, "Segoe UI", Helvetica Neue, Arial, Helvetica, sans-serif;
-      vertical-align: middle;
-      letter-spacing: 0;
-    }
+  .sidebar-logo {
+    width: 34px;
+    height: 34px;
+    border-radius: 9px;
+    flex-shrink: 0;
+    display: block;
+    box-shadow: 0 2px 8px rgba(37, 99, 235, 0.18);
+  }
+
+  .brand-text {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    min-width: 0;
+    gap: 2px;
+  }
+
+  .sidebar-title {
+    margin: 0;
+    color: #111827;
+    font-weight: 700;
+    font-size: 15px;
+    line-height: 1.2;
+    letter-spacing: 0.01em;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .sidebar-badge {
+    display: block;
+    font-size: 11px;
+    line-height: 1.2;
+    font-weight: 500;
+    color: #9ca3af;
+    letter-spacing: 0.03em;
   }
 
   &.collapse {
-    .sidebar-logo {
-      margin-right: 0px;
+    & .sidebar-logo-link {
+      justify-content: center;
+      padding: 0;
     }
   }
 }

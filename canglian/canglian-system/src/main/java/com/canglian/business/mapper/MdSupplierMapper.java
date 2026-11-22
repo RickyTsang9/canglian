@@ -65,5 +65,7 @@ public interface MdSupplierMapper
      * @return 结果
      */
     public int deleteMdSupplierByIds(Long[] supplierIds);
+
+    public int countSupplierReferences(Long supplierId);
 }
 

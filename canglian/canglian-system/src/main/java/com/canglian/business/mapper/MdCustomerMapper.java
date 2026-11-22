@@ -65,5 +65,7 @@ public interface MdCustomerMapper
      * @return 结果
      */
     public int deleteMdCustomerByIds(Long[] customerIds);
+
+    public int countCustomerReferences(Long customerId);
 }
 

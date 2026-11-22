@@ -20,7 +20,39 @@ public interface WmsStockMapper
      */
     public WmsStock selectWmsStockById(Long stockId);
 
+    /**
+     * 按主键加行锁查询库存（冻结/解冻专用）
+     */
+    public WmsStock selectWmsStockByIdForUpdate(Long stockId);
+
+    /**
+     * 按 FEFO（先到期先出）查询指定仓库与商品的可用库存行
+     */
+    public List<WmsStock> selectFefoStockList(@Param("warehouseId") Long warehouseId, @Param("productId") Long productId);
+
+    /**
+     * 查询效期预警库存（已过期 + 临期 N 天内）
+     */
+    public List<WmsStock> selectExpiryWarningList(WmsStock wmsStock);
+
     public WmsStock selectWmsStockByKey(WmsStock wmsStock);
+
+    /**
+     * 按仓库/商品/库位/批次加行锁查询库存
+     *
+     * @param wmsStock 查询条件
+     * @return 库存信息
+     */
+    public WmsStock selectWmsStockByKeyForUpdate(WmsStock wmsStock);
+
+    /**
+     * 按仓库与商品加行锁查询可用库存行
+     *
+     * @param warehouseId 仓库id
+     * @param productId 商品id
+     * @return 库存集合
+     */
+    public List<WmsStock> selectWmsStockByWarehouseAndProductForUpdate(@Param("warehouseId") Long warehouseId, @Param("productId") Long productId);
 
     /**
      * 查询库存列表

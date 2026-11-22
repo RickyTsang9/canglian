@@ -74,34 +74,37 @@
           v-hasPermi="['business:supplier:remove']"
         >删除</el-button>
       </el-col>
+      <el-col :span="1.5">
+        <el-button
+          type="warning"
+          plain
+          icon="Refresh"
+          @click="handleSyncAux"
+          v-hasPermi="['business:supplier:edit']"
+        >同步辅助核算</el-button>
+      </el-col>
       <right-toolbar v-model:showSearch="showSearch" @queryTable="getList"></right-toolbar>
     </el-row>
 
     <el-table v-loading="loading" :data="supplierList" @selection-change="handleSelectionChange">
-      <el-table-column type="selection" width="55" align="center" />
-      <el-table-column label="供应商编号" align="center" prop="supplierId" />
-      <el-table-column label="供应商编码" align="center" prop="supplierCode" />
-      <el-table-column label="供应商名称" align="center" prop="supplierName" />
-      <el-table-column label="联系人" align="center" prop="contactPerson" />
-      <el-table-column label="联系电话" align="center" prop="contactPhone" />
-      <el-table-column label="供应商等级" align="center" prop="supplierLevel" />
-      <el-table-column label="账期天数" align="center" prop="payableDays" />
-      <el-table-column label="邮箱" align="center" prop="contactEmail" />
-      <el-table-column label="地址" align="center" prop="address" />
-      <el-table-column label="状态" align="center" prop="status">
+      <el-table-column type="selection" width="50" align="center" />
+      <el-table-column label="供应商编码" align="center" prop="supplierCode" width="110" />
+      <el-table-column label="供应商名称" align="center" prop="supplierName" min-width="140" show-overflow-tooltip />
+      <el-table-column label="联系人" align="center" prop="contactPerson" width="95" />
+      <el-table-column label="联系电话" align="center" prop="contactPhone" width="120" />
+      <el-table-column label="供应商等级" align="center" prop="supplierLevel" width="95" />
+      <el-table-column label="期初应付" align="right" prop="openingPayable" width="100" />
+      <el-table-column label="账期(天)" align="center" prop="payableDays" width="85" />
+      <el-table-column label="地址" align="center" prop="address" min-width="140" show-overflow-tooltip />
+      <el-table-column label="状态" align="center" prop="status" width="80">
         <template #default="scope">
           <dict-tag :options="sys_normal_disable" :value="scope.row.status" />
         </template>
       </el-table-column>
-      <el-table-column label="创建时间" align="center" prop="createTime" width="180">
-        <template #default="scope">
-          <span>{{ parseTime(scope.row.createTime) }}</span>
-        </template>
-      </el-table-column>
-      <el-table-column label="操作" width="180" align="center" class-name="small-padding fixed-width">
+      <el-table-column label="操作" width="160" align="center" class-name="small-padding fixed-width">
         <template #default="scope">
           <el-button link type="primary" icon="Edit" @click="handleUpdate(scope.row)" v-hasPermi="['business:supplier:edit']">修改</el-button>
-          <el-button link type="primary" icon="Delete" @click="handleDelete(scope.row)" v-hasPermi="['business:supplier:remove']">删除</el-button>
+          <el-button link type="danger" icon="Delete" @click="handleDelete(scope.row)" v-hasPermi="['business:supplier:remove']">删除</el-button>
         </template>
       </el-table-column>
     </el-table>
@@ -154,11 +157,18 @@
         </el-row>
         <el-row>
           <el-col :span="12">
+            <el-form-item label="期初应付" prop="openingPayable">
+              <el-input-number v-model="form.openingPayable" controls-position="right" :precision="2" style="width: 100%" />
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
             <el-form-item label="邮箱" prop="contactEmail">
               <el-input v-model="form.contactEmail" placeholder="请输入邮箱" />
             </el-form-item>
           </el-col>
-          <el-col :span="12">
+        </el-row>
+        <el-row>
+          <el-col :span="24">
             <el-form-item label="地址" prop="address">
               <el-input v-model="form.address" placeholder="请输入地址" />
             </el-form-item>
@@ -186,7 +196,7 @@
     </el-dialog>
 
     <el-dialog :title="upload.title" v-model="upload.open" width="420px" append-to-body>
-      <el-upload ref="uploadRef" :limit="1" accept=".xlsx, .xls" :headers="upload.headers" :action="upload.url + '?updateSupport=' + upload.updateSupport" :disabled="upload.isUploading" :on-progress="handleFileUploadProgress" :on-success="handleFileSuccess" :on-change="handleFileChange" :on-remove="handleFileRemove" :auto-upload="false" drag>
+      <el-upload ref="uploadRef" :limit="1" accept=".xlsx, .xls" :headers="upload.headers" :action="upload.url + '?updateSupport=' + upload.updateSupport" :disabled="upload.isUploading" :on-progress="handleFileUploadProgress" :on-success="handleFileSuccess" :on-error="handleFileError" :on-change="handleFileChange" :on-remove="handleFileRemove" :auto-upload="false" drag>
         <el-icon class="el-icon--upload"><upload-filled /></el-icon>
         <div class="el-upload__text">将文件拖到此处，或<em>点击上传</em></div>
         <template #tip>
@@ -212,6 +222,11 @@
 <script setup name="Supplier">
 import { getToken } from "@/utils/auth"
 import { listSupplier, addSupplier, delSupplier, getSupplier, updateSupplier } from "@/api/business/supplier"
+import { syncAuxiliaryItems } from "@/api/business/generalLedger"
+
+function handleSyncAux() {
+  syncAuxiliaryItems().then(() => proxy.$modal.msgSuccess("已将供应商档案同步至财务辅助核算项")).catch(() => {})
+}
 
 const { proxy } = getCurrentInstance()
 const { sys_normal_disable } = proxy.useDict("sys_normal_disable")
@@ -264,6 +279,7 @@ function getList() {
   listSupplier(queryParams.value).then(response => {
     supplierList.value = response.rows
     total.value = response.total
+  }).finally(() => {
     loading.value = false
   })
 }
@@ -281,6 +297,7 @@ function reset() {
     contactPerson: undefined,
     contactPhone: undefined,
     supplierLevel: undefined,
+    openingPayable: 0,
     payableDays: 30,
     contactEmail: undefined,
     address: undefined,
@@ -386,6 +403,12 @@ const handleFileSuccess = (response, file) => {
   proxy.$refs["uploadRef"].handleRemove(file)
   proxy.$alert("<div style='overflow: auto;overflow-x: hidden;max-height: 70vh;padding: 10px 20px 0;'>" + response.msg + "</div>", "导入结果", { dangerouslyUseHTMLString: true })
   getList()
+}
+
+// 文件上传失败处理
+const handleFileError = () => {
+  upload.isUploading = false
+  proxy.$modal.msgError("文件导入失败，请检查文件格式或网络后重试")
 }
 
 // 提交上传文件

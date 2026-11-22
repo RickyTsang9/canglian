@@ -66,5 +66,10 @@ public interface FinCostLayerMapper
      * @return 结果
      */
     public int deleteFinCostLayerByIds(Long[] costLayerIds);
+
+    /**
+     * 按成本账户清空成本分层（重算专用）
+     */
+    public int deleteFinCostLayerByAccountId(@Param("costAccountId") Long costAccountId);
 }
 

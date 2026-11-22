@@ -51,6 +51,9 @@ public interface IFinWriteOffService
      */
     public int confirmFinWriteOff(Long writeOffId, String operator);
 
+    /** 反确认核销单（开放账期回退应收/应付已结算金额并恢复草稿） */
+    public int unconfirmFinWriteOff(Long writeOffId, String operator);
+
     /**
      * 删除核销
      * 

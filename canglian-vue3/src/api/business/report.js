@@ -104,3 +104,13 @@ export function fundAnalysis(query) {
     params: query
   })
 }
+
+// 导出财务与经营报表 Excel
+export function exportReport(params) {
+  return request({
+    url: '/business/report/export',
+    method: 'post',
+    params: params,
+    responseType: 'blob'
+  })
+}

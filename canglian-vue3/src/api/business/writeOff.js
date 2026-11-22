@@ -43,6 +43,14 @@ export function confirmWriteOff(writeOffId) {
   })
 }
 
+// 反确认核销单
+export function unconfirmWriteOff(writeOffId) {
+  return request({
+    url: '/business/writeOff/unconfirm/' + writeOffId,
+    method: 'post'
+  })
+}
+
 // 删除核销单
 export function delWriteOff(writeOffId) {
   return request({

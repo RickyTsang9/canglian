@@ -57,5 +57,7 @@ public interface WmsPurchaseReturnItemMapper
      * @return 结果
      */
     public int deleteWmsPurchaseReturnItemByIds(Long[] purchaseReturnItemIds);
+
+    public int deleteWmsPurchaseReturnItemByPurchaseReturnId(Long purchaseReturnId);
 }
 

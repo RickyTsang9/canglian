@@ -1,5 +1,6 @@
 package com.canglian.web.controller.system;
 
+import java.util.Collection;
 import java.util.List;
 import javax.servlet.http.HttpServletResponse;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -14,6 +15,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import com.canglian.common.annotation.Log;
+import com.canglian.common.constant.CacheConstants;
 import com.canglian.common.core.controller.BaseController;
 import com.canglian.common.core.domain.AjaxResult;
 import com.canglian.common.core.domain.entity.SysDept;
@@ -21,6 +23,7 @@ import com.canglian.common.core.domain.entity.SysRole;
 import com.canglian.common.core.domain.entity.SysUser;
 import com.canglian.common.core.domain.model.LoginUser;
 import com.canglian.common.core.page.TableDataInfo;
+import com.canglian.common.core.redis.RedisCache;
 import com.canglian.common.enums.BusinessType;
 import com.canglian.common.utils.StringUtils;
 import com.canglian.common.utils.poi.ExcelUtil;
@@ -54,6 +57,62 @@ public class SysRoleController extends BaseController
 
     @Autowired
     private ISysDeptService deptService;
+
+    @Autowired
+    private RedisCache redisCache;
+
+    /**
+     * 刷新所有拥有该角色的在线用户 Redis 会话权限（菜单/部门/仓库范围即时生效）
+     */
+    private void refreshOnlineUsersForRole(Long roleId)
+    {
+        if (roleId == null || redisCache == null)
+        {
+            return;
+        }
+        try
+        {
+            Collection<String> keys = redisCache.keys(CacheConstants.LOGIN_TOKEN_KEY + "*");
+            if (keys == null || keys.isEmpty())
+            {
+                return;
+            }
+            for (String key : keys)
+            {
+                LoginUser cached = redisCache.getCacheObject(key);
+                if (cached == null || cached.getUser() == null || cached.getUser().isAdmin())
+                {
+                    continue;
+                }
+                List<SysRole> roles = cached.getUser().getRoles();
+                boolean affected = false;
+                if (roles != null)
+                {
+                    for (SysRole r : roles)
+                    {
+                        if (r != null && roleId.equals(r.getRoleId()))
+                        {
+                            affected = true;
+                            break;
+                        }
+                    }
+                }
+                if (affected)
+                {
+                    SysUser latest = userService.selectUserByUserName(cached.getUser().getUserName());
+                    if (latest != null)
+                    {
+                        cached.setUser(latest);
+                        cached.setPermissions(permissionService.getMenuPermission(latest));
+                        tokenService.setLoginUser(cached);
+                    }
+                }
+            }
+        }
+        catch (Exception ignored)
+        {
+        }
+    }
 
     @PreAuthorize("@ss.hasPermi('system:role:list')")
     @GetMapping("/list")
@@ -128,14 +187,7 @@ public class SysRoleController extends BaseController
         
         if (roleService.updateRole(role) > 0)
         {
-            // 更新缓存用户权限
-            LoginUser loginUser = getLoginUser();
-            if (StringUtils.isNotNull(loginUser.getUser()) && !loginUser.getUser().isAdmin())
-            {
-                loginUser.setUser(userService.selectUserByUserName(loginUser.getUser().getUserName()));
-                loginUser.setPermissions(permissionService.getMenuPermission(loginUser.getUser()));
-                tokenService.setLoginUser(loginUser);
-            }
+            refreshOnlineUsersForRole(role.getRoleId());
             return success();
         }
         return error("修改角色'" + role.getRoleName() + "'失败，请联系管理员");
@@ -151,7 +203,26 @@ public class SysRoleController extends BaseController
     {
         roleService.checkRoleAllowed(role);
         roleService.checkRoleDataScope(role.getRoleId());
-        return toAjax(roleService.authDataScope(role));
+        int rows = roleService.authDataScope(role);
+        if (rows > 0)
+        {
+            refreshOnlineUsersForRole(role.getRoleId());
+        }
+        return toAjax(rows);
+    }
+
+    /**
+     * 获取角色仓库数据权限配置
+     */
+    @PreAuthorize("@ss.hasPermi('system:role:query')")
+    @GetMapping("/warehouseScope/{roleId}")
+    public AjaxResult warehouseScope(@PathVariable Long roleId)
+    {
+        SysRole role = roleService.selectRoleById(roleId);
+        AjaxResult ajax = AjaxResult.success();
+        ajax.put("warehouseScope", role != null && StringUtils.isNotEmpty(role.getWarehouseScope()) ? role.getWarehouseScope() : "1");
+        ajax.put("checkedKeys", roleService.selectWarehouseIdsByRoleId(roleId));
+        return ajax;
     }
 
     /**

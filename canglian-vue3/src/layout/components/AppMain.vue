@@ -37,18 +37,18 @@ function addIframe() {
 
 <style lang="scss" scoped>
 .app-main {
-  // 56 = navbar
-  min-height: calc(100vh - 56px);
+  // 58 = navbar
+  min-height: calc(100vh - 58px);
   width: 100%;
   position: relative;
   overflow: hidden;
-  background: var(--page-bg, #f4f7fb);
+  background: var(--page-bg, #f1f5f9);
 }
 
 .fixed-header + .app-main {
   overflow-y: auto;
   scrollbar-gutter: auto;
-  height: calc(100vh - 56px);
+  height: calc(100vh - 58px);
   min-height: 0px;
 }
 
@@ -57,23 +57,22 @@ function addIframe() {
 }
 
 .fixed-header + .app-main {
-  margin-top: 56px;
+  margin-top: 58px;
 }
 
 .hasTagsView {
   .app-main {
-    // 90 = navbar + tags-view = 56 + 34
-    min-height: calc(100vh - 90px);
+    // 96 = navbar + tags-view = 58 + 38
+    min-height: calc(100vh - 96px);
   }
 
   .fixed-header + .app-main {
-    margin-top: 90px;
-    height: calc(100vh - 90px);
+    margin-top: 96px;
+    height: calc(100vh - 96px);
     min-height: 0px;
   }
 }
 
-/* 移动端fixed-header优化 */
 @media screen and (max-width: 991px) {
   .fixed-header + .app-main {
     padding-bottom: max(60px, calc(constant(safe-area-inset-bottom) + 40px));
@@ -93,15 +92,15 @@ function addIframe() {
     .fixed-header + .app-main {
       padding-bottom: max(17px, calc(constant(safe-area-inset-bottom) + 10px));
       padding-bottom: max(17px, calc(env(safe-area-inset-bottom) + 10px));
-      height: calc(100svh - 56px);
-      height: calc(100dvh - 56px);
+      height: calc(100svh - 58px);
+      height: calc(100dvh - 58px);
     }
 
     .hasTagsView .fixed-header + .app-main {
       padding-bottom: max(17px, calc(constant(safe-area-inset-bottom) + 10px));
       padding-bottom: max(17px, calc(env(safe-area-inset-bottom) + 10px));
-      height: calc(100svh - 90px);
-      height: calc(100dvh - 90px);
+      height: calc(100svh - 96px);
+      height: calc(100dvh - 96px);
     }
   }
 }
@@ -118,7 +117,19 @@ function addIframe() {
 }
 
 ::-webkit-scrollbar-thumb {
-  background-color: #c7d3e1;
-  border-radius: 3px;
+  background-color: #cbd5e1;
+  border-radius: 999px;
+
+  &:hover {
+    background-color: #94a3b8;
+  }
+}
+
+html.dark ::-webkit-scrollbar-thumb {
+  background-color: #334155;
+
+  &:hover {
+    background-color: #475569;
+  }
 }
 </style>

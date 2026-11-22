@@ -1,6 +1,8 @@
 package com.canglian.business.domain;
 
 import java.math.BigDecimal;
+import java.util.Date;
+import com.fasterxml.jackson.annotation.JsonFormat;
 import org.apache.commons.lang3.builder.ToStringBuilder;
 import org.apache.commons.lang3.builder.ToStringStyle;
 
@@ -21,6 +23,18 @@ public class WmsInventoryCheckItem
 
     private String batchNo;
 
+    private String unitName;
+
+    private BigDecimal convertRatio;
+
+    private BigDecimal baseDiffQty;
+
+    @JsonFormat(pattern = "yyyy-MM-dd")
+    private Date productionDate;
+
+    @JsonFormat(pattern = "yyyy-MM-dd")
+    private Date expiryDate;
+
     private BigDecimal stockQty;
 
     private BigDecimal actualQty;
@@ -30,6 +44,17 @@ public class WmsInventoryCheckItem
     private BigDecimal price;
 
     private BigDecimal diffAmount;
+
+    public String getUnitName() { return unitName; }
+    public void setUnitName(String unitName) { this.unitName = unitName; }
+    public BigDecimal getConvertRatio() { return convertRatio; }
+    public void setConvertRatio(BigDecimal convertRatio) { this.convertRatio = convertRatio; }
+    public BigDecimal getBaseDiffQty() { return baseDiffQty; }
+    public void setBaseDiffQty(BigDecimal baseDiffQty) { this.baseDiffQty = baseDiffQty; }
+    public Date getProductionDate() { return productionDate; }
+    public void setProductionDate(Date productionDate) { this.productionDate = productionDate; }
+    public Date getExpiryDate() { return expiryDate; }
+    public void setExpiryDate(Date expiryDate) { this.expiryDate = expiryDate; }
 
     /**
      * 获取盘点明细id

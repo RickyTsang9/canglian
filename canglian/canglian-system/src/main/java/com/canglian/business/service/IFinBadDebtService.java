@@ -1,61 +1,33 @@
 package com.canglian.business.service;
 
+import java.math.BigDecimal;
 import java.util.List;
 import com.canglian.business.domain.FinBadDebt;
 
 /**
  * 坏账 服务层
- * 
+ *
  * @author canglian
  */
 public interface IFinBadDebtService
 {
-    /**
-     * 查询坏账信息
-     * 
-     * @param badDebtId 坏账id
-     * @return 坏账信息
-     */
     public FinBadDebt selectFinBadDebtById(Long badDebtId);
 
-    /**
-     * 查询坏账列表
-     * 
-     * @param finBadDebt 坏账信息
-     * @return 坏账集合
-     */
     public List<FinBadDebt> selectFinBadDebtList(FinBadDebt finBadDebt);
 
-    /**
-     * 新增坏账
-     * 
-     * @param finBadDebt 坏账信息
-     * @return 结果
-     */
     public int insertFinBadDebt(FinBadDebt finBadDebt);
 
-    /**
-     * 修改坏账
-     * 
-     * @param finBadDebt 坏账信息
-     * @return 结果
-     */
     public int updateFinBadDebt(FinBadDebt finBadDebt);
 
-    /**
-     * 删除坏账
-     * 
-     * @param badDebtId 坏账id
-     * @return 结果
-     */
+    public int confirmFinBadDebt(Long badDebtId, String operator);
+
+    /** 反确认已确认但未收回的坏账单 */
+    public int unconfirmFinBadDebt(Long badDebtId, String operator);
+
+    /** 已核销坏账事后收回（增加资金账户余额、记录资金流水与坏账收回凭证事件） */
+    public int recoverFinBadDebt(Long badDebtId, BigDecimal recoverAmount, Long fundAccountId, String remark, String operator);
+
     public int deleteFinBadDebtById(Long badDebtId);
 
-    /**
-     * 批量删除坏账
-     * 
-     * @param badDebtIds 需要删除的坏账id
-     * @return 结果
-     */
     public int deleteFinBadDebtByIds(Long[] badDebtIds);
 }
-

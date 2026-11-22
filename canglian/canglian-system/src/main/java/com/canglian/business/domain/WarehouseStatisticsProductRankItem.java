@@ -26,6 +26,19 @@ public class WarehouseStatisticsProductRankItem
     /** 可用库存 */
     private BigDecimal availableQuantity;
 
+    /** 库存金额 */
+    private BigDecimal stockAmount;
+
+    public BigDecimal getStockAmount()
+    {
+        return stockAmount;
+    }
+
+    public void setStockAmount(BigDecimal stockAmount)
+    {
+        this.stockAmount = stockAmount;
+    }
+
     /**
      * 获取产品id
      * 

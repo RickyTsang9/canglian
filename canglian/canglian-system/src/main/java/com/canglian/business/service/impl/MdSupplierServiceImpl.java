@@ -3,8 +3,12 @@ package com.canglian.business.service.impl;
 import java.util.List;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import com.canglian.business.domain.FinPayable;
 import com.canglian.business.domain.MdSupplier;
+import com.canglian.business.domain.PurOrder;
+import com.canglian.business.mapper.FinPayableMapper;
 import com.canglian.business.mapper.MdSupplierMapper;
+import com.canglian.business.mapper.PurOrderMapper;
 import com.canglian.business.service.IMdSupplierService;
 import com.canglian.common.exception.ServiceException;
 import com.canglian.common.utils.StringUtils;
@@ -19,6 +23,12 @@ public class MdSupplierServiceImpl implements IMdSupplierService
 {
     @Autowired
     private MdSupplierMapper mdSupplierMapper;
+
+    @Autowired
+    private PurOrderMapper purOrderMapper;
+
+    @Autowired
+    private FinPayableMapper finPayableMapper;
 
     /**
      * 查询供应商档案信息
@@ -103,6 +113,7 @@ public class MdSupplierServiceImpl implements IMdSupplierService
     @Override
     public int insertMdSupplier(MdSupplier mdSupplier)
     {
+        validateSupplierCodeUnique(mdSupplier);
         return mdSupplierMapper.insertMdSupplier(mdSupplier);
     }
 
@@ -115,6 +126,7 @@ public class MdSupplierServiceImpl implements IMdSupplierService
     @Override
     public int updateMdSupplier(MdSupplier mdSupplier)
     {
+        validateSupplierCodeUnique(mdSupplier);
         return mdSupplierMapper.updateMdSupplier(mdSupplier);
     }
 
@@ -127,6 +139,7 @@ public class MdSupplierServiceImpl implements IMdSupplierService
     @Override
     public int deleteMdSupplierById(Long supplierId)
     {
+        validateSupplierDeletable(supplierId);
         return mdSupplierMapper.deleteMdSupplierById(supplierId);
     }
 
@@ -139,7 +152,39 @@ public class MdSupplierServiceImpl implements IMdSupplierService
     @Override
     public int deleteMdSupplierByIds(Long[] supplierIds)
     {
+        if (supplierIds != null)
+        {
+            for (Long supplierId : supplierIds)
+            {
+                validateSupplierDeletable(supplierId);
+            }
+        }
         return mdSupplierMapper.deleteMdSupplierByIds(supplierIds);
+    }
+
+    private void validateSupplierCodeUnique(MdSupplier mdSupplier)
+    {
+        if (mdSupplier == null || StringUtils.isEmpty(mdSupplier.getSupplierCode()))
+        {
+            throw new ServiceException("供应商编码不能为空");
+        }
+        MdSupplier existing = mdSupplierMapper.selectMdSupplierByCode(mdSupplier.getSupplierCode());
+        if (existing != null && !existing.getSupplierId().equals(mdSupplier.getSupplierId()))
+        {
+            throw new ServiceException("供应商编码[" + mdSupplier.getSupplierCode() + "]已存在，请勿重复");
+        }
+    }
+
+    private void validateSupplierDeletable(Long supplierId)
+    {
+        if (supplierId == null)
+        {
+            return;
+        }
+        if (mdSupplierMapper.countSupplierReferences(supplierId) > 0)
+        {
+            throw new ServiceException("供应商[" + supplierId + "]已存在关联采购单、入库、退货、应付付款或发票记录，不允许删除，请改为停用");
+        }
     }
 
     /**

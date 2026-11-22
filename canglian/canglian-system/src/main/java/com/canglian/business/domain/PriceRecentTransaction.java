@@ -23,11 +23,23 @@ public class PriceRecentTransaction extends BaseEntity
 
     private BigDecimal salePrice;
 
+    private String unitName;
+
     private String sourceBillType;
 
     private Long sourceBillId;
 
     private Date businessDate;
+
+    public String getUnitName()
+    {
+        return unitName;
+    }
+
+    public void setUnitName(String unitName)
+    {
+        this.unitName = unitName;
+    }
 
     public Long getRecentPriceId()
     {

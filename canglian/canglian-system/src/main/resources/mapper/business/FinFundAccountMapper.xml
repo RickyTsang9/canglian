@@ -32,6 +32,12 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         where account_id = #{accountId}
     </select>
 
+    <select id="selectFinFundAccountByIdForUpdate" parameterType="Long" resultMap="FinFundAccountResult">
+        <include refid="selectFinFundAccountVo"/>
+        where account_id = #{accountId}
+        for update
+    </select>
+
     <select id="selectFinFundAccountList" parameterType="FinFundAccount" resultMap="FinFundAccountResult">
         <include refid="selectFinFundAccountVo"/>
         <where>

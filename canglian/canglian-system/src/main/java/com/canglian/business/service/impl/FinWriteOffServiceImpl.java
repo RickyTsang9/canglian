@@ -1,10 +1,14 @@
 package com.canglian.business.service.impl;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
+import java.util.Date;
 import java.util.List;
 import java.util.Objects;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import com.canglian.business.domain.FinPayable;
 import com.canglian.business.domain.FinPayment;
 import com.canglian.business.domain.FinReceipt;
@@ -15,6 +19,7 @@ import com.canglian.business.mapper.FinPaymentMapper;
 import com.canglian.business.mapper.FinReceiptMapper;
 import com.canglian.business.mapper.FinReceivableMapper;
 import com.canglian.business.mapper.FinWriteOffMapper;
+import com.canglian.business.service.IFinGeneralLedgerService;
 import com.canglian.business.service.IFinWriteOffService;
 import com.canglian.common.exception.ServiceException;
 import com.canglian.common.utils.StringUtils;
@@ -27,6 +32,8 @@ import com.canglian.common.utils.StringUtils;
 @Service
 public class FinWriteOffServiceImpl implements IFinWriteOffService
 {
+    private static final DateTimeFormatter NO_DATE_FMT = DateTimeFormatter.ofPattern("yyyyMMdd");
+
     @Autowired
     private FinWriteOffMapper finWriteOffMapper;
 
@@ -41,6 +48,9 @@ public class FinWriteOffServiceImpl implements IFinWriteOffService
 
     @Autowired
     private FinPaymentMapper finPaymentMapper;
+
+    @Autowired
+    private IFinGeneralLedgerService finGeneralLedgerService;
 
     /**
      * 查询核销信息
@@ -75,34 +85,33 @@ public class FinWriteOffServiceImpl implements IFinWriteOffService
     @Override
     public int insertFinWriteOff(FinWriteOff finWriteOff)
     {
+        if (finWriteOff.getWriteOffDate() == null)
+        {
+            finWriteOff.setWriteOffDate(new Date());
+        }
+        finGeneralLedgerService.assertPeriodOpen(finWriteOff.getWriteOffDate());
+        if (StringUtils.isEmpty(finWriteOff.getWriteOffNo()))
+        {
+            finWriteOff.setWriteOffNo(generateWriteOffNo());
+        }
         validateWriteOff(finWriteOff);
         finWriteOff.setStatus("0");
         return finWriteOffMapper.insertFinWriteOff(finWriteOff);
     }
 
-    /**
-     * 修改核销
-     * 
-     * @param finWriteOff 核销信息
-     * @return 结果
-     */
     @Override
     public int updateFinWriteOff(FinWriteOff finWriteOff)
     {
         FinWriteOff existingFinWriteOff = checkWriteOffEditable(finWriteOff.getWriteOffId());
+        finGeneralLedgerService.assertPeriodOpen(existingFinWriteOff.getWriteOffDate() == null ? new Date() : existingFinWriteOff.getWriteOffDate());
+        if (finWriteOff.getWriteOffDate() != null) finGeneralLedgerService.assertPeriodOpen(finWriteOff.getWriteOffDate());
         validateWriteOff(finWriteOff);
         finWriteOff.setStatus(existingFinWriteOff.getStatus());
         return finWriteOffMapper.updateFinWriteOff(finWriteOff);
     }
 
-    /**
-     * 确认核销
-     * 
-     * @param writeOffId 核销id
-     * @param operator 操作人
-     * @return 结果
-     */
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public int confirmFinWriteOff(Long writeOffId, String operator)
     {
         FinWriteOff finWriteOff = getExistingWriteOff(writeOffId);
@@ -110,37 +119,45 @@ public class FinWriteOffServiceImpl implements IFinWriteOffService
         {
             throw new ServiceException("核销单已确认，请勿重复操作");
         }
+        finGeneralLedgerService.assertPeriodOpen(finWriteOff.getWriteOffDate() == null ? new Date() : finWriteOff.getWriteOffDate());
         validateWriteOff(finWriteOff);
+        applyUnlinkedWriteOffSettlement(finWriteOff, operator);
         finWriteOff.setStatus("1");
         finWriteOff.setUpdateBy(operator);
         return finWriteOffMapper.updateFinWriteOff(finWriteOff);
     }
 
-    /**
-     * 删除核销
-     * 
-     * @param writeOffId 核销id
-     * @return 结果
-     */
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public int unconfirmFinWriteOff(Long writeOffId, String operator)
+    {
+        FinWriteOff finWriteOff = getExistingWriteOff(writeOffId);
+        if (!"1".equals(finWriteOff.getStatus()))
+        {
+            throw new ServiceException("仅已确认状态的核销单允许反确认");
+        }
+        finGeneralLedgerService.assertPeriodOpen(finWriteOff.getWriteOffDate() == null ? new Date() : finWriteOff.getWriteOffDate());
+        rollbackUnlinkedWriteOffSettlement(finWriteOff, operator);
+        finWriteOff.setStatus("0");
+        finWriteOff.setUpdateBy(operator);
+        return finWriteOffMapper.updateFinWriteOff(finWriteOff);
+    }
+
     @Override
     public int deleteFinWriteOffById(Long writeOffId)
     {
-        checkWriteOffEditable(writeOffId);
+        FinWriteOff wo = checkWriteOffEditable(writeOffId);
+        finGeneralLedgerService.assertPeriodOpen(wo.getWriteOffDate() == null ? new Date() : wo.getWriteOffDate());
         return finWriteOffMapper.deleteFinWriteOffById(writeOffId);
     }
 
-    /**
-     * 批量删除核销
-     * 
-     * @param writeOffIds 需要删除的核销id
-     * @return 结果
-     */
     @Override
     public int deleteFinWriteOffByIds(Long[] writeOffIds)
     {
         for (Long writeOffId : writeOffIds)
         {
-            checkWriteOffEditable(writeOffId);
+            FinWriteOff wo = checkWriteOffEditable(writeOffId);
+            finGeneralLedgerService.assertPeriodOpen(wo.getWriteOffDate() == null ? new Date() : wo.getWriteOffDate());
         }
         return finWriteOffMapper.deleteFinWriteOffByIds(writeOffIds);
     }
@@ -225,11 +242,19 @@ public class FinWriteOffServiceImpl implements IFinWriteOffService
             throw new ServiceException("应收核销不能关联应付单或付款单");
         }
         FinReceivable finReceivable = getExistingReceivable(finWriteOff.getReceivableId());
-        if (!"1".equals(finReceivable.getStatus()))
+        if ("2".equals(finReceivable.getBillDirection()) || defaultAmount(finReceivable.getAmount()).compareTo(BigDecimal.ZERO) < 0)
         {
-            throw new ServiceException("仅已审核的应收单允许核销");
+            throw new ServiceException("红字应收冲减单请使用应收页面的「红蓝对冲」功能冲抵正向应收");
+        }
+        if (!"confirmed".equals(finReceivable.getBizStatus()))
+        {
+            throw new ServiceException("仅已确认审核的应收单允许核销");
         }
         FinReceipt finReceipt = getExistingReceipt(finWriteOff.getReceiptId());
+        if (!"1".equals(finReceipt.getStatus()) && !"confirmed".equals(finReceipt.getBizStatus()))
+        {
+            throw new ServiceException("仅已确认入账的收款单允许参与核销");
+        }
         if (finReceipt.getAmount() == null || finReceipt.getAmount().compareTo(BigDecimal.ZERO) <= 0)
         {
             throw new ServiceException("应收核销仅允许关联正向收款单");
@@ -246,9 +271,22 @@ public class FinWriteOffServiceImpl implements IFinWriteOffService
         {
             throw new ServiceException("核销金额不能大于收款单金额");
         }
-        if (finWriteOff.getAmount().compareTo(defaultAmount(finReceivable.getReceivedAmount())) > 0)
+        if (finReceipt.getReceivableId() != null)
         {
-            throw new ServiceException("核销金额不能大于应收单已收金额");
+            if (finWriteOff.getAmount().compareTo(defaultAmount(finReceivable.getReceivedAmount())) > 0)
+            {
+                throw new ServiceException("核销金额不能大于应收单已收金额");
+            }
+        }
+        else
+        {
+            BigDecimal unpaid = defaultAmount(finReceivable.getAmount())
+                .subtract(defaultAmount(finReceivable.getReceivedAmount()))
+                .subtract(defaultAmount(finReceivable.getBadDebtAmount()));
+            if (finWriteOff.getAmount().compareTo(unpaid) > 0)
+            {
+                throw new ServiceException("核销金额不能大于应收单未收余额");
+            }
         }
         validateReceivableWriteOffAmount(finWriteOff);
     }
@@ -273,11 +311,19 @@ public class FinWriteOffServiceImpl implements IFinWriteOffService
             throw new ServiceException("应付核销不能关联应收单或收款单");
         }
         FinPayable finPayable = getExistingPayable(finWriteOff.getPayableId());
-        if (!"1".equals(finPayable.getStatus()))
+        if ("2".equals(finPayable.getBillDirection()) || defaultAmount(finPayable.getAmount()).compareTo(BigDecimal.ZERO) < 0)
         {
-            throw new ServiceException("仅已审核的应付单允许核销");
+            throw new ServiceException("红字应付冲减单请使用应付页面的「红蓝对冲」功能冲抵正向应付");
+        }
+        if (!"confirmed".equals(finPayable.getBizStatus()))
+        {
+            throw new ServiceException("仅已确认审核的应付单允许核销");
         }
         FinPayment finPayment = getExistingPayment(finWriteOff.getPaymentId());
+        if (!"1".equals(finPayment.getStatus()) && !"confirmed".equals(finPayment.getBizStatus()))
+        {
+            throw new ServiceException("仅已确认出账的付款单允许参与核销");
+        }
         if (finPayment.getAmount() == null || finPayment.getAmount().compareTo(BigDecimal.ZERO) <= 0)
         {
             throw new ServiceException("应付核销仅允许关联正向付款单");
@@ -294,9 +340,20 @@ public class FinWriteOffServiceImpl implements IFinWriteOffService
         {
             throw new ServiceException("核销金额不能大于付款单金额");
         }
-        if (finWriteOff.getAmount().compareTo(defaultAmount(finPayable.getPaidAmount())) > 0)
+        if (finPayment.getPayableId() != null)
         {
-            throw new ServiceException("核销金额不能大于应付单已付金额");
+            if (finWriteOff.getAmount().compareTo(defaultAmount(finPayable.getPaidAmount())) > 0)
+            {
+                throw new ServiceException("核销金额不能大于应付单已付金额");
+            }
+        }
+        else
+        {
+            BigDecimal unpaid = defaultAmount(finPayable.getAmount()).subtract(defaultAmount(finPayable.getPaidAmount()));
+            if (finWriteOff.getAmount().compareTo(unpaid) > 0)
+            {
+                throw new ServiceException("核销金额不能大于应付单未付余额");
+            }
         }
         validatePayableWriteOffAmount(finWriteOff);
     }
@@ -317,7 +374,10 @@ public class FinWriteOffServiceImpl implements IFinWriteOffService
         {
             throw new ServiceException("当前收款单可核销金额不足");
         }
-        if (confirmedReceivableWriteOffAmount.add(currentWriteOffAmount).compareTo(defaultAmount(finReceivable.getReceivedAmount())) > 0)
+        BigDecimal maxReceivableWriteOff = finReceipt.getReceivableId() != null
+            ? defaultAmount(finReceivable.getReceivedAmount())
+            : defaultAmount(finReceivable.getAmount());
+        if (confirmedReceivableWriteOffAmount.add(currentWriteOffAmount).compareTo(maxReceivableWriteOff) > 0)
         {
             throw new ServiceException("当前应收单可核销金额不足");
         }
@@ -339,10 +399,102 @@ public class FinWriteOffServiceImpl implements IFinWriteOffService
         {
             throw new ServiceException("当前付款单可核销金额不足");
         }
-        if (confirmedPayableWriteOffAmount.add(currentWriteOffAmount).compareTo(defaultAmount(finPayable.getPaidAmount())) > 0)
+        BigDecimal maxPayableWriteOff = finPayment.getPayableId() != null
+            ? defaultAmount(finPayable.getPaidAmount())
+            : defaultAmount(finPayable.getAmount());
+        if (confirmedPayableWriteOffAmount.add(currentWriteOffAmount).compareTo(maxPayableWriteOff) > 0)
         {
             throw new ServiceException("当前应付单可核销金额不足");
         }
+    }
+
+    private void applyUnlinkedWriteOffSettlement(FinWriteOff finWriteOff, String operator)
+    {
+        if ("receivable".equals(finWriteOff.getWriteOffType()))
+        {
+            FinReceipt finReceipt = getExistingReceipt(finWriteOff.getReceiptId());
+            if (finReceipt.getReceivableId() == null)
+            {
+                FinReceivable ar = getExistingReceivable(finWriteOff.getReceivableId());
+                BigDecimal newReceived = defaultAmount(ar.getReceivedAmount()).add(defaultAmount(finWriteOff.getAmount()));
+                ar.setReceivedAmount(newReceived);
+                BigDecimal settled = newReceived.add(defaultAmount(ar.getBadDebtAmount()));
+                ar.setStatus(settled.compareTo(defaultAmount(ar.getAmount())) >= 0 ? "2" : "1");
+                ar.setUpdateBy(operator);
+                finReceivableMapper.updateFinReceivable(ar);
+            }
+        }
+        else if ("payable".equals(finWriteOff.getWriteOffType()))
+        {
+            FinPayment finPayment = getExistingPayment(finWriteOff.getPaymentId());
+            if (finPayment.getPayableId() == null)
+            {
+                FinPayable ap = getExistingPayable(finWriteOff.getPayableId());
+                BigDecimal newPaid = defaultAmount(ap.getPaidAmount()).add(defaultAmount(finWriteOff.getAmount()));
+                ap.setPaidAmount(newPaid);
+                ap.setStatus(newPaid.compareTo(defaultAmount(ap.getAmount())) >= 0 ? "2" : "1");
+                ap.setUpdateBy(operator);
+                finPayableMapper.updateFinPayable(ap);
+            }
+        }
+    }
+
+    private void rollbackUnlinkedWriteOffSettlement(FinWriteOff finWriteOff, String operator)
+    {
+        if ("receivable".equals(finWriteOff.getWriteOffType()))
+        {
+            FinReceipt finReceipt = getExistingReceipt(finWriteOff.getReceiptId());
+            if (finReceipt.getReceivableId() == null)
+            {
+                FinReceivable ar = getExistingReceivable(finWriteOff.getReceivableId());
+                BigDecimal nextReceived = defaultAmount(ar.getReceivedAmount()).subtract(defaultAmount(finWriteOff.getAmount()));
+                if (nextReceived.compareTo(BigDecimal.ZERO) < 0) nextReceived = BigDecimal.ZERO;
+                ar.setReceivedAmount(nextReceived);
+                BigDecimal settled = nextReceived.add(defaultAmount(ar.getBadDebtAmount()));
+                ar.setStatus(settled.compareTo(BigDecimal.ZERO) <= 0 ? "0" : (settled.compareTo(defaultAmount(ar.getAmount())) >= 0 ? "2" : "1"));
+                ar.setUpdateBy(operator);
+                finReceivableMapper.updateFinReceivable(ar);
+            }
+        }
+        else if ("payable".equals(finWriteOff.getWriteOffType()))
+        {
+            FinPayment finPayment = getExistingPayment(finWriteOff.getPaymentId());
+            if (finPayment.getPayableId() == null)
+            {
+                FinPayable ap = getExistingPayable(finWriteOff.getPayableId());
+                BigDecimal nextPaid = defaultAmount(ap.getPaidAmount()).subtract(defaultAmount(finWriteOff.getAmount()));
+                if (nextPaid.compareTo(BigDecimal.ZERO) < 0) nextPaid = BigDecimal.ZERO;
+                ap.setPaidAmount(nextPaid);
+                ap.setStatus(nextPaid.compareTo(BigDecimal.ZERO) <= 0 ? "0" : (nextPaid.compareTo(defaultAmount(ap.getAmount())) >= 0 ? "2" : "1"));
+                ap.setUpdateBy(operator);
+                finPayableMapper.updateFinPayable(ap);
+            }
+        }
+    }
+
+    private String generateWriteOffNo()
+    {
+        String prefix = "wof" + LocalDate.now().format(NO_DATE_FMT);
+        FinWriteOff q = new FinWriteOff();
+        q.setWriteOffNo(prefix);
+        List<FinWriteOff> list = finWriteOffMapper.selectFinWriteOffList(q);
+        int maxSeq = 0;
+        if (list != null)
+        {
+            for (FinWriteOff row : list)
+            {
+                String no = row.getWriteOffNo();
+                if (no != null && no.startsWith(prefix) && no.length() > prefix.length())
+                {
+                    String tail = no.substring(prefix.length());
+                    if (StringUtils.isNumeric(tail))
+                    {
+                        maxSeq = Math.max(maxSeq, Integer.parseInt(tail));
+                    }
+                }
+            }
+        }
+        return prefix + String.format("%04d", maxSeq + 1);
     }
 
     /**

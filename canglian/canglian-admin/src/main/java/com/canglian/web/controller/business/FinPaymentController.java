@@ -12,17 +12,17 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import com.canglian.business.domain.FinPayment;
+import com.canglian.business.service.IFinPaymentService;
 import com.canglian.common.annotation.Log;
 import com.canglian.common.core.controller.BaseController;
 import com.canglian.common.core.domain.AjaxResult;
 import com.canglian.common.core.page.TableDataInfo;
 import com.canglian.common.enums.BusinessType;
-import com.canglian.business.domain.FinPayment;
-import com.canglian.business.service.IFinPaymentService;
 
 /**
  * 付款单 信息操作处理
- * 
+ *
  * @author canglian
  */
 @RestController
@@ -32,9 +32,6 @@ public class FinPaymentController extends BaseController
     @Autowired
     private IFinPaymentService finPaymentService;
 
-    /**
-     * 获取付款单列表
-     */
     @PreAuthorize("@ss.hasPermi('business:payment:list')")
     @GetMapping("/list")
     public TableDataInfo list(FinPayment finPayment)
@@ -44,9 +41,6 @@ public class FinPaymentController extends BaseController
         return getDataTable(list);
     }
 
-    /**
-     * 根据付款单编号获取详细信息
-     */
     @PreAuthorize("@ss.hasPermi('business:payment:query')")
     @GetMapping(value = "/{paymentId}")
     public AjaxResult getInfo(@PathVariable Long paymentId)
@@ -54,9 +48,6 @@ public class FinPaymentController extends BaseController
         return success(finPaymentService.selectFinPaymentById(paymentId));
     }
 
-    /**
-     * 新增付款单
-     */
     @PreAuthorize("@ss.hasPermi('business:payment:add')")
     @Log(title = "付款单", businessType = BusinessType.INSERT)
     @PostMapping
@@ -66,9 +57,6 @@ public class FinPaymentController extends BaseController
         return toAjax(finPaymentService.insertFinPayment(finPayment));
     }
 
-    /**
-     * 修改付款单
-     */
     @PreAuthorize("@ss.hasPermi('business:payment:edit')")
     @Log(title = "付款单", businessType = BusinessType.UPDATE)
     @PutMapping
@@ -78,9 +66,22 @@ public class FinPaymentController extends BaseController
         return toAjax(finPaymentService.updateFinPayment(finPayment));
     }
 
-    /**
-     * 删除付款单
-     */
+    @PreAuthorize("@ss.hasPermi('business:payment:confirm') or @ss.hasPermi('business:payment:edit')")
+    @Log(title = "付款单确认", businessType = BusinessType.UPDATE)
+    @PostMapping("/confirm/{paymentId}")
+    public AjaxResult confirm(@PathVariable Long paymentId)
+    {
+        return toAjax(finPaymentService.confirmFinPayment(paymentId, getUsername()));
+    }
+
+    @PreAuthorize("@ss.hasPermi('business:payment:confirm') or @ss.hasPermi('business:payment:edit')")
+    @Log(title = "付款单反确认", businessType = BusinessType.UPDATE)
+    @PostMapping("/unconfirm/{paymentId}")
+    public AjaxResult unconfirm(@PathVariable Long paymentId)
+    {
+        return toAjax(finPaymentService.unconfirmFinPayment(paymentId, getUsername()));
+    }
+
     @PreAuthorize("@ss.hasPermi('business:payment:remove')")
     @Log(title = "付款单", businessType = BusinessType.DELETE)
     @DeleteMapping("/{paymentIds}")
@@ -89,4 +90,3 @@ public class FinPaymentController extends BaseController
         return toAjax(finPaymentService.deleteFinPaymentByIds(paymentIds));
     }
 }
-

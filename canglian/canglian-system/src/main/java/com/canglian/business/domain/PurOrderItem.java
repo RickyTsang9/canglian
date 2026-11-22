@@ -6,7 +6,7 @@ import org.apache.commons.lang3.builder.ToStringStyle;
 
 /**
  * 购货订单明细实体
- * 
+ *
  * @author canglian
  */
 public class PurOrderItem
@@ -17,83 +17,56 @@ public class PurOrderItem
 
     private Long productId;
 
+    private String unitName;
+
+    private BigDecimal convertRatio;
+
+    private BigDecimal baseQuantity;
+
     private BigDecimal quantity;
 
+    private BigDecimal receivedQty;
+
     private BigDecimal price;
+
+    private BigDecimal discountRate;
+
+    private BigDecimal taxRate;
+
+    private BigDecimal taxAmount;
 
     private BigDecimal amount;
 
     private String remark;
 
-    public Long getPurchaseOrderItemId()
-    {
-        return purchaseOrderItemId;
-    }
-
-    public void setPurchaseOrderItemId(Long purchaseOrderItemId)
-    {
-        this.purchaseOrderItemId = purchaseOrderItemId;
-    }
-
-    public Long getPurchaseOrderId()
-    {
-        return purchaseOrderId;
-    }
-
-    public void setPurchaseOrderId(Long purchaseOrderId)
-    {
-        this.purchaseOrderId = purchaseOrderId;
-    }
-
-    public Long getProductId()
-    {
-        return productId;
-    }
-
-    public void setProductId(Long productId)
-    {
-        this.productId = productId;
-    }
-
-    public BigDecimal getQuantity()
-    {
-        return quantity;
-    }
-
-    public void setQuantity(BigDecimal quantity)
-    {
-        this.quantity = quantity;
-    }
-
-    public BigDecimal getPrice()
-    {
-        return price;
-    }
-
-    public void setPrice(BigDecimal price)
-    {
-        this.price = price;
-    }
-
-    public BigDecimal getAmount()
-    {
-        return amount;
-    }
-
-    public void setAmount(BigDecimal amount)
-    {
-        this.amount = amount;
-    }
-
-    public String getRemark()
-    {
-        return remark;
-    }
-
-    public void setRemark(String remark)
-    {
-        this.remark = remark;
-    }
+    public Long getPurchaseOrderItemId() { return purchaseOrderItemId; }
+    public void setPurchaseOrderItemId(Long purchaseOrderItemId) { this.purchaseOrderItemId = purchaseOrderItemId; }
+    public Long getPurchaseOrderId() { return purchaseOrderId; }
+    public void setPurchaseOrderId(Long purchaseOrderId) { this.purchaseOrderId = purchaseOrderId; }
+    public Long getProductId() { return productId; }
+    public void setProductId(Long productId) { this.productId = productId; }
+    public String getUnitName() { return unitName; }
+    public void setUnitName(String unitName) { this.unitName = unitName; }
+    public BigDecimal getConvertRatio() { return convertRatio; }
+    public void setConvertRatio(BigDecimal convertRatio) { this.convertRatio = convertRatio; }
+    public BigDecimal getBaseQuantity() { return baseQuantity; }
+    public void setBaseQuantity(BigDecimal baseQuantity) { this.baseQuantity = baseQuantity; }
+    public BigDecimal getQuantity() { return quantity; }
+    public void setQuantity(BigDecimal quantity) { this.quantity = quantity; }
+    public BigDecimal getReceivedQty() { return receivedQty; }
+    public void setReceivedQty(BigDecimal receivedQty) { this.receivedQty = receivedQty; }
+    public BigDecimal getPrice() { return price; }
+    public void setPrice(BigDecimal price) { this.price = price; }
+    public BigDecimal getDiscountRate() { return discountRate; }
+    public void setDiscountRate(BigDecimal discountRate) { this.discountRate = discountRate; }
+    public BigDecimal getTaxRate() { return taxRate; }
+    public void setTaxRate(BigDecimal taxRate) { this.taxRate = taxRate; }
+    public BigDecimal getTaxAmount() { return taxAmount; }
+    public void setTaxAmount(BigDecimal taxAmount) { this.taxAmount = taxAmount; }
+    public BigDecimal getAmount() { return amount; }
+    public void setAmount(BigDecimal amount) { this.amount = amount; }
+    public String getRemark() { return remark; }
+    public void setRemark(String remark) { this.remark = remark; }
 
     @Override
     public String toString()
@@ -102,8 +75,15 @@ public class PurOrderItem
             .append("purchaseOrderItemId", getPurchaseOrderItemId())
             .append("purchaseOrderId", getPurchaseOrderId())
             .append("productId", getProductId())
+            .append("unitName", getUnitName())
+            .append("convertRatio", getConvertRatio())
+            .append("baseQuantity", getBaseQuantity())
             .append("quantity", getQuantity())
+            .append("receivedQty", getReceivedQty())
             .append("price", getPrice())
+            .append("discountRate", getDiscountRate())
+            .append("taxRate", getTaxRate())
+            .append("taxAmount", getTaxAmount())
             .append("amount", getAmount())
             .append("remark", getRemark())
             .toString();

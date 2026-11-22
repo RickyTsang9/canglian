@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.canglian.business.mapper.WmsStockLockMapper">
+
+    <resultMap type="WmsStockLock" id="WmsStockLockResult">
+        <id     property="lockId"      column="lock_id"      />
+        <result property="orderId"     column="order_id"     />
+        <result property="orderItemId" column="order_item_id"/>
+        <result property="warehouseId" column="warehouse_id" />
+        <result property="productId"   column="product_id"   />
+        <result property="locationId"  column="location_id"  />
+        <result property="batchNo"     column="batch_no"     />
+        <result property="stockId"     column="stock_id"     />
+        <result property="lockedQty"   column="locked_qty"   />
+        <result property="releasedQty" column="released_qty" />
+        <result property="status"      column="status"       />
+        <result property="createBy"    column="create_by"    />
+        <result property="createTime"  column="create_time"  />
+        <result property="updateBy"    column="update_by"    />
+        <result property="updateTime"  column="update_time"  />
+    </resultMap>
+
+    <sql id="selectWmsStockLockVo">
+        select lock_id, order_id, order_item_id, warehouse_id, product_id, location_id, batch_no,
+               stock_id, locked_qty, released_qty, status, create_by, create_time, update_by, update_time
+        from wms_stock_lock
+    </sql>
+
+    <select id="selectActiveLocksByOrderAndProductForUpdate" resultMap="WmsStockLockResult">
+        <include refid="selectWmsStockLockVo"/>
+        where order_id = #{orderId}
+          and product_id = #{productId}
+          and status = '0'
+        order by lock_id asc
+        for update
+    </select>
+
+    <select id="selectActiveLocksByOrderForUpdate" resultMap="WmsStockLockResult">
+        <include refid="selectWmsStockLockVo"/>
+        where order_id = #{orderId}
+          and status = '0'
+        order by lock_id asc
+        for update
+    </select>
+
+    <insert id="insertWmsStockLock" parameterType="WmsStockLock" useGeneratedKeys="true" keyProperty="lockId">
+        insert into wms_stock_lock (
+            order_id, order_item_id, warehouse_id, product_id, location_id, batch_no,
+            stock_id, locked_qty, released_qty, status, create_by, create_time
+        ) values (
+            #{orderId}, #{orderItemId}, #{warehouseId}, #{productId}, #{locationId}, #{batchNo},
+            #{stockId}, #{lockedQty}, #{releasedQty}, #{status}, #{createBy}, sysdate()
+        )
+    </insert>
+
+    <update id="updateWmsStockLock" parameterType="WmsStockLock">
+        update wms_stock_lock
+        set released_qty = #{releasedQty},
+            status = #{status},
+            update_by = #{updateBy},
+            update_time = sysdate()
+        where lock_id = #{lockId}
+    </update>
+</mapper>

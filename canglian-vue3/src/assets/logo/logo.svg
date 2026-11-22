@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
+  <defs>
+    <linearGradient id="cl-bg" x1="6" y1="4" x2="58" y2="60" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#2563eb" />
+      <stop offset="55%" stop-color="#0284c7" />
+      <stop offset="100%" stop-color="#0d9488" />
+    </linearGradient>
+    <linearGradient id="cl-shine" x1="32" y1="0" x2="32" y2="64" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.24" />
+      <stop offset="50%" stop-color="#ffffff" stop-opacity="0" />
+    </linearGradient>
+  </defs>
+  <rect width="64" height="64" rx="16" fill="url(#cl-bg)" />
+  <rect x="0.75" y="0.75" width="62.5" height="62.5" rx="15.25" stroke="url(#cl-shine)" stroke-width="1.5" />
+  <!-- 顶部仓库立方体面 -->
+  <path d="M32 14L48.5 23.2L32 32.4L15.5 23.2L32 14Z" fill="#ffffff" fill-opacity="0.96" />
+  <!-- 左侧链环切面（仓链“C”形开放结构） -->
+  <path d="M15.5 26.8L29.6 34.7V50L15.5 42.1V26.8Z" fill="#ffffff" fill-opacity="0.78" />
+  <!-- 右侧互锁供应链桥接双节 -->
+  <path d="M34.4 34.7L48.5 26.8V35.2L34.4 43.1V34.7Z" fill="#ffffff" fill-opacity="0.95" />
+  <path d="M34.4 46.2L48.5 38.3V42.4L34.4 50.3V46.2Z" fill="#99f6e4" />
+</svg>

@@ -65,5 +65,7 @@ public interface MdProductMapper
      * @return 结果
      */
     public int deleteMdProductByIds(Long[] productIds);
+
+    public int countProductReferences(Long productId);
 }
 

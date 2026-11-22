@@ -1,5 +1,6 @@
 package com.canglian.web.controller.business;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -15,6 +16,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import com.canglian.business.domain.SalOrder;
+import com.canglian.business.domain.SalOrderItem;
 import com.canglian.business.service.ISalOrderService;
 import com.canglian.common.annotation.Log;
 import com.canglian.common.core.controller.BaseController;
@@ -24,7 +26,7 @@ import com.canglian.common.enums.BusinessType;
 
 /**
  * 销售单据控制器
- * 
+ *
  * @author canglian
  */
 @RestController
@@ -34,12 +36,9 @@ public class SalOrderController extends BaseController
     @Autowired
     private ISalOrderService salOrderService;
 
-    /**
-     * 查询销售单据列表
-     * 
-     * @param salOrder 销售单据
-     * @return 销售单据列表
-     */
+    @Autowired(required = false)
+    private PrintPayloadEnricher printPayloadEnricher;
+
     @PreAuthorize("@ss.hasPermi('business:saleOrder:list')")
     @GetMapping("/list")
     public TableDataInfo list(SalOrder salOrder)
@@ -49,12 +48,6 @@ public class SalOrderController extends BaseController
         return getDataTable(salOrderList);
     }
 
-    /**
-     * 查询销售单据详情
-     * 
-     * @param orderId 销售单据id
-     * @return 销售单据详情
-     */
     @PreAuthorize("@ss.hasPermi('business:saleOrder:query')")
     @GetMapping("/{orderId}")
     public AjaxResult getInfo(@PathVariable Long orderId)
@@ -62,12 +55,6 @@ public class SalOrderController extends BaseController
         return success(salOrderService.selectSalOrderById(orderId));
     }
 
-    /**
-     * 新增销售单据
-     * 
-     * @param salOrder 销售单据
-     * @return 结果
-     */
     @PreAuthorize("@ss.hasPermi('business:saleOrder:add')")
     @Log(title = "销售单据", businessType = BusinessType.INSERT)
     @PostMapping
@@ -77,12 +64,6 @@ public class SalOrderController extends BaseController
         return toAjax(salOrderService.insertSalOrder(salOrder));
     }
 
-    /**
-     * 修改销售单据
-     * 
-     * @param salOrder 销售单据
-     * @return 结果
-     */
     @PreAuthorize("@ss.hasPermi('business:saleOrder:edit')")
     @Log(title = "销售单据", businessType = BusinessType.UPDATE)
     @PutMapping
@@ -92,12 +73,6 @@ public class SalOrderController extends BaseController
         return toAjax(salOrderService.updateSalOrder(salOrder));
     }
 
-    /**
-     * 审批销售单据
-     * 
-     * @param orderId 销售单据id
-     * @return 结果
-     */
     @PreAuthorize("@ss.hasPermi('business:saleOrder:approve')")
     @Log(title = "销售单据审批", businessType = BusinessType.UPDATE)
     @PutMapping("/approve/{orderId}")
@@ -106,12 +81,23 @@ public class SalOrderController extends BaseController
         return toAjax(salOrderService.approveSalOrder(orderId, getUsername()));
     }
 
-    /**
-     * 报价单下推销货订单
-     * 
-     * @param orderId 销售单据id
-     * @return 结果
-     */
+    @PreAuthorize("@ss.hasPermi('business:saleOrder:close') or @ss.hasPermi('business:saleOrder:approve')")
+    @Log(title = "销售单据反审批", businessType = BusinessType.UPDATE)
+    @PutMapping("/unapprove/{orderId}")
+    public AjaxResult unapprove(@PathVariable Long orderId)
+    {
+        return toAjax(salOrderService.unapproveSalOrder(orderId, getUsername()));
+    }
+
+    @PreAuthorize("@ss.hasPermi('business:saleOrder:close') or @ss.hasPermi('business:saleOrder:approve')")
+    @Log(title = "销售单据强制关闭", businessType = BusinessType.UPDATE)
+    @PutMapping("/close/{orderId}")
+    public AjaxResult close(@PathVariable Long orderId, @RequestBody(required = false) Map<String, Object> body)
+    {
+        String reason = body != null && body.get("closeReason") != null ? String.valueOf(body.get("closeReason")) : null;
+        return toAjax(salOrderService.closeSalOrder(orderId, reason, getUsername()));
+    }
+
     @PreAuthorize("@ss.hasPermi('business:saleOrder:pushSale')")
     @Log(title = "报价单下推销货订单", businessType = BusinessType.UPDATE)
     @PutMapping("/pushSale/{orderId}")
@@ -120,26 +106,15 @@ public class SalOrderController extends BaseController
         return toAjax(salOrderService.pushQuoteToSale(orderId, getUsername()));
     }
 
-    /**
-     * 销货订单下推出库单
-     * 
-     * @param orderId 销售单据id
-     * @return 结果
-     */
     @PreAuthorize("@ss.hasPermi('business:saleOrder:pushOutbound')")
     @Log(title = "销货订单下推出库单", businessType = BusinessType.UPDATE)
     @PutMapping("/pushOutbound/{orderId}")
-    public AjaxResult pushOutbound(@PathVariable Long orderId)
+    public AjaxResult pushOutbound(@PathVariable Long orderId,
+                                   @RequestBody(required = false) List<Map<String, Object>> pushItems)
     {
-        return toAjax(salOrderService.pushSaleOrderToOutbound(orderId, getUsername()));
+        return toAjax(salOrderService.pushSaleOrderToOutbound(orderId, pushItems, getUsername()));
     }
 
-    /**
-     * 查询打印数据
-     * 
-     * @param orderId 销售单据id
-     * @return 打印数据
-     */
     @PreAuthorize("@ss.hasPermi('business:saleOrder:print')")
     @GetMapping("/print/{orderId}")
     public AjaxResult printData(@PathVariable Long orderId)
@@ -152,15 +127,27 @@ public class SalOrderController extends BaseController
         Map<String, Object> printData = new HashMap<String, Object>();
         printData.put("header", salOrder);
         printData.put("items", salOrder.getOrderItemList());
+        if (printPayloadEnricher != null)
+        {
+            List<Long> pids = new ArrayList<Long>();
+            if (salOrder.getOrderItemList() != null)
+            {
+                for (SalOrderItem item : salOrder.getOrderItemList())
+                {
+                    if (item.getProductId() != null)
+                    {
+                        pids.add(item.getProductId());
+                    }
+                }
+            }
+            printData.put("displayNames", printPayloadEnricher.buildDisplayNames(
+                printPayloadEnricher.resolveCustomerName(salOrder.getCustomerId()),
+                printPayloadEnricher.resolveWarehouseName(salOrder.getWarehouseId()),
+                null, null, pids, null));
+        }
         return success(printData);
     }
 
-    /**
-     * 删除销售单据
-     * 
-     * @param orderIds 销售单据id集合
-     * @return 结果
-     */
     @PreAuthorize("@ss.hasPermi('business:saleOrder:remove')")
     @Log(title = "销售单据", businessType = BusinessType.DELETE)
     @DeleteMapping("/{orderIds}")

@@ -23,8 +23,21 @@ public class MdCustomer extends BaseEntity
     @Excel(name = "信用额度")
     private java.math.BigDecimal creditLimit;
 
+    @Excel(name = "期初应收余额")
+    private java.math.BigDecimal openingReceivable;
+
     @Excel(name = "账期天数")
     private Integer receivableDays;
+
+    public java.math.BigDecimal getOpeningReceivable()
+    {
+        return openingReceivable;
+    }
+
+    public void setOpeningReceivable(java.math.BigDecimal openingReceivable)
+    {
+        this.openingReceivable = openingReceivable;
+    }
 
     @Excel(name = "价格策略")
     private String pricePolicyType;

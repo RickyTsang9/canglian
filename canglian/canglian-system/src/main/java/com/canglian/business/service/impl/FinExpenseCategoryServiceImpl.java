@@ -128,13 +128,41 @@ public class FinExpenseCategoryServiceImpl implements IFinExpenseCategoryService
     @Override
     public int updateFinExpenseCategory(FinExpenseCategory finExpenseCategory)
     {
-        FinExpenseCategory newParentExpenseCategory = finExpenseCategoryMapper.selectFinExpenseCategoryById(finExpenseCategory.getParentId());
         FinExpenseCategory oldExpenseCategory = finExpenseCategoryMapper.selectFinExpenseCategoryById(finExpenseCategory.getCategoryId());
-        if (StringUtils.isNotNull(newParentExpenseCategory) && StringUtils.isNotNull(oldExpenseCategory))
+        if (StringUtils.isNull(oldExpenseCategory))
         {
-            String newAncestors = newParentExpenseCategory.getAncestors() + "," + newParentExpenseCategory.getCategoryId();
-            String oldAncestors = oldExpenseCategory.getAncestors();
-            finExpenseCategory.setAncestors(newAncestors);
+            throw new ServiceException("费用类别不存在");
+        }
+        Long parentId = finExpenseCategory.getParentId() == null ? 0L : finExpenseCategory.getParentId();
+        finExpenseCategory.setParentId(parentId);
+        if (parentId.equals(finExpenseCategory.getCategoryId()))
+        {
+            throw new ServiceException("上级费用类别不能选择自己");
+        }
+        String newAncestors;
+        if (parentId == 0L)
+        {
+            newAncestors = "0";
+        }
+        else
+        {
+            FinExpenseCategory newParentExpenseCategory = finExpenseCategoryMapper.selectFinExpenseCategoryById(parentId);
+            if (StringUtils.isNull(newParentExpenseCategory))
+            {
+                throw new ServiceException("上级费用类别不存在");
+            }
+            String parentAncestors = newParentExpenseCategory.getAncestors() == null ? "" : newParentExpenseCategory.getAncestors();
+            String selfToken = "," + finExpenseCategory.getCategoryId() + ",";
+            if (("," + parentAncestors + ",").contains(selfToken))
+            {
+                throw new ServiceException("上级费用类别不能选择自身的下级节点");
+            }
+            newAncestors = parentAncestors + "," + newParentExpenseCategory.getCategoryId();
+        }
+        String oldAncestors = oldExpenseCategory.getAncestors();
+        finExpenseCategory.setAncestors(newAncestors);
+        if (StringUtils.isNotEmpty(oldAncestors) && !oldAncestors.equals(newAncestors))
+        {
             updateExpenseCategoryChildren(finExpenseCategory.getCategoryId(), newAncestors, oldAncestors);
         }
         return finExpenseCategoryMapper.updateFinExpenseCategory(finExpenseCategory);

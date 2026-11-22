@@ -85,12 +85,24 @@ getBreadcrumb()
 
 <style lang='scss' scoped>
 .app-breadcrumb.el-breadcrumb {
-  display: inline-block;
-  font-size: 14px;
-  line-height: 50px;
+  display: inline-flex;
+  align-items: center;
+  font-size: 13.5px;
+  line-height: 1;
+
+  :deep(.el-breadcrumb__inner a) {
+    color: var(--panel-muted, #64748b);
+    font-weight: 500 !important;
+    transition: color 0.16s ease;
+
+    &:hover {
+      color: var(--brand-primary, #2563eb);
+    }
+  }
 
   .no-redirect {
-    color: #97a8be;
+    color: var(--panel-heading, #0f172a);
+    font-weight: 600;
     cursor: text;
   }
 }

@@ -10,26 +10,30 @@
 
     <div class="right-menu">
       <template v-if="appStore.device !== 'mobile'">
-        <header-search id="header-search" class="right-menu-item" />
+        <header-search id="header-search" class="right-menu-item hover-effect" />
 
         <screenfull id="screenfull" class="right-menu-item hover-effect" />
 
-        <el-tooltip content="主题模式" effect="dark" placement="bottom">
+        <el-tooltip content="切换明暗主题" effect="dark" placement="bottom">
           <div class="right-menu-item hover-effect theme-switch-wrapper" @click="toggleTheme">
             <svg-icon v-if="settingsStore.isDark" icon-class="sunny" />
             <svg-icon v-if="!settingsStore.isDark" icon-class="moon" />
           </div>
         </el-tooltip>
 
-        <el-tooltip content="布局大小" effect="dark" placement="bottom">
+        <el-tooltip content="布局密度" effect="dark" placement="bottom">
           <size-select id="size-select" class="right-menu-item hover-effect" />
         </el-tooltip>
       </template>
 
-      <el-dropdown @command="handleCommand" class="avatar-container right-menu-item hover-effect" trigger="hover">
+      <el-dropdown @command="handleCommand" class="avatar-container right-menu-item" trigger="hover">
         <div class="avatar-wrapper">
-          <img :src="userStore.avatar" class="user-avatar" />
-          <span class="user-nickname"> {{ userStore.nickName }} </span>
+          <div class="avatar-box">
+            <img :src="userStore.avatar" class="user-avatar" alt="avatar" />
+            <span class="status-dot" />
+          </div>
+          <span class="user-nickname">{{ userStore.nickName }}</span>
+          <el-icon class="avatar-caret"><ArrowDown /></el-icon>
         </div>
         <template #dropdown>
           <el-dropdown-menu>
@@ -37,8 +41,8 @@
               <el-dropdown-item>个人中心</el-dropdown-item>
             </router-link>
             <el-dropdown-item command="setLayout" v-if="settingsStore.showSettings">
-                <span>布局设置</span>
-              </el-dropdown-item>
+              <span>界面布局设置</span>
+            </el-dropdown-item>
             <el-dropdown-item divided command="logout">
               <span>退出登录</span>
             </el-dropdown-item>
@@ -128,7 +132,7 @@ async function toggleTheme(event) {
       {
         clipPath: !wasDark ? [...clipPath].reverse() : clipPath
       }, {
-        duration: 650,
+        duration: 500,
         easing: "cubic-bezier(0.4, 0, 0.2, 1)",
         fill: "forwards",
         pseudoElement: !wasDark ? "::view-transition-old(root)" : "::view-transition-new(root)"
@@ -136,7 +140,6 @@ async function toggleTheme(event) {
     )
     await transition.finished
   } catch (error) {
-    console.warn("View transition failed, falling back to immediate toggle:", error)
     settingsStore.toggleTheme()
   }
 }
@@ -150,31 +153,36 @@ async function toggleTheme(event) {
 }
 
 .navbar {
-  height: 56px;
+  height: 58px;
   overflow: hidden;
   position: relative;
   background: var(--navbar-bg);
-  border-bottom: 1px solid var(--navbar-border, #e6ecf4);
+  border-bottom: 1px solid var(--navbar-border, #e2e8f0);
   box-shadow: none;
   display: flex;
   align-items: center;
-  backdrop-filter: blur(12px);
-  // padding: 0 8px;
+  padding: 0 16px 0 10px;
+  backdrop-filter: blur(14px);
   box-sizing: border-box;
 
   .hamburger-container {
-    line-height: 56px;
-    height: 100%;
+    width: 36px;
+    height: 36px;
+    line-height: 36px;
+    border-radius: 9px;
     cursor: pointer;
-    transition: background 0.3s;
+    transition: background 0.18s ease, color 0.18s ease;
     -webkit-tap-highlight-color: transparent;
     display: flex;
     align-items: center;
+    justify-content: center;
     flex-shrink: 0;
-    margin-right: 8px;
+    margin-right: 10px;
+    color: var(--navbar-text, #334155);
 
     &:hover {
-      background: var(--primary-soft-bg, #edf5ff);
+      background: var(--primary-soft-bg, #eff6ff);
+      color: var(--brand-primary, #2563eb);
     }
   }
 
@@ -184,7 +192,7 @@ async function toggleTheme(event) {
 
   .topmenu-container {
     position: absolute;
-    left: 50px;
+    left: 52px;
   }
 
   .topbar-container {
@@ -196,91 +204,105 @@ async function toggleTheme(event) {
     margin-left: 8px;
   }
 
-  .errLog-container {
-    display: inline-block;
-    vertical-align: top;
-  }
-
   .right-menu {
     height: 100%;
-    line-height: 56px;
     display: flex;
     align-items: center;
+    gap: 6px;
     margin-left: auto;
-    padding-right: 12px;
 
     &:focus {
       outline: none;
     }
 
     .right-menu-item {
-      display: inline-block;
-      padding: 0 8px;
-      height: 100%;
-      font-size: 18px;
-      color: var(--navbar-text, #263447);
-      vertical-align: text-bottom;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0 9px;
+      height: 36px;
+      border-radius: 9px;
+      font-size: 16px;
+      color: var(--navbar-text, #475569);
+      transition: background 0.18s ease, color 0.18s ease;
 
       &.hover-effect {
         cursor: pointer;
-        transition: background 0.3s;
 
         &:hover {
-          background: var(--primary-soft-bg, #edf5ff);
+          background: var(--primary-soft-bg, #eff6ff);
+          color: var(--brand-primary, #2563eb);
         }
       }
 
       &.theme-switch-wrapper {
-        display: flex;
-        align-items: center;
-
         svg {
-          transition: transform 0.3s;
-          
+          transition: transform 0.25s ease;
+
           &:hover {
-            transform: scale(1.15);
+            transform: rotate(18deg) scale(1.1);
           }
         }
       }
     }
 
     .avatar-container {
-      margin-right: 0px;
-      padding-right: 0px;
+      margin-left: 6px;
+      padding: 0;
+      height: auto;
 
       .avatar-wrapper {
         display: flex;
         align-items: center;
         gap: 8px;
-        height: 36px;
-        margin-top: 0;
-        padding: 0 12px 0 8px;
-        border: 1px solid var(--navbar-border, #e6ecf4);
+        height: 38px;
+        padding: 0 12px 0 6px;
+        border: 1px solid var(--navbar-border, #e2e8f0);
         border-radius: 999px;
-        background: var(--navbar-avatar-bg, rgba(255, 255, 255, 0.72));
+        background: var(--navbar-avatar-bg, #f8fafc);
+        cursor: pointer;
+        transition: border-color 0.18s ease, background 0.18s ease, box-shadow 0.18s ease;
+
+        &:hover {
+          border-color: #bfdbfe;
+          background: var(--panel-bg, #ffffff);
+          box-shadow: 0 2px 10px rgba(37, 99, 235, 0.08);
+        }
+
+        .avatar-box {
+          position: relative;
+          display: flex;
+          align-items: center;
+        }
 
         .user-avatar {
-          cursor: pointer;
           width: 28px;
           height: 28px;
-          margin-right: 0;
           border-radius: 50%;
+          object-fit: cover;
         }
 
-        .user-nickname{
-          position: static;
-          font-size: 14px;
-          font-weight: 650;
-          line-height: 1;
-          color: var(--navbar-text, #263447);
-        }
-
-        i {
-          cursor: pointer;
+        .status-dot {
           position: absolute;
-          right: -20px;
-          top: 25px;
+          right: -1px;
+          bottom: -1px;
+          width: 8px;
+          height: 8px;
+          border-radius: 50%;
+          background: #10b981;
+          border: 1.5px solid var(--panel-bg, #ffffff);
+        }
+
+        .user-nickname {
+          font-size: 13.5px;
+          font-weight: 600;
+          line-height: 1;
+          color: var(--panel-heading, #0f172a);
+        }
+
+        .avatar-caret {
           font-size: 12px;
+          color: var(--panel-muted, #64748b);
         }
       }
     }

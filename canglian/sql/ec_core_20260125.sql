@@ -41,6 +41,23 @@ create table md_warehouse (
   unique key uk_md_warehouse_code (warehouse_code)
 ) engine=innodb comment = '仓库档案表';
 
+drop table if exists md_location;
+create table md_location (
+  location_id        bigint(20)      not null auto_increment    comment '库位id',
+  warehouse_id       bigint(20)      not null                   comment '仓库id',
+  location_code      varchar(64)     not null                   comment '库位编码',
+  location_name      varchar(100)    not null                   comment '库位名称',
+  status             char(1)         default '0'                comment '状态（0正常 1停用）',
+  del_flag           char(1)         default '0'                comment '删除标志（0代表存在 2代表删除）',
+  create_by          varchar(64)     default ''                 comment '创建者',
+  create_time        datetime                                   comment '创建时间',
+  update_by          varchar(64)     default ''                 comment '更新者',
+  update_time        datetime                                   comment '更新时间',
+  remark             varchar(500)    default null               comment '备注',
+  primary key (location_id),
+  unique key uk_md_location_code (warehouse_id, location_code)
+) engine=innodb comment = '库位档案表';
+
 drop table if exists md_supplier;
 create table md_supplier (
   supplier_id        bigint(20)      not null auto_increment    comment '供应商id',
@@ -134,13 +151,6 @@ create table wms_inbound (
   status             char(1)         default '0'                comment '状态（0草稿 1已审核 2已完成）',
   audit_by           varchar(64)     default ''                 comment '审核人',
   audit_time         datetime                                   comment '审核时间',
-  platform_type      varchar(20)     default ''                 comment '平台类型',
-  store_id           bigint(20)      default null               comment '店铺id',
-  source_order_no    varchar(64)     default ''                 comment '平台订单号',
-  carrier            varchar(100)    default ''                 comment '承运商',
-  waybill_no         varchar(64)     default ''                 comment '运单号',
-  freight_cost       decimal(18,2)   default 0.00               comment '运费成本',
-  delivery_status    char(1)         default '0'                comment '配送状态（0待发货 1已发货 2已签收 3退货）',
   create_by          varchar(64)     default ''                 comment '创建者',
   create_time        datetime                                   comment '创建时间',
   update_by          varchar(64)     default ''                 comment '更新者',
@@ -175,6 +185,13 @@ create table wms_outbound (
   status             char(1)         default '0'                comment '状态（0草稿 1已审核 2已完成）',
   audit_by           varchar(64)     default ''                 comment '审核人',
   audit_time         datetime                                   comment '审核时间',
+  platform_type      varchar(20)     default ''                 comment '平台类型',
+  store_id           bigint(20)      default null               comment '店铺id',
+  source_order_no    varchar(64)     default ''                 comment '平台订单号',
+  carrier            varchar(100)    default ''                 comment '承运商',
+  waybill_no         varchar(64)     default ''                 comment '运单号',
+  freight_cost       decimal(18,2)   default 0.00               comment '运费成本',
+  delivery_status    char(1)         default '0'                comment '配送状态（0待发货 1已发货 2已签收 3退货）',
   create_by          varchar(64)     default ''                 comment '创建者',
   create_time        datetime                                   comment '创建时间',
   update_by          varchar(64)     default ''                 comment '更新者',
@@ -583,17 +600,17 @@ values
 (2, 1, 2, 80.00, 0.00, 10.00, 300.00, 'admin', sysdate(), 'admin', sysdate()),
 (3, 2, 3, 200.00, 0.00, 50.00, 800.00, 'admin', sysdate(), 'admin', sysdate());
 
-insert into wms_inbound (inbound_id, inbound_no, inbound_type, supplier_id, warehouse_id, total_qty, total_amount, status, audit_by, audit_time, platform_type, store_id, source_order_no, carrier, waybill_no, freight_cost, delivery_status, create_by, create_time, update_by, update_time, remark)
+insert into wms_inbound (inbound_id, inbound_no, inbound_type, supplier_id, warehouse_id, total_qty, total_amount, status, audit_by, audit_time, create_by, create_time, update_by, update_time, remark)
 values
-(1, 'inb20260101001', 'purchase', 1, 1, 50.00, 750.00, '1', 'admin', sysdate(), '', null, '', '', '', 0.00, '0', 'admin', sysdate(), 'admin', sysdate(), '样例入库单');
+(1, 'inb20260101001', 'purchase', 1, 1, 50.00, 750.00, '1', 'admin', sysdate(), 'admin', sysdate(), 'admin', sysdate(), '样例入库单');
 
 insert into wms_inbound_item (inbound_item_id, inbound_id, product_id, quantity, price, amount)
 values
 (1, 1, 1, 50.00, 15.00, 750.00);
 
-insert into wms_outbound (outbound_id, outbound_no, outbound_type, customer_id, warehouse_id, total_qty, total_amount, status, audit_by, audit_time, create_by, create_time, update_by, update_time, remark)
+insert into wms_outbound (outbound_id, outbound_no, outbound_type, customer_id, warehouse_id, total_qty, total_amount, status, audit_by, audit_time, platform_type, store_id, source_order_no, carrier, waybill_no, freight_cost, delivery_status, create_by, create_time, update_by, update_time, remark)
 values
-(1, 'out20260101001', 'sale', 1, 1, 20.00, 560.00, '1', 'admin', sysdate(), 'admin', sysdate(), 'admin', sysdate(), '样例出库单');
+(1, 'out20260101001', 'sale', 1, 1, 20.00, 560.00, '1', 'admin', sysdate(), '', null, '', '', '', 0.00, '0', 'admin', sysdate(), 'admin', sysdate(), '样例出库单');
 
 insert into wms_outbound_item (outbound_item_id, outbound_id, product_id, quantity, price, amount)
 values

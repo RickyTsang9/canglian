@@ -5,22 +5,28 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
 <mapper namespace="com.canglian.business.mapper.FinReportMapper">
     <resultMap type="FinAgingReport" id="FinAgingReportResult">
         <result property="dimensionId" column="dimension_id" />
+        <result property="dimensionName" column="dimension_name" />
         <result property="notDueAmount" column="not_due_amount" />
         <result property="days0To30Amount" column="days_0_30_amount" />
         <result property="days31To60Amount" column="days_31_60_amount" />
         <result property="days61To90Amount" column="days_61_90_amount" />
         <result property="days90AboveAmount" column="days_90_above_amount" />
+        <result property="creditBalance" column="credit_balance" />
+        <result property="netBalance" column="net_balance" />
     </resultMap>
     <resultMap type="FinReconciliationReport" id="FinReconciliationReportResult">
         <result property="dimensionId" column="dimension_id" />
+        <result property="dimensionName" column="dimension_name" />
         <result property="billAmount" column="bill_amount" />
         <result property="paidAmount" column="paid_amount" />
         <result property="diffAmount" column="diff_amount" />
     </resultMap>
     <resultMap type="FinProfitLossReport" id="FinProfitLossReportResult">
-        <result property="incomeAmount" column="income_amount" />
-        <result property="costAmount" column="cost_amount" />
-        <result property="profitAmount" column="profit_amount" />
+        <result property="salesIncomeAmount" column="sales_income_amount" />
+        <result property="saleReturnAmount" column="sale_return_amount" />
+        <result property="salesCostAmount" column="sales_cost_amount" />
+        <result property="expenseAmount" column="expense_amount" />
+        <result property="badDebtAmount" column="bad_debt_amount" />
     </resultMap>
     <resultMap type="FinRevenueExpenseReport" id="FinRevenueExpenseReportResult">
         <result property="incomeAmount" column="income_amount" />
@@ -34,159 +40,436 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
 
     <select id="selectReceivableAgingReport" parameterType="Long" resultMap="FinAgingReportResult">
         select
-            customer_id as dimension_id,
-            sum(case when datediff(curdate(), due_date) &lt; 0 then amount - received_amount else 0 end) as not_due_amount,
-            sum(case when datediff(curdate(), due_date) between 0 and 30 then amount - received_amount else 0 end) as days_0_30_amount,
-            sum(case when datediff(curdate(), due_date) between 31 and 60 then amount - received_amount else 0 end) as days_31_60_amount,
-            sum(case when datediff(curdate(), due_date) between 61 and 90 then amount - received_amount else 0 end) as days_61_90_amount,
-            sum(case when datediff(curdate(), due_date) &gt; 90 then amount - received_amount else 0 end) as days_90_above_amount
-        from fin_receivable
+            r.customer_id as dimension_id,
+            coalesce(max(c.customer_name), concat('客户#', r.customer_id)) as dimension_name,
+            ifnull(sum(case when r.amount &gt; 0 and (r.due_date is null or datediff(curdate(), r.due_date) &lt; 0) then r.amount - ifnull(r.received_amount, 0) - ifnull(r.bad_debt_amount, 0) else 0 end), 0) as not_due_amount,
+            ifnull(sum(case when r.amount &gt; 0 and datediff(curdate(), r.due_date) between 0 and 30 then r.amount - ifnull(r.received_amount, 0) - ifnull(r.bad_debt_amount, 0) else 0 end), 0) as days_0_30_amount,
+            ifnull(sum(case when r.amount &gt; 0 and datediff(curdate(), r.due_date) between 31 and 60 then r.amount - ifnull(r.received_amount, 0) - ifnull(r.bad_debt_amount, 0) else 0 end), 0) as days_31_60_amount,
+            ifnull(sum(case when r.amount &gt; 0 and datediff(curdate(), r.due_date) between 61 and 90 then r.amount - ifnull(r.received_amount, 0) - ifnull(r.bad_debt_amount, 0) else 0 end), 0) as days_61_90_amount,
+            ifnull(sum(case when r.amount &gt; 0 and datediff(curdate(), r.due_date) &gt; 90 then r.amount - ifnull(r.received_amount, 0) - ifnull(r.bad_debt_amount, 0) else 0 end), 0) as days_90_above_amount,
+            ifnull(sum(case when r.amount &lt; 0 then r.amount - ifnull(r.received_amount, 0) - ifnull(r.bad_debt_amount, 0) else 0 end), 0) as credit_balance,
+            ifnull(sum(r.amount - ifnull(r.received_amount, 0) - ifnull(r.bad_debt_amount, 0)), 0) as net_balance
+        from fin_receivable r
+        left join md_customer c on r.customer_id = c.customer_id
         <where>
+            and r.biz_status = 'confirmed'
             <if test="customerId != null">
-                and customer_id = #{customerId}
+                and r.customer_id = #{customerId}
             </if>
         </where>
-        group by customer_id
+        group by r.customer_id
     </select>
 
     <select id="selectPayableAgingReport" parameterType="Long" resultMap="FinAgingReportResult">
         select
-            supplier_id as dimension_id,
-            sum(case when datediff(curdate(), due_date) &lt; 0 then amount - paid_amount else 0 end) as not_due_amount,
-            sum(case when datediff(curdate(), due_date) between 0 and 30 then amount - paid_amount else 0 end) as days_0_30_amount,
-            sum(case when datediff(curdate(), due_date) between 31 and 60 then amount - paid_amount else 0 end) as days_31_60_amount,
-            sum(case when datediff(curdate(), due_date) between 61 and 90 then amount - paid_amount else 0 end) as days_61_90_amount,
-            sum(case when datediff(curdate(), due_date) &gt; 90 then amount - paid_amount else 0 end) as days_90_above_amount
-        from fin_payable
+            p.supplier_id as dimension_id,
+            coalesce(max(s.supplier_name), concat('供应商#', p.supplier_id)) as dimension_name,
+            ifnull(sum(case when p.amount &gt; 0 and (p.due_date is null or datediff(curdate(), p.due_date) &lt; 0) then p.amount - ifnull(p.paid_amount, 0) else 0 end), 0) as not_due_amount,
+            ifnull(sum(case when p.amount &gt; 0 and datediff(curdate(), p.due_date) between 0 and 30 then p.amount - ifnull(p.paid_amount, 0) else 0 end), 0) as days_0_30_amount,
+            ifnull(sum(case when p.amount &gt; 0 and datediff(curdate(), p.due_date) between 31 and 60 then p.amount - ifnull(p.paid_amount, 0) else 0 end), 0) as days_31_60_amount,
+            ifnull(sum(case when p.amount &gt; 0 and datediff(curdate(), p.due_date) between 61 and 90 then p.amount - ifnull(p.paid_amount, 0) else 0 end), 0) as days_61_90_amount,
+            ifnull(sum(case when p.amount &gt; 0 and datediff(curdate(), p.due_date) &gt; 90 then p.amount - ifnull(p.paid_amount, 0) else 0 end), 0) as days_90_above_amount,
+            ifnull(sum(case when p.amount &lt; 0 then p.amount - ifnull(p.paid_amount, 0) else 0 end), 0) as credit_balance,
+            ifnull(sum(p.amount - ifnull(p.paid_amount, 0)), 0) as net_balance
+        from fin_payable p
+        left join md_supplier s on p.supplier_id = s.supplier_id
         <where>
+            and p.biz_status = 'confirmed'
             <if test="supplierId != null">
-                and supplier_id = #{supplierId}
+                and p.supplier_id = #{supplierId}
             </if>
         </where>
-        group by supplier_id
+        group by p.supplier_id
     </select>
 
     <select id="selectReceivableReconciliationReport" parameterType="Long" resultMap="FinReconciliationReportResult">
         select
-            customer_id as dimension_id,
-            sum(amount) as bill_amount,
-            sum(received_amount) as paid_amount,
-            sum(amount - received_amount) as diff_amount
-        from fin_receivable
+            r.customer_id as dimension_id,
+            coalesce(max(c.customer_name), concat('客户#', r.customer_id)) as dimension_name,
+            ifnull(sum(r.amount), 0) as bill_amount,
+            ifnull(sum(ifnull(r.received_amount, 0)), 0) as paid_amount,
+            ifnull(sum(r.amount - ifnull(r.received_amount, 0) - ifnull(r.bad_debt_amount, 0)), 0) as diff_amount
+        from fin_receivable r
+        left join md_customer c on r.customer_id = c.customer_id
         <where>
+            and r.biz_status = 'confirmed'
             <if test="customerId != null">
-                and customer_id = #{customerId}
+                and r.customer_id = #{customerId}
             </if>
         </where>
-        group by customer_id
+        group by r.customer_id
     </select>
 
     <select id="selectPayableReconciliationReport" parameterType="Long" resultMap="FinReconciliationReportResult">
         select
-            supplier_id as dimension_id,
-            sum(amount) as bill_amount,
-            sum(paid_amount) as paid_amount,
-            sum(amount - paid_amount) as diff_amount
-        from fin_payable
+            p.supplier_id as dimension_id,
+            coalesce(max(s.supplier_name), concat('供应商#', p.supplier_id)) as dimension_name,
+            ifnull(sum(p.amount), 0) as bill_amount,
+            ifnull(sum(ifnull(p.paid_amount, 0)), 0) as paid_amount,
+            ifnull(sum(p.amount - ifnull(p.paid_amount, 0)), 0) as diff_amount
+        from fin_payable p
+        left join md_supplier s on p.supplier_id = s.supplier_id
         <where>
+            and p.biz_status = 'confirmed'
             <if test="supplierId != null">
-                and supplier_id = #{supplierId}
+                and p.supplier_id = #{supplierId}
             </if>
         </where>
-        group by supplier_id
+        group by p.supplier_id
     </select>
 
+    <!-- 权责发生制经营利润表：严格按签收确认(delivery_status='2')确认收入与成本，排除红冲/被红冲单据，扣减已确认销项税（含红票），计入盘点损益/调价/互转手续费/当期坏账收回 -->
     <select id="selectProfitLossReport" resultMap="FinProfitLossReportResult">
         select
-            (select ifnull(sum(amount),0) from fin_receipt where receipt_date between #{startDate} and #{endDate}) as income_amount,
-            ((select ifnull(sum(amount),0) from fin_payment where payment_date between #{startDate} and #{endDate})
-             + (select ifnull(sum(amount),0) from fin_expense where expense_date between #{startDate} and #{endDate})) as cost_amount,
-            ((select ifnull(sum(amount),0) from fin_receipt where receipt_date between #{startDate} and #{endDate})
-             - ((select ifnull(sum(amount),0) from fin_payment where payment_date between #{startDate} and #{endDate})
-                + (select ifnull(sum(amount),0) from fin_expense where expense_date between #{startDate} and #{endDate}))) as profit_amount
+            ((select ifnull(sum(o.total_amount), 0)
+              from wms_outbound o
+              where o.status = '1'
+                and o.delivery_status = '2'
+                and coalesce(o.is_reversal, '0') = '0'
+                and coalesce(o.reversed_flag, '0') = '0'
+                and o.business_date between #{startDate} and #{endDate})
+             - (select ifnull(sum(ifnull(inv.tax_amount, 0)), 0)
+                from fin_invoice inv
+                where inv.status = '1'
+                  and inv.invoice_type = 'sale'
+                  and coalesce(inv.invoice_date, inv.business_date) between #{startDate} and #{endDate})) as sales_income_amount,
+            (select ifnull(sum(sr.total_amount), 0)
+             from wms_sale_return sr
+             where sr.status = '1'
+               and coalesce(sr.is_reversal, '0') = '0'
+               and coalesce(sr.reversed_flag, '0') = '0'
+               and sr.business_date between #{startDate} and #{endDate}) as sale_return_amount,
+            ((select ifnull(sum(coalesce(cl.cost_amount, oi_fallback.fallback_cost)), 0)
+              from wms_outbound o
+              inner join (
+                  select oi.outbound_id, oi.product_id,
+                         sum(coalesce(nullif(oi.base_quantity, 0), oi.quantity) * ifnull(p.cost_price, 0)) as fallback_cost
+                  from wms_outbound_item oi
+                  left join md_product p on oi.product_id = p.product_id
+                  group by oi.outbound_id, oi.product_id
+              ) oi_fallback on oi_fallback.outbound_id = o.outbound_id
+              left join (
+                  select bill_id, product_id, sum(amount) as cost_amount
+                  from fin_cost_log
+                  where bill_type = 'outbound'
+                  group by bill_id, product_id
+              ) cl on cl.bill_id = o.outbound_id and cl.product_id = oi_fallback.product_id
+              where o.status = '1'
+                and o.delivery_status = '2'
+                and coalesce(o.is_reversal, '0') = '0'
+                and coalesce(o.reversed_flag, '0') = '0'
+                and o.business_date between #{startDate} and #{endDate})
+             - (select ifnull(sum(coalesce(cl.cost_amount, sri_fallback.fallback_cost)), 0)
+                from wms_sale_return sr
+                inner join (
+                    select sri.sale_return_id, sri.product_id,
+                           sum(coalesce(nullif(sri.base_quantity, 0), sri.quantity) * ifnull(p.cost_price, 0)) as fallback_cost
+                    from wms_sale_return_item sri
+                    left join md_product p on sri.product_id = p.product_id
+                    group by sri.sale_return_id, sri.product_id
+                ) sri_fallback on sri_fallback.sale_return_id = sr.sale_return_id
+                left join (
+                    select bill_id, product_id, sum(amount) as cost_amount
+                    from fin_cost_log
+                    where bill_type = 'sale_return'
+                    group by bill_id, product_id
+                ) cl on cl.bill_id = sr.sale_return_id and cl.product_id = sri_fallback.product_id
+                where sr.status = '1'
+                  and coalesce(sr.is_reversal, '0') = '0'
+                  and coalesce(sr.reversed_flag, '0') = '0'
+                  and sr.business_date between #{startDate} and #{endDate})
+             + (select ifnull(sum(case when cl.in_out = '2' then cl.amount else -cl.amount end), 0)
+                from fin_cost_log cl
+                inner join wms_inventory_check ic on ic.check_id = cl.bill_id
+                where cl.bill_type = 'inventory_check'
+                  and ic.status = '1'
+                  and coalesce(ic.is_reversal, '0') = '0'
+                  and coalesce(ic.reversed_flag, '0') = '0'
+                  and coalesce(ic.business_date, date(ic.create_time)) between #{startDate} and #{endDate})
+             + (select ifnull(sum(case when cl.in_out = '2' then cl.amount else -cl.amount end), 0)
+                from fin_cost_log cl
+                where cl.bill_type = 'cost_adjust'
+                  and date(cl.create_time) between #{startDate} and #{endDate})) as sales_cost_amount,
+            ((select ifnull(sum(amount), 0)
+              from fin_expense
+              where status = '1'
+                and expense_date between #{startDate} and #{endDate})
+             + (select ifnull(sum(ifnull(fee_amount, 0)), 0)
+                from fin_fund_transfer
+                where status = '1'
+                  and ifnull(fee_amount, 0) &gt; 0
+                  and transfer_date between #{startDate} and #{endDate})) as expense_amount,
+            ((select ifnull(sum(amount), 0)
+              from fin_bad_debt
+              where status in ('1', '2')
+                and bad_debt_date between #{startDate} and #{endDate})
+             - (select ifnull(sum(ifnull(recovered_amount, 0)), 0)
+                from fin_bad_debt
+                where status = '2'
+                  and recover_time is not null
+                  and date(recover_time) between #{startDate} and #{endDate})) as bad_debt_amount
     </select>
 
+    <!-- 现金收支汇总表（收付实现制，严格限定已确认单据，包含坏账收回流入与互转手续费流出） -->
     <select id="selectRevenueExpenseReport" resultMap="FinRevenueExpenseReportResult">
         select
-            (select ifnull(sum(amount),0) from fin_receipt where receipt_date between #{startDate} and #{endDate}) as income_amount,
-            ((select ifnull(sum(amount),0) from fin_payment where payment_date between #{startDate} and #{endDate})
-             + (select ifnull(sum(amount),0) from fin_expense where expense_date between #{startDate} and #{endDate})) as expense_amount,
-            ((select ifnull(sum(amount),0) from fin_receipt where receipt_date between #{startDate} and #{endDate})
-             - ((select ifnull(sum(amount),0) from fin_payment where payment_date between #{startDate} and #{endDate})
-                + (select ifnull(sum(amount),0) from fin_expense where expense_date between #{startDate} and #{endDate}))) as net_amount
+            ((select ifnull(sum(amount), 0) from fin_receipt where status = '1' and receipt_date between #{startDate} and #{endDate})
+             + (select ifnull(sum(ifnull(recovered_amount, 0)), 0) from fin_bad_debt where status = '2' and recover_time is not null and date(recover_time) between #{startDate} and #{endDate})) as income_amount,
+            ((select ifnull(sum(amount), 0) from fin_payment where status = '1' and payment_date between #{startDate} and #{endDate})
+             + (select ifnull(sum(amount), 0) from fin_expense where status = '1' and expense_date between #{startDate} and #{endDate})
+             + (select ifnull(sum(ifnull(fee_amount, 0)), 0) from fin_fund_transfer where status = '1' and ifnull(fee_amount, 0) &gt; 0 and transfer_date between #{startDate} and #{endDate})) as expense_amount,
+            (((select ifnull(sum(amount), 0) from fin_receipt where status = '1' and receipt_date between #{startDate} and #{endDate})
+              + (select ifnull(sum(ifnull(recovered_amount, 0)), 0) from fin_bad_debt where status = '2' and recover_time is not null and date(recover_time) between #{startDate} and #{endDate}))
+             - ((select ifnull(sum(amount), 0) from fin_payment where status = '1' and payment_date between #{startDate} and #{endDate})
+                + (select ifnull(sum(amount), 0) from fin_expense where status = '1' and expense_date between #{startDate} and #{endDate})
+                + (select ifnull(sum(ifnull(fee_amount, 0)), 0) from fin_fund_transfer where status = '1' and ifnull(fee_amount, 0) &gt; 0 and transfer_date between #{startDate} and #{endDate}))) as net_amount
     </select>
 
     <select id="selectCostStructureReport" resultMap="FinCostStructureReportResult">
-        select '采购付款' as cost_type, ifnull(sum(amount),0) as cost_amount
-        from fin_payment
-        where payment_date between #{startDate} and #{endDate}
+        select '销售成本结转' as cost_type,
+               ((select ifnull(sum(coalesce(cl.cost_amount, oi_fallback.fallback_cost)), 0)
+                 from wms_outbound o
+                 inner join (
+                     select oi.outbound_id, oi.product_id,
+                            sum(coalesce(nullif(oi.base_quantity, 0), oi.quantity) * ifnull(p.cost_price, 0)) as fallback_cost
+                     from wms_outbound_item oi
+                     left join md_product p on oi.product_id = p.product_id
+                     group by oi.outbound_id, oi.product_id
+                 ) oi_fallback on oi_fallback.outbound_id = o.outbound_id
+                 left join (
+                     select bill_id, product_id, sum(amount) as cost_amount
+                     from fin_cost_log
+                     where bill_type = 'outbound'
+                     group by bill_id, product_id
+                 ) cl on cl.bill_id = o.outbound_id and cl.product_id = oi_fallback.product_id
+                 where o.status = '1'
+                   and o.delivery_status = '2'
+                   and coalesce(o.is_reversal, '0') = '0'
+                   and coalesce(o.reversed_flag, '0') = '0'
+                   and o.business_date between #{startDate} and #{endDate})
+                - (select ifnull(sum(coalesce(cl.cost_amount, sri_fallback.fallback_cost)), 0)
+                   from wms_sale_return sr
+                   inner join (
+                       select sri.sale_return_id, sri.product_id,
+                              sum(coalesce(nullif(sri.base_quantity, 0), sri.quantity) * ifnull(p.cost_price, 0)) as fallback_cost
+                       from wms_sale_return_item sri
+                       left join md_product p on sri.product_id = p.product_id
+                       group by sri.sale_return_id, sri.product_id
+                   ) sri_fallback on sri_fallback.sale_return_id = sr.sale_return_id
+                   left join (
+                       select bill_id, product_id, sum(amount) as cost_amount
+                       from fin_cost_log
+                       where bill_type = 'sale_return'
+                       group by bill_id, product_id
+                   ) cl on cl.bill_id = sr.sale_return_id and cl.product_id = sri_fallback.product_id
+                   where sr.status = '1'
+                     and coalesce(sr.is_reversal, '0') = '0'
+                     and coalesce(sr.reversed_flag, '0') = '0'
+                     and sr.business_date between #{startDate} and #{endDate})) as cost_amount
         union all
-        select concat('费用-', expense_type) as cost_type, ifnull(sum(amount),0) as cost_amount
+        select '盘点损益' as cost_type,
+               ifnull(sum(case when cl.in_out = '2' then cl.amount else -cl.amount end), 0) as cost_amount
+        from fin_cost_log cl
+        inner join wms_inventory_check ic on ic.check_id = cl.bill_id
+        where cl.bill_type = 'inventory_check'
+          and ic.status = '1'
+          and coalesce(ic.is_reversal, '0') = '0'
+          and coalesce(ic.reversed_flag, '0') = '0'
+          and coalesce(ic.business_date, date(ic.create_time)) between #{startDate} and #{endDate}
+        union all
+        select '成本调价' as cost_type,
+               ifnull(sum(case when cl.in_out = '2' then cl.amount else -cl.amount end), 0) as cost_amount
+        from fin_cost_log cl
+        where cl.bill_type = 'cost_adjust'
+          and date(cl.create_time) between #{startDate} and #{endDate}
+        union all
+        select '坏账损失' as cost_type,
+               ((select ifnull(sum(amount), 0)
+                 from fin_bad_debt
+                 where status in ('1', '2')
+                   and bad_debt_date between #{startDate} and #{endDate})
+                - (select ifnull(sum(ifnull(recovered_amount, 0)), 0)
+                   from fin_bad_debt
+                   where status = '2'
+                     and recover_time is not null
+                     and date(recover_time) between #{startDate} and #{endDate})) as cost_amount
+        union all
+        select '银行手续费' as cost_type,
+               ifnull(sum(ifnull(fee_amount, 0)), 0) as cost_amount
+        from fin_fund_transfer
+        where status = '1'
+          and ifnull(fee_amount, 0) &gt; 0
+          and transfer_date between #{startDate} and #{endDate}
+        union all
+        select concat('费用-', expense_type) as cost_type, ifnull(sum(amount), 0) as cost_amount
         from fin_expense
-        where expense_date between #{startDate} and #{endDate}
+        where status = '1'
+          and expense_date between #{startDate} and #{endDate}
         group by expense_type
     </select>
 
+    <!-- 销售毛利报表：严格按已签收(delivery_status='2')非红冲出库 - 非红冲销售退货，数量与备选成本均按基础单位折算 -->
     <select id="selectSalesGrossProfitReport" resultType="map">
         select
             p.product_id as productId,
             p.product_code as productCode,
             p.product_name as productName,
-            ifnull(sum(i.quantity), 0) as saleQty,
-            ifnull(sum(i.amount), 0) as saleAmount,
-            ifnull(sum(i.quantity * ifnull(p.cost_price, 0)), 0) as costAmount,
-            ifnull(sum(i.amount - i.quantity * ifnull(p.cost_price, 0)), 0) as grossProfit
-        from sal_order o
-        inner join sal_order_item i on o.order_id = i.order_id
-        left join md_product p on i.product_id = p.product_id
-        where o.order_type = 'sale'
-          and o.business_date between #{startDate} and #{endDate}
-        group by p.product_id, p.product_code, p.product_name
+            ifnull(sale_agg.sale_qty, 0) as saleQty,
+            ifnull(ret_agg.return_qty, 0) as returnQty,
+            (ifnull(sale_agg.sale_qty, 0) - ifnull(ret_agg.return_qty, 0)) as netSaleQty,
+            round(ifnull(sale_agg.sale_amount, 0), 2) as saleAmount,
+            round(ifnull(ret_agg.return_amount, 0), 2) as returnAmount,
+            round(ifnull(sale_agg.sale_amount, 0) - ifnull(ret_agg.return_amount, 0), 2) as netSaleAmount,
+            round(ifnull(sale_agg.sale_cost, 0) - ifnull(ret_agg.return_cost, 0), 2) as costAmount,
+            round((ifnull(sale_agg.sale_amount, 0) - ifnull(ret_agg.return_amount, 0))
+                  - (ifnull(sale_agg.sale_cost, 0) - ifnull(ret_agg.return_cost, 0)), 2) as grossProfit,
+            case
+                when (ifnull(sale_agg.sale_amount, 0) - ifnull(ret_agg.return_amount, 0)) = 0 then 0
+                else round(
+                    ((ifnull(sale_agg.sale_amount, 0) - ifnull(ret_agg.return_amount, 0))
+                     - (ifnull(sale_agg.sale_cost, 0) - ifnull(ret_agg.return_cost, 0)))
+                    * 100 / (ifnull(sale_agg.sale_amount, 0) - ifnull(ret_agg.return_amount, 0)), 2)
+            end as grossMarginRate
+        from md_product p
+        left join (
+            select
+                oi.product_id,
+                sum(oi.qty) as sale_qty,
+                sum(oi.amt) as sale_amount,
+                sum(coalesce(cl.cost_amount, oi.fallback_cost)) as sale_cost
+            from (
+                select o.outbound_id, i.product_id,
+                       sum(coalesce(nullif(i.base_quantity, 0), i.quantity)) as qty,
+                       sum(i.amount) as amt,
+                       sum(coalesce(nullif(i.base_quantity, 0), i.quantity) * ifnull(mp.cost_price, 0)) as fallback_cost
+                from wms_outbound o
+                inner join wms_outbound_item i on o.outbound_id = i.outbound_id
+                left join md_product mp on i.product_id = mp.product_id
+                where o.status = '1'
+                  and o.delivery_status = '2'
+                  and coalesce(o.is_reversal, '0') = '0'
+                  and coalesce(o.reversed_flag, '0') = '0'
+                  and o.business_date between #{startDate} and #{endDate}
+                group by o.outbound_id, i.product_id
+            ) oi
+            left join (
+                select bill_id, product_id, sum(amount) as cost_amount
+                from fin_cost_log
+                where bill_type = 'outbound'
+                group by bill_id, product_id
+            ) cl on cl.bill_id = oi.outbound_id and cl.product_id = oi.product_id
+            group by oi.product_id
+        ) sale_agg on sale_agg.product_id = p.product_id
+        left join (
+            select
+                sri.product_id,
+                sum(sri.qty) as return_qty,
+                sum(sri.amt) as return_amount,
+                sum(coalesce(cl.cost_amount, sri.fallback_cost)) as return_cost
+            from (
+                select sr.sale_return_id, i.product_id,
+                       sum(coalesce(nullif(i.base_quantity, 0), i.quantity)) as qty,
+                       sum(i.amount) as amt,
+                       sum(coalesce(nullif(i.base_quantity, 0), i.quantity) * ifnull(mp.cost_price, 0)) as fallback_cost
+                from wms_sale_return sr
+                inner join wms_sale_return_item i on sr.sale_return_id = i.sale_return_id
+                left join md_product mp on i.product_id = mp.product_id
+                where sr.status = '1'
+                  and coalesce(sr.is_reversal, '0') = '0'
+                  and coalesce(sr.reversed_flag, '0') = '0'
+                  and sr.business_date between #{startDate} and #{endDate}
+                group by sr.sale_return_id, i.product_id
+            ) sri
+            left join (
+                select bill_id, product_id, sum(amount) as cost_amount
+                from fin_cost_log
+                where bill_type = 'sale_return'
+                group by bill_id, product_id
+            ) cl on cl.bill_id = sri.sale_return_id and cl.product_id = sri.product_id
+            group by sri.product_id
+        ) ret_agg on ret_agg.product_id = p.product_id
+        where ifnull(sale_agg.sale_qty, 0) &gt; 0 or ifnull(ret_agg.return_qty, 0) &gt; 0
         order by grossProfit desc
     </select>
 
+    <!-- 客户贡献报表：按已签收出库净额（扣减销售退货）统计，关联客户已确认应收回款与净欠款 -->
     <select id="selectCustomerContributionReport" resultType="map">
         select
             c.customer_id as customerId,
             c.customer_code as customerCode,
             c.customer_name as customerName,
-            ifnull(sum(o.total_amount), 0) as saleAmount,
-            count(o.order_id) as orderCount,
-            ifnull(sum(o.total_amount), 0) - ifnull(sum(r.unpaid_amount), 0) as receivedContribution,
-            ifnull(sum(r.unpaid_amount), 0) as unpaidAmount
-        from sal_order o
-        left join md_customer c on o.customer_id = c.customer_id
+            round(ifnull(ob.sale_amount, 0) - ifnull(sr.return_amount, 0), 2) as saleAmount,
+            ifnull(ob.bill_count, 0) as orderCount,
+            round(ifnull(ar.received_amount, 0), 2) as receivedContribution,
+            round(ifnull(ar.unpaid_amount, 0), 2) as unpaidAmount
+        from md_customer c
         left join (
-            select source_bill_id, sum(amount - received_amount) as unpaid_amount
+            select customer_id,
+                   sum(total_amount) as sale_amount,
+                   count(outbound_id) as bill_count
+            from wms_outbound
+            where status = '1'
+              and delivery_status = '2'
+              and coalesce(is_reversal, '0') = '0'
+              and coalesce(reversed_flag, '0') = '0'
+              and customer_id is not null
+              and business_date between #{startDate} and #{endDate}
+            group by customer_id
+        ) ob on ob.customer_id = c.customer_id
+        left join (
+            select customer_id,
+                   sum(total_amount) as return_amount
+            from wms_sale_return
+            where status = '1'
+              and coalesce(is_reversal, '0') = '0'
+              and coalesce(reversed_flag, '0') = '0'
+              and customer_id is not null
+              and business_date between #{startDate} and #{endDate}
+            group by customer_id
+        ) sr on sr.customer_id = c.customer_id
+        left join (
+            select customer_id,
+                   sum(ifnull(received_amount, 0)) as received_amount,
+                   sum(amount - ifnull(received_amount, 0) - ifnull(bad_debt_amount, 0)) as unpaid_amount
             from fin_receivable
-            where source_bill_type = 'sale_order'
-            group by source_bill_id
-        ) r on r.source_bill_id = o.order_id
-        where o.order_type = 'sale'
-          and o.business_date between #{startDate} and #{endDate}
-        group by c.customer_id, c.customer_code, c.customer_name
+            where biz_status = 'confirmed'
+              and customer_id is not null
+            group by customer_id
+        ) ar on ar.customer_id = c.customer_id
+        where c.del_flag = '0'
+          and (ifnull(ob.bill_count, 0) &gt; 0 or ifnull(sr.return_amount, 0) &gt; 0)
         order by saleAmount desc
     </select>
 
+    <!-- 商品周转报表：仅统计商业出入库净周转（排除冻结/解冻/调拨/盘点流水） -->
     <select id="selectProductTurnoverReport" resultType="map">
         select
             p.product_id as productId,
             p.product_code as productCode,
             p.product_name as productName,
-            ifnull(l.outbound_qty, 0) as outboundQty,
-            ifnull(l.inbound_qty, 0) as inboundQty,
+            greatest(ifnull(l.outbound_qty, 0), 0) as outboundQty,
+            greatest(ifnull(l.inbound_qty, 0), 0) as inboundQty,
             ifnull(s.stock_qty, 0) as stockQty,
             case when ifnull(s.stock_qty, 0) = 0 then 0
-                 else round(ifnull(l.outbound_qty, 0) / ifnull(s.stock_qty, 0), 4)
+                 else round(greatest(ifnull(l.outbound_qty, 0), 0) / ifnull(s.stock_qty, 0), 4)
             end as turnoverRate
         from md_product p
         left join (
             select
                 product_id,
-                sum(case when in_out = 'out' then quantity else 0 end) as outbound_qty,
-                sum(case when in_out = 'in' then quantity else 0 end) as inbound_qty
+                sum(case
+                    when bill_type = 'outbound' and in_out = '2' then quantity
+                    when bill_type in ('outbound_unaudit', 'outbound_reverse', 'outbound_return', 'sale_return') and in_out = '1' then -quantity
+                    else 0
+                end) as outbound_qty,
+                sum(case
+                    when bill_type = 'inbound' and in_out = '1' then quantity
+                    when bill_type in ('inbound_unaudit', 'inbound_reverse', 'purchase_return') and in_out = '2' then -quantity
+                    else 0
+                end) as inbound_qty
             from wms_stock_log
-            where create_time between #{startDate} and #{endDate}
+            where create_time &gt;= #{startDate}
+              and create_time &lt; date_add(#{endDate}, interval 1 day)
             group by product_id
         ) l on p.product_id = l.product_id
         left join (
@@ -194,40 +477,67 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             from wms_stock
             group by product_id
         ) s on p.product_id = s.product_id
-        group by p.product_id, p.product_code, p.product_name
+        where p.del_flag = '0'
         order by turnoverRate desc
     </select>
 
+    <!-- 库存余额报表：按系统启用成本法筛选 fin_cost_account，避免多成本法 avg_cost 混用 -->
     <select id="selectStockBalanceReport" resultType="map">
         select
             s.warehouse_id as warehouseId,
+            coalesce(max(w.warehouse_name), concat('仓库#', s.warehouse_id)) as warehouseName,
             s.location_id as locationId,
+            coalesce(max(loc.location_name), case when s.location_id = 0 then '默认库位' else concat('库位#', s.location_id) end) as locationName,
             p.product_id as productId,
             p.product_code as productCode,
             p.product_name as productName,
             s.batch_no as batchNo,
             ifnull(sum(s.quantity), 0) as stockQty,
             ifnull(sum(s.locked_quantity), 0) as lockedQty,
-            ifnull(sum(s.available_quantity), 0) as availableQty,
-            ifnull(sum(s.quantity * ifnull(p.cost_price, 0)), 0) as stockAmount
+            ifnull(sum(s.quantity - ifnull(s.locked_quantity, 0) - ifnull(s.frozen_quantity, 0)), 0) as availableQty,
+            round(ifnull(sum(s.quantity * coalesce(nullif(ca.avg_cost, 0), ifnull(p.cost_price, 0))), 0), 2) as stockAmount
         from wms_stock s
         left join md_product p on s.product_id = p.product_id
+        left join md_warehouse w on s.warehouse_id = w.warehouse_id
+        left join md_location loc on s.location_id = loc.location_id
+        left join (
+            select warehouse_id, product_id, avg_cost
+            from fin_cost_account
+            where cost_method = coalesce(
+                (select config_value from sys_config where config_key = 'canglian.cost.defaultMethod' limit 1),
+                'moving'
+            )
+        ) ca on ca.warehouse_id = s.warehouse_id and ca.product_id = s.product_id
         group by s.warehouse_id, s.location_id, p.product_id, p.product_code, p.product_name, s.batch_no
         order by stockAmount desc
     </select>
 
     <select id="selectFundAnalysisReport" resultType="map">
-        select 'receipt' as fundType, ifnull(sum(amount), 0) as amount
+        select '收款流入' as fundTypeName, 'receipt' as fundType, ifnull(sum(amount), 0) as amount
         from fin_receipt
-        where receipt_date between #{startDate} and #{endDate}
+        where status = '1'
+          and receipt_date between #{startDate} and #{endDate}
         union all
-        select 'payment' as fundType, ifnull(sum(amount), 0) as amount
+        select '坏账收回流入' as fundTypeName, 'bad_debt_recover' as fundType, ifnull(sum(ifnull(recovered_amount, 0)), 0) as amount
+        from fin_bad_debt
+        where status = '2'
+          and recover_time is not null
+          and date(recover_time) between #{startDate} and #{endDate}
+        union all
+        select '采购付款' as fundTypeName, 'payment' as fundType, ifnull(sum(amount), 0) as amount
         from fin_payment
-        where payment_date between #{startDate} and #{endDate}
+        where status = '1'
+          and payment_date between #{startDate} and #{endDate}
         union all
-        select 'expense' as fundType, ifnull(sum(amount), 0) as amount
+        select '费用支出' as fundTypeName, 'expense' as fundType, ifnull(sum(amount), 0) as amount
         from fin_expense
-        where expense_date between #{startDate} and #{endDate}
+        where status = '1'
+          and expense_date between #{startDate} and #{endDate}
+        union all
+        select '银行互转手续费' as fundTypeName, 'transfer_fee' as fundType, ifnull(sum(ifnull(fee_amount, 0)), 0) as amount
+        from fin_fund_transfer
+        where status = '1'
+          and ifnull(fee_amount, 0) &gt; 0
+          and transfer_date between #{startDate} and #{endDate}
     </select>
 </mapper>
-

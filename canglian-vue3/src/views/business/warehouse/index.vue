@@ -192,6 +192,7 @@ function getList() {
   listWarehouse(queryParams.value).then(response => {
     warehouseList.value = response.rows
     total.value = response.total
+  }).finally(() => {
     loading.value = false
   })
 }

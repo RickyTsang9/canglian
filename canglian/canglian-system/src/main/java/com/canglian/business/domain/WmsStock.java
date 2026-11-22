@@ -51,6 +51,18 @@ public class WmsStock extends BaseEntity
 
     private java.util.Date lastOutboundTime;
 
+    /** 生产日期 */
+    private java.util.Date productionDate;
+
+    /** 有效期至 */
+    private java.util.Date expiryDate;
+
+    /** 效期状态(expired已过期 / expiring临期 / normal正常) */
+    private String expiryStatus;
+
+    /** 剩余有效天数 */
+    private Integer remainDays;
+
     private Long version;
 
     public Long getStockId()
@@ -276,6 +288,46 @@ public class WmsStock extends BaseEntity
     public Long getVersion()
     {
         return version;
+    }
+
+    public java.util.Date getProductionDate()
+    {
+        return productionDate;
+    }
+
+    public void setProductionDate(java.util.Date productionDate)
+    {
+        this.productionDate = productionDate;
+    }
+
+    public java.util.Date getExpiryDate()
+    {
+        return expiryDate;
+    }
+
+    public void setExpiryDate(java.util.Date expiryDate)
+    {
+        this.expiryDate = expiryDate;
+    }
+
+    public String getExpiryStatus()
+    {
+        return expiryStatus;
+    }
+
+    public void setExpiryStatus(String expiryStatus)
+    {
+        this.expiryStatus = expiryStatus;
+    }
+
+    public Integer getRemainDays()
+    {
+        return remainDays;
+    }
+
+    public void setRemainDays(Integer remainDays)
+    {
+        this.remainDays = remainDays;
     }
 
     public void setVersion(Long version)

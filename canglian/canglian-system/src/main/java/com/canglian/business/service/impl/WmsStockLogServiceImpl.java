@@ -6,6 +6,7 @@ import org.springframework.stereotype.Service;
 import com.canglian.business.domain.WmsStockLog;
 import com.canglian.business.mapper.WmsStockLogMapper;
 import com.canglian.business.service.IWmsStockLogService;
+import com.canglian.common.annotation.WarehouseScope;
 
 @Service
 public class WmsStockLogServiceImpl implements IWmsStockLogService
@@ -13,13 +14,22 @@ public class WmsStockLogServiceImpl implements IWmsStockLogService
     @Autowired
     private WmsStockLogMapper wmsStockLogMapper;
 
+    @Autowired(required = false)
+    private BizScopeHelper bizScopeHelper;
+
     @Override
     public WmsStockLog selectWmsStockLogById(Long stockLogId)
     {
-        return wmsStockLogMapper.selectWmsStockLogById(stockLogId);
+        WmsStockLog log = wmsStockLogMapper.selectWmsStockLogById(stockLogId);
+        if (log != null && bizScopeHelper != null)
+        {
+            bizScopeHelper.assertWarehouseAccess(log.getWarehouseId());
+        }
+        return log;
     }
 
     @Override
+    @WarehouseScope(column = "warehouse_id")
     public List<WmsStockLog> selectWmsStockLogList(WmsStockLog wmsStockLog)
     {
         return wmsStockLogMapper.selectWmsStockLogList(wmsStockLog);
@@ -49,4 +59,3 @@ public class WmsStockLogServiceImpl implements IWmsStockLogService
         return wmsStockLogMapper.deleteWmsStockLogByIds(stockLogIds);
     }
 }
-

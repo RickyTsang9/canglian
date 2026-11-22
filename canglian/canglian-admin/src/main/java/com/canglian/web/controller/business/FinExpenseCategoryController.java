@@ -34,6 +34,7 @@ public class FinExpenseCategoryController extends BaseController
         return success(list);
     }
 
+    @PreAuthorize("@ss.hasPermi('business:expenseCategory:list')")
     @GetMapping("/treeselect")
     public AjaxResult treeselect(FinExpenseCategory finExpenseCategory)
     {
@@ -83,9 +84,12 @@ public class FinExpenseCategoryController extends BaseController
     @DeleteMapping("/{categoryIds}")
     public AjaxResult remove(@PathVariable Long[] categoryIds)
     {
-        if (categoryIds.length == 1 && finExpenseCategoryService.hasChildByCategoryId(categoryIds[0]))
+        for (Long categoryId : categoryIds)
         {
-            return warn("存在下级费用类别,不允许删除");
+            if (finExpenseCategoryService.hasChildByCategoryId(categoryId))
+            {
+                return warn("存在下级费用类别,不允许删除");
+            }
         }
         return toAjax(finExpenseCategoryService.deleteFinExpenseCategoryByIds(categoryIds));
     }

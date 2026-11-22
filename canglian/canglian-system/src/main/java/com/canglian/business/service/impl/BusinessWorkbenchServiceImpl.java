@@ -9,27 +9,53 @@ import java.util.List;
 import java.util.Map;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import com.canglian.business.domain.FinBadDebt;
+import com.canglian.business.domain.FinExpense;
+import com.canglian.business.domain.FinInvoice;
 import com.canglian.business.domain.FinPayable;
+import com.canglian.business.domain.FinPayment;
+import com.canglian.business.domain.FinReceipt;
 import com.canglian.business.domain.FinReceivable;
+import com.canglian.business.domain.FinWriteOff;
+import com.canglian.business.domain.MdCustomer;
 import com.canglian.business.domain.MdProduct;
+import com.canglian.business.domain.MdSupplier;
+import com.canglian.business.domain.MdWarehouse;
 import com.canglian.business.domain.PurOrder;
 import com.canglian.business.domain.SalOrder;
 import com.canglian.business.domain.WmsInbound;
+import com.canglian.business.domain.WmsInventoryCheck;
 import com.canglian.business.domain.WmsOutbound;
+import com.canglian.business.domain.WmsPurchaseReturn;
+import com.canglian.business.domain.WmsSaleReturn;
 import com.canglian.business.domain.WmsStock;
+import com.canglian.business.domain.WmsTransfer;
+import com.canglian.business.mapper.FinBadDebtMapper;
+import com.canglian.business.mapper.FinExpenseMapper;
+import com.canglian.business.mapper.FinInvoiceMapper;
 import com.canglian.business.mapper.FinPayableMapper;
+import com.canglian.business.mapper.FinPaymentMapper;
+import com.canglian.business.mapper.FinReceiptMapper;
 import com.canglian.business.mapper.FinReceivableMapper;
+import com.canglian.business.mapper.FinWriteOffMapper;
+import com.canglian.business.mapper.MdCustomerMapper;
 import com.canglian.business.mapper.MdProductMapper;
+import com.canglian.business.mapper.MdSupplierMapper;
+import com.canglian.business.mapper.MdWarehouseMapper;
 import com.canglian.business.mapper.PurOrderMapper;
 import com.canglian.business.mapper.SalOrderMapper;
 import com.canglian.business.mapper.WmsInboundMapper;
+import com.canglian.business.mapper.WmsInventoryCheckMapper;
 import com.canglian.business.mapper.WmsOutboundMapper;
+import com.canglian.business.mapper.WmsPurchaseReturnMapper;
+import com.canglian.business.mapper.WmsSaleReturnMapper;
 import com.canglian.business.mapper.WmsStockMapper;
+import com.canglian.business.mapper.WmsTransferMapper;
 import com.canglian.business.service.IBusinessWorkbenchService;
 
 /**
  * 业务工作台服务实现
- * 
+ *
  * @author canglian
  */
 @Service
@@ -59,23 +85,102 @@ public class BusinessWorkbenchServiceImpl implements IBusinessWorkbenchService
     @Autowired
     private MdProductMapper mdProductMapper;
 
-    /**
-     * 查询业务工作台汇总数据
-     * 
-     * @return 工作台汇总数据
-     */
+    @Autowired(required = false)
+    private MdCustomerMapper mdCustomerMapper;
+
+    @Autowired(required = false)
+    private MdSupplierMapper mdSupplierMapper;
+
+    @Autowired(required = false)
+    private MdWarehouseMapper mdWarehouseMapper;
+
+    @Autowired(required = false)
+    private WmsTransferMapper wmsTransferMapper;
+
+    @Autowired(required = false)
+    private WmsInventoryCheckMapper wmsInventoryCheckMapper;
+
+    @Autowired(required = false)
+    private WmsPurchaseReturnMapper wmsPurchaseReturnMapper;
+
+    @Autowired(required = false)
+    private WmsSaleReturnMapper wmsSaleReturnMapper;
+
+    @Autowired(required = false)
+    private FinReceiptMapper finReceiptMapper;
+
+    @Autowired(required = false)
+    private FinPaymentMapper finPaymentMapper;
+
+    @Autowired(required = false)
+    private FinExpenseMapper finExpenseMapper;
+
+    @Autowired(required = false)
+    private FinInvoiceMapper finInvoiceMapper;
+
+    @Autowired(required = false)
+    private FinWriteOffMapper finWriteOffMapper;
+
+    @Autowired(required = false)
+    private FinBadDebtMapper finBadDebtMapper;
+
+    @Autowired(required = false)
+    private BizScopeHelper bizScopeHelper;
+
     @Override
     public Map<String, Object> selectWorkbenchSummary()
     {
         Map<String, Object> summaryData = new LinkedHashMap<String, Object>();
-        List<SalOrder> salOrderList = salOrderMapper.selectSalOrderList(new SalOrder());
-        List<PurOrder> purOrderList = purOrderMapper.selectPurOrderList(new PurOrder());
-        List<WmsInbound> wmsInboundList = wmsInboundMapper.selectWmsInboundList(new WmsInbound());
-        List<WmsOutbound> wmsOutboundList = wmsOutboundMapper.selectWmsOutboundList(new WmsOutbound());
-        List<FinReceivable> finReceivableList = finReceivableMapper.selectFinReceivableList(new FinReceivable());
-        List<FinPayable> finPayableList = finPayableMapper.selectFinPayableList(new FinPayable());
-        List<WmsStock> wmsStockList = wmsStockMapper.selectWmsStockList(new WmsStock());
-        List<Map<String, Object>> lowStockList = buildLowStockList(wmsStockList);
+
+        SalOrder salQuery = new SalOrder();
+        if (bizScopeHelper != null)
+        {
+            bizScopeHelper.applyScopeFilter(salQuery, "o", true, true);
+        }
+        List<SalOrder> salOrderList = safeList(salOrderMapper.selectSalOrderList(salQuery));
+
+        PurOrder purQuery = new PurOrder();
+        if (bizScopeHelper != null)
+        {
+            bizScopeHelper.applyScopeFilter(purQuery, "o", true, true);
+        }
+        List<PurOrder> purOrderList = safeList(purOrderMapper.selectPurOrderList(purQuery));
+
+        WmsInbound inboundQuery = new WmsInbound();
+        if (bizScopeHelper != null)
+        {
+            bizScopeHelper.applyScopeFilter(inboundQuery, "", true, true);
+        }
+        List<WmsInbound> wmsInboundList = safeList(wmsInboundMapper.selectWmsInboundList(inboundQuery));
+
+        WmsOutbound outboundQuery = new WmsOutbound();
+        if (bizScopeHelper != null)
+        {
+            bizScopeHelper.applyScopeFilter(outboundQuery, "", true, true);
+        }
+        List<WmsOutbound> wmsOutboundList = safeList(wmsOutboundMapper.selectWmsOutboundList(outboundQuery));
+
+        List<FinReceivable> finReceivableList = safeList(finReceivableMapper.selectFinReceivableList(new FinReceivable()));
+        List<FinPayable> finPayableList = safeList(finPayableMapper.selectFinPayableList(new FinPayable()));
+
+        List<WmsStock> rawStocks = safeList(wmsStockMapper.selectWmsStockList(new WmsStock()));
+        List<WmsStock> wmsStockList = new ArrayList<WmsStock>();
+        for (WmsStock s : rawStocks)
+        {
+            if (bizScopeHelper == null || bizScopeHelper.canAccessRecord(null, null, s.getWarehouseId()))
+            {
+                wmsStockList.add(s);
+            }
+        }
+
+        List<Map<String, Object>> allLowStocks = buildAggregatedLowStockList(wmsStockList);
+        List<Map<String, Object>> topLowStocks = allLowStocks.size() > 10
+            ? new ArrayList<Map<String, Object>>(allLowStocks.subList(0, 10)) : allLowStocks;
+
+        List<Map<String, Object>> allPending = collectAllPendingApproveList(salOrderList, purOrderList, wmsInboundList, wmsOutboundList);
+        List<Map<String, Object>> topPending = allPending.size() > 15
+            ? new ArrayList<Map<String, Object>>(allPending.subList(0, 15)) : allPending;
+
         int draftSaleOrderCount = countOrderByBizStatus(salOrderList, "draft");
         int draftPurOrderCount = countPurchaseOrderByBizStatus(purOrderList, "draft");
         int draftInboundCount = countInboundByBizStatus(wmsInboundList, "draft");
@@ -85,26 +190,24 @@ public class BusinessWorkbenchServiceImpl implements IBusinessWorkbenchService
         summaryData.put("draftPurOrderCount", draftPurOrderCount);
         summaryData.put("draftInboundCount", draftInboundCount);
         summaryData.put("draftOutboundCount", draftOutboundCount);
-        summaryData.put("pendingApproveCount", draftSaleOrderCount + draftPurOrderCount + draftInboundCount + draftOutboundCount);
+        summaryData.put("pendingApproveCount", allPending.size());
         summaryData.put("todayInboundCount", countTodayInbound(wmsInboundList));
         summaryData.put("todayOutboundCount", countTodayOutbound(wmsOutboundList));
         summaryData.put("dueReceivableCount", countDueReceivable(finReceivableList));
         summaryData.put("duePayableCount", countDuePayable(finPayableList));
-        summaryData.put("lowStockCount", countLowStock(wmsStockList));
-        summaryData.put("lowStockList", lowStockList);
+        summaryData.put("lowStockCount", allLowStocks.size());
+        summaryData.put("lowStockList", topLowStocks);
         summaryData.put("dueReceivableList", buildDueReceivableList(finReceivableList));
         summaryData.put("duePayableList", buildDuePayableList(finPayableList));
-        summaryData.put("pendingApproveList", buildPendingApproveList(salOrderList, purOrderList, wmsInboundList, wmsOutboundList));
+        summaryData.put("pendingApproveList", topPending);
         return summaryData;
     }
 
-    /**
-     * 按业务状态统计销售单据数量
-     * 
-     * @param salOrderList 销售单据集合
-     * @param bizStatus 业务状态
-     * @return 单据数量
-     */
+    private <T> List<T> safeList(List<T> list)
+    {
+        return list == null ? new ArrayList<T>() : list;
+    }
+
     private int countOrderByBizStatus(List<SalOrder> salOrderList, String bizStatus)
     {
         int orderCount = 0;
@@ -118,13 +221,6 @@ public class BusinessWorkbenchServiceImpl implements IBusinessWorkbenchService
         return orderCount;
     }
 
-    /**
-     * 按业务状态统计购货订单数量
-     * 
-     * @param purOrderList 购货订单集合
-     * @param bizStatus 业务状态
-     * @return 单据数量
-     */
     private int countPurchaseOrderByBizStatus(List<PurOrder> purOrderList, String bizStatus)
     {
         int orderCount = 0;
@@ -138,13 +234,6 @@ public class BusinessWorkbenchServiceImpl implements IBusinessWorkbenchService
         return orderCount;
     }
 
-    /**
-     * 按业务状态统计入库单数量
-     * 
-     * @param inboundList 入库单集合
-     * @param bizStatus 业务状态
-     * @return 单据数量
-     */
     private int countInboundByBizStatus(List<WmsInbound> inboundList, String bizStatus)
     {
         int inboundCount = 0;
@@ -158,13 +247,6 @@ public class BusinessWorkbenchServiceImpl implements IBusinessWorkbenchService
         return inboundCount;
     }
 
-    /**
-     * 按业务状态统计出库单数量
-     * 
-     * @param outboundList 出库单集合
-     * @param bizStatus 业务状态
-     * @return 单据数量
-     */
     private int countOutboundByBizStatus(List<WmsOutbound> outboundList, String bizStatus)
     {
         int outboundCount = 0;
@@ -179,17 +261,17 @@ public class BusinessWorkbenchServiceImpl implements IBusinessWorkbenchService
     }
 
     /**
-     * 统计今日入库单数量
-     * 
-     * @param inboundList 入库单集合
-     * @return 数量
+     * 仅统计今日已审核且非红冲、未被红冲的有效入库单
      */
     private int countTodayInbound(List<WmsInbound> inboundList)
     {
         int inboundCount = 0;
         for (WmsInbound wmsInbound : inboundList)
         {
-            if (isToday(wmsInbound.getBusinessDate()))
+            if ("1".equals(wmsInbound.getStatus())
+                && !"1".equals(wmsInbound.getIsReversal())
+                && !"1".equals(wmsInbound.getReversedFlag())
+                && isToday(wmsInbound.getBusinessDate()))
             {
                 inboundCount++;
             }
@@ -198,17 +280,17 @@ public class BusinessWorkbenchServiceImpl implements IBusinessWorkbenchService
     }
 
     /**
-     * 统计今日出库单数量
-     * 
-     * @param outboundList 出库单集合
-     * @return 数量
+     * 仅统计今日已审核且非红冲、未被红冲的有效出库单
      */
     private int countTodayOutbound(List<WmsOutbound> outboundList)
     {
         int outboundCount = 0;
         for (WmsOutbound wmsOutbound : outboundList)
         {
-            if (isToday(wmsOutbound.getBusinessDate()))
+            if ("1".equals(wmsOutbound.getStatus())
+                && !"1".equals(wmsOutbound.getIsReversal())
+                && !"1".equals(wmsOutbound.getReversedFlag())
+                && isToday(wmsOutbound.getBusinessDate()))
             {
                 outboundCount++;
             }
@@ -216,18 +298,43 @@ public class BusinessWorkbenchServiceImpl implements IBusinessWorkbenchService
         return outboundCount;
     }
 
-    /**
-     * 统计即将到期应收数量
-     * 
-     * @param receivableList 应收集合
-     * @return 数量
-     */
+    private boolean isDueOpenReceivable(FinReceivable finReceivable)
+    {
+        if (finReceivable == null || !"confirmed".equals(finReceivable.getBizStatus()) || "2".equals(finReceivable.getStatus()))
+        {
+            return false;
+        }
+        if ("2".equals(finReceivable.getBillDirection()) || defaultAmount(finReceivable.getAmount()).compareTo(BigDecimal.ZERO) <= 0)
+        {
+            return false;
+        }
+        BigDecimal unsettled = defaultAmount(finReceivable.getAmount())
+            .subtract(defaultAmount(finReceivable.getReceivedAmount()))
+            .subtract(defaultAmount(finReceivable.getBadDebtAmount()));
+        return unsettled.compareTo(BigDecimal.ZERO) > 0 && isDueWithinDays(finReceivable.getDueDate(), 7);
+    }
+
+    private boolean isDueOpenPayable(FinPayable finPayable)
+    {
+        if (finPayable == null || !"confirmed".equals(finPayable.getBizStatus()) || "2".equals(finPayable.getStatus()))
+        {
+            return false;
+        }
+        if ("2".equals(finPayable.getBillDirection()) || defaultAmount(finPayable.getAmount()).compareTo(BigDecimal.ZERO) <= 0)
+        {
+            return false;
+        }
+        BigDecimal unsettled = defaultAmount(finPayable.getAmount())
+            .subtract(defaultAmount(finPayable.getPaidAmount()));
+        return unsettled.compareTo(BigDecimal.ZERO) > 0 && isDueWithinDays(finPayable.getDueDate(), 7);
+    }
+
     private int countDueReceivable(List<FinReceivable> receivableList)
     {
         int receivableCount = 0;
         for (FinReceivable finReceivable : receivableList)
         {
-            if ("confirmed".equals(finReceivable.getBizStatus()) && !"2".equals(finReceivable.getStatus()) && isDueWithinDays(finReceivable.getDueDate(), 7))
+            if (isDueOpenReceivable(finReceivable))
             {
                 receivableCount++;
             }
@@ -235,18 +342,12 @@ public class BusinessWorkbenchServiceImpl implements IBusinessWorkbenchService
         return receivableCount;
     }
 
-    /**
-     * 统计即将到期应付数量
-     * 
-     * @param payableList 应付集合
-     * @return 数量
-     */
     private int countDuePayable(List<FinPayable> payableList)
     {
         int payableCount = 0;
         for (FinPayable finPayable : payableList)
         {
-            if ("confirmed".equals(finPayable.getBizStatus()) && !"2".equals(finPayable.getStatus()) && isDueWithinDays(finPayable.getDueDate(), 7))
+            if (isDueOpenPayable(finPayable))
             {
                 payableCount++;
             }
@@ -255,62 +356,95 @@ public class BusinessWorkbenchServiceImpl implements IBusinessWorkbenchService
     }
 
     /**
-     * 构建低库存提醒列表
-     * 
-     * @param warningStockList 预警库存集合
-     * @return 低库存提醒列表
+     * 按（仓库, 商品）维度汇总全部批次/库位的可用库存（quantity - locked - frozen），再与预警下限比对
      */
-    private List<Map<String, Object>> buildLowStockList(List<WmsStock> warningStockList)
+    private List<Map<String, Object>> buildAggregatedLowStockList(List<WmsStock> stockList)
     {
         List<Map<String, Object>> lowStockList = new ArrayList<Map<String, Object>>();
-        if (warningStockList == null)
+        if (stockList == null || stockList.isEmpty())
         {
             return lowStockList;
         }
+        Map<String, BigDecimal> availableByWhProd = new LinkedHashMap<String, BigDecimal>();
+        Map<String, BigDecimal> totalQtyByWhProd = new LinkedHashMap<String, BigDecimal>();
+        Map<String, BigDecimal> minWarnByWhProd = new LinkedHashMap<String, BigDecimal>();
+        Map<String, Long[]> keyIds = new LinkedHashMap<String, Long[]>();
         Map<Long, MdProduct> productCacheMap = new LinkedHashMap<Long, MdProduct>();
-        for (WmsStock wmsStock : warningStockList)
+        Map<Long, MdWarehouse> warehouseCacheMap = new LinkedHashMap<Long, MdWarehouse>();
+
+        for (WmsStock s : stockList)
         {
-            BigDecimal warningMinQty = resolveWarningMinQty(wmsStock, productCacheMap);
-            if (warningMinQty.compareTo(BigDecimal.ZERO) <= 0 || defaultAmount(wmsStock.getQuantity()).compareTo(warningMinQty) >= 0)
+            if (s.getWarehouseId() == null || s.getProductId() == null)
             {
                 continue;
             }
-            Map<String, Object> lowStockItem = new LinkedHashMap<String, Object>();
-            lowStockItem.put("warehouseId", wmsStock.getWarehouseId());
-            lowStockItem.put("productId", wmsStock.getProductId());
-            lowStockItem.put("locationId", wmsStock.getLocationId());
-            lowStockItem.put("quantity", wmsStock.getQuantity());
-            lowStockItem.put("warningMinQty", warningMinQty);
-            lowStockList.add(lowStockItem);
-            if (lowStockList.size() >= 10)
+            String key = s.getWarehouseId() + "#" + s.getProductId();
+            BigDecimal qty = defaultAmount(s.getQuantity());
+            BigDecimal avail = qty.subtract(defaultAmount(s.getLockedQuantity())).subtract(defaultAmount(s.getFrozenQuantity()));
+            totalQtyByWhProd.put(key, defaultAmount(totalQtyByWhProd.get(key)).add(qty));
+            availableByWhProd.put(key, defaultAmount(availableByWhProd.get(key)).add(avail));
+            keyIds.put(key, new Long[] { s.getWarehouseId(), s.getProductId() });
+
+            BigDecimal rowWarn = defaultAmount(s.getWarningMinQty());
+            BigDecimal prevWarn = defaultAmount(minWarnByWhProd.get(key));
+            if (rowWarn.compareTo(prevWarn) > 0)
             {
-                break;
+                minWarnByWhProd.put(key, rowWarn);
             }
+        }
+
+        for (Map.Entry<String, Long[]> entry : keyIds.entrySet())
+        {
+            String key = entry.getKey();
+            Long warehouseId = entry.getValue()[0];
+            Long productId = entry.getValue()[1];
+            MdProduct product = loadProduct(productId, productCacheMap);
+            BigDecimal warnMin = defaultAmount(minWarnByWhProd.get(key));
+            if (warnMin.compareTo(BigDecimal.ZERO) <= 0 && product != null)
+            {
+                warnMin = defaultAmount(product.getWarningMinQty());
+            }
+            BigDecimal availableQty = defaultAmount(availableByWhProd.get(key));
+            if (warnMin.compareTo(BigDecimal.ZERO) <= 0 || availableQty.compareTo(warnMin) >= 0)
+            {
+                continue;
+            }
+            MdWarehouse warehouse = loadWarehouse(warehouseId, warehouseCacheMap);
+            Map<String, Object> item = new LinkedHashMap<String, Object>();
+            item.put("warehouseId", warehouseId);
+            item.put("warehouseName", warehouse != null ? warehouse.getWarehouseName() : ("仓库#" + warehouseId));
+            item.put("productId", productId);
+            item.put("productName", product != null ? product.getProductName() : ("商品#" + productId));
+            item.put("quantity", defaultAmount(totalQtyByWhProd.get(key)));
+            item.put("availableQuantity", availableQty);
+            item.put("warningMinQty", warnMin);
+            lowStockList.add(item);
         }
         return lowStockList;
     }
 
-    /**
-     * 构建应收到期提醒列表
-     * 
-     * @param receivableList 应收集合
-     * @return 应收到期提醒列表
-     */
     private List<Map<String, Object>> buildDueReceivableList(List<FinReceivable> receivableList)
     {
         List<Map<String, Object>> dueReceivableList = new ArrayList<Map<String, Object>>();
+        Map<Long, MdCustomer> customerCache = new LinkedHashMap<Long, MdCustomer>();
         for (FinReceivable finReceivable : receivableList)
         {
-            if (!"confirmed".equals(finReceivable.getBizStatus()) || "2".equals(finReceivable.getStatus()) || !isDueWithinDays(finReceivable.getDueDate(), 7))
+            if (!isDueOpenReceivable(finReceivable))
             {
                 continue;
             }
+            MdCustomer customer = loadCustomer(finReceivable.getCustomerId(), customerCache);
+            BigDecimal unsettled = defaultAmount(finReceivable.getAmount())
+                .subtract(defaultAmount(finReceivable.getReceivedAmount()))
+                .subtract(defaultAmount(finReceivable.getBadDebtAmount()));
             Map<String, Object> dueReceivableItem = new LinkedHashMap<String, Object>();
             dueReceivableItem.put("receivableId", finReceivable.getReceivableId());
             dueReceivableItem.put("receivableNo", finReceivable.getReceivableNo());
             dueReceivableItem.put("customerId", finReceivable.getCustomerId());
+            dueReceivableItem.put("customerName", customer != null ? customer.getCustomerName() : ("客户#" + finReceivable.getCustomerId()));
             dueReceivableItem.put("amount", finReceivable.getAmount());
             dueReceivableItem.put("receivedAmount", finReceivable.getReceivedAmount());
+            dueReceivableItem.put("unsettledAmount", unsettled);
             dueReceivableItem.put("dueDate", finReceivable.getDueDate());
             dueReceivableList.add(dueReceivableItem);
             if (dueReceivableList.size() >= 10)
@@ -321,27 +455,27 @@ public class BusinessWorkbenchServiceImpl implements IBusinessWorkbenchService
         return dueReceivableList;
     }
 
-    /**
-     * 构建应付到期提醒列表
-     * 
-     * @param payableList 应付集合
-     * @return 应付到期提醒列表
-     */
     private List<Map<String, Object>> buildDuePayableList(List<FinPayable> payableList)
     {
         List<Map<String, Object>> duePayableList = new ArrayList<Map<String, Object>>();
+        Map<Long, MdSupplier> supplierCache = new LinkedHashMap<Long, MdSupplier>();
         for (FinPayable finPayable : payableList)
         {
-            if (!"confirmed".equals(finPayable.getBizStatus()) || "2".equals(finPayable.getStatus()) || !isDueWithinDays(finPayable.getDueDate(), 7))
+            if (!isDueOpenPayable(finPayable))
             {
                 continue;
             }
+            MdSupplier supplier = loadSupplier(finPayable.getSupplierId(), supplierCache);
+            BigDecimal unsettled = defaultAmount(finPayable.getAmount())
+                .subtract(defaultAmount(finPayable.getPaidAmount()));
             Map<String, Object> duePayableItem = new LinkedHashMap<String, Object>();
             duePayableItem.put("payableId", finPayable.getPayableId());
             duePayableItem.put("payableNo", finPayable.getPayableNo());
             duePayableItem.put("supplierId", finPayable.getSupplierId());
+            duePayableItem.put("supplierName", supplier != null ? supplier.getSupplierName() : ("供应商#" + finPayable.getSupplierId()));
             duePayableItem.put("amount", finPayable.getAmount());
             duePayableItem.put("paidAmount", finPayable.getPaidAmount());
+            duePayableItem.put("unsettledAmount", unsettled);
             duePayableItem.put("dueDate", finPayable.getDueDate());
             duePayableList.add(duePayableItem);
             if (duePayableList.size() >= 10)
@@ -353,125 +487,200 @@ public class BusinessWorkbenchServiceImpl implements IBusinessWorkbenchService
     }
 
     /**
-     * 构建审批待办列表
-     * 
-     * @param salOrderList 销售单据集合
-     * @param purOrderList 购货订单集合
-     * @param inboundList 入库单集合
-     * @param outboundList 出库单集合
-     * @return 审批待办列表
+     * 汇总全部 12 类单据的草稿待审待办，按业务日期降序排列并附带跳转路由
      */
-    private List<Map<String, Object>> buildPendingApproveList(List<SalOrder> salOrderList, List<PurOrder> purOrderList, List<WmsInbound> inboundList,
-        List<WmsOutbound> outboundList)
+    private List<Map<String, Object>> collectAllPendingApproveList(List<SalOrder> salOrderList, List<PurOrder> purOrderList,
+        List<WmsInbound> inboundList, List<WmsOutbound> outboundList)
     {
-        List<Map<String, Object>> pendingApproveList = new ArrayList<Map<String, Object>>();
-        appendPendingApproveSaleOrderList(pendingApproveList, salOrderList);
-        appendPendingApprovePurOrderList(pendingApproveList, purOrderList);
-        appendPendingApproveInboundList(pendingApproveList, inboundList);
-        appendPendingApproveOutboundList(pendingApproveList, outboundList);
-        return pendingApproveList;
-    }
-
-    /**
-     * 追加销售审批待办
-     * 
-     * @param pendingApproveList 审批待办列表
-     * @param salOrderList 销售单据集合
-     */
-    private void appendPendingApproveSaleOrderList(List<Map<String, Object>> pendingApproveList, List<SalOrder> salOrderList)
-    {
-        for (SalOrder salOrder : salOrderList)
+        List<Map<String, Object>> list = new ArrayList<Map<String, Object>>();
+        for (SalOrder o : salOrderList)
         {
-            if (!"draft".equals(salOrder.getBizStatus()))
+            if ("draft".equals(o.getBizStatus()))
             {
-                continue;
-            }
-            appendPendingApproveItem(pendingApproveList, "saleOrder", "销售单据", salOrder.getOrderId(), salOrder.getOrderNo(), salOrder.getBusinessDate());
-            if (pendingApproveList.size() >= 10)
-            {
-                return;
+                appendPendingApproveItem(list, "saleOrder", "销售单据", o.getOrderId(), o.getOrderNo(), o.getBusinessDate(), "/business/saleOrder");
             }
         }
-    }
-
-    /**
-     * 追加采购审批待办
-     * 
-     * @param pendingApproveList 审批待办列表
-     * @param purOrderList 购货订单集合
-     */
-    private void appendPendingApprovePurOrderList(List<Map<String, Object>> pendingApproveList, List<PurOrder> purOrderList)
-    {
-        for (PurOrder purOrder : purOrderList)
+        for (PurOrder o : purOrderList)
         {
-            if (!"draft".equals(purOrder.getBizStatus()))
+            if ("draft".equals(o.getBizStatus()))
             {
-                continue;
-            }
-            appendPendingApproveItem(pendingApproveList, "purOrder", "购货订单", purOrder.getPurchaseOrderId(), purOrder.getPurchaseOrderNo(), purOrder.getBusinessDate());
-            if (pendingApproveList.size() >= 10)
-            {
-                return;
+                appendPendingApproveItem(list, "purOrder", "购货订单", o.getPurchaseOrderId(), o.getPurchaseOrderNo(), o.getBusinessDate(), "/business/purOrder");
             }
         }
-    }
-
-    /**
-     * 追加入库审批待办
-     * 
-     * @param pendingApproveList 审批待办列表
-     * @param inboundList 入库单集合
-     */
-    private void appendPendingApproveInboundList(List<Map<String, Object>> pendingApproveList, List<WmsInbound> inboundList)
-    {
-        for (WmsInbound wmsInbound : inboundList)
+        for (WmsInbound o : inboundList)
         {
-            if (!"draft".equals(wmsInbound.getBizStatus()))
+            if ("draft".equals(o.getBizStatus()))
             {
-                continue;
-            }
-            appendPendingApproveItem(pendingApproveList, "inbound", "入库单", wmsInbound.getInboundId(), wmsInbound.getInboundNo(), wmsInbound.getBusinessDate());
-            if (pendingApproveList.size() >= 10)
-            {
-                return;
+                appendPendingApproveItem(list, "inbound", "入库单", o.getInboundId(), o.getInboundNo(), o.getBusinessDate(), "/wms/inbound");
             }
         }
-    }
-
-    /**
-     * 追加出库审批待办
-     * 
-     * @param pendingApproveList 审批待办列表
-     * @param outboundList 出库单集合
-     */
-    private void appendPendingApproveOutboundList(List<Map<String, Object>> pendingApproveList, List<WmsOutbound> outboundList)
-    {
-        for (WmsOutbound wmsOutbound : outboundList)
+        for (WmsOutbound o : outboundList)
         {
-            if (!"draft".equals(wmsOutbound.getBizStatus()))
+            if ("draft".equals(o.getBizStatus()))
             {
-                continue;
-            }
-            appendPendingApproveItem(pendingApproveList, "outbound", "出库单", wmsOutbound.getOutboundId(), wmsOutbound.getOutboundNo(), wmsOutbound.getBusinessDate());
-            if (pendingApproveList.size() >= 10)
-            {
-                return;
+                appendPendingApproveItem(list, "outbound", "出库单", o.getOutboundId(), o.getOutboundNo(), o.getBusinessDate(), "/wms/outbound");
             }
         }
+        if (wmsTransferMapper != null)
+        {
+            WmsTransfer q = new WmsTransfer();
+            q.setStatus("0");
+            if (bizScopeHelper != null)
+            {
+                bizScopeHelper.applyScopeFilter(q, "", true, false);
+            }
+            for (WmsTransfer t : safeList(wmsTransferMapper.selectWmsTransferList(q)))
+            {
+                if (bizScopeHelper == null || (bizScopeHelper.canAccessRecord(t.getDeptId(), t.getOwnerUserId(), t.getOutWarehouseId())
+                    && bizScopeHelper.canAccessRecord(t.getDeptId(), t.getOwnerUserId(), t.getInWarehouseId())))
+                {
+                    appendPendingApproveItem(list, "transfer", "调拨单", t.getTransferId(), t.getTransferNo(),
+                        t.getBusinessDate() != null ? t.getBusinessDate() : t.getCreateTime(), "/wms/transfer");
+                }
+            }
+        }
+        if (wmsInventoryCheckMapper != null)
+        {
+            WmsInventoryCheck q = new WmsInventoryCheck();
+            q.setStatus("0");
+            if (bizScopeHelper != null)
+            {
+                bizScopeHelper.applyScopeFilter(q, "", true, true);
+            }
+            for (WmsInventoryCheck ic : safeList(wmsInventoryCheckMapper.selectWmsInventoryCheckList(q)))
+            {
+                appendPendingApproveItem(list, "inventoryCheck", "盘点单", ic.getCheckId(), ic.getCheckNo(),
+                    ic.getBusinessDate() != null ? ic.getBusinessDate() : ic.getCreateTime(), "/wms/inventoryCheck");
+            }
+        }
+        if (wmsPurchaseReturnMapper != null)
+        {
+            WmsPurchaseReturn q = new WmsPurchaseReturn();
+            q.setStatus("0");
+            if (bizScopeHelper != null)
+            {
+                bizScopeHelper.applyScopeFilter(q, "", true, true);
+            }
+            for (WmsPurchaseReturn pr : safeList(wmsPurchaseReturnMapper.selectWmsPurchaseReturnList(q)))
+            {
+                appendPendingApproveItem(list, "purchaseReturn", "采购退货", pr.getPurchaseReturnId(), pr.getReturnNo(),
+                    pr.getBusinessDate(), "/wms/purchaseReturn");
+            }
+        }
+        if (wmsSaleReturnMapper != null)
+        {
+            WmsSaleReturn q = new WmsSaleReturn();
+            q.setStatus("0");
+            if (bizScopeHelper != null)
+            {
+                bizScopeHelper.applyScopeFilter(q, "", true, true);
+            }
+            for (WmsSaleReturn sr : safeList(wmsSaleReturnMapper.selectWmsSaleReturnList(q)))
+            {
+                appendPendingApproveItem(list, "saleReturn", "销售退货", sr.getSaleReturnId(), sr.getReturnNo(),
+                    sr.getBusinessDate(), "/wms/saleReturn");
+            }
+        }
+        if (finReceiptMapper != null)
+        {
+            FinReceipt q = new FinReceipt();
+            q.setStatus("0");
+            if (bizScopeHelper != null)
+            {
+                bizScopeHelper.applyScopeFilter(q, "", true, false);
+            }
+            for (FinReceipt r : safeList(finReceiptMapper.selectFinReceiptList(q)))
+            {
+                appendPendingApproveItem(list, "receipt", "收款单", r.getReceiptId(), r.getReceiptNo(),
+                    r.getReceiptDate(), "/finance/receipt");
+            }
+        }
+        if (finPaymentMapper != null)
+        {
+            FinPayment q = new FinPayment();
+            q.setStatus("0");
+            if (bizScopeHelper != null)
+            {
+                bizScopeHelper.applyScopeFilter(q, "", true, false);
+            }
+            for (FinPayment p : safeList(finPaymentMapper.selectFinPaymentList(q)))
+            {
+                appendPendingApproveItem(list, "payment", "付款单", p.getPaymentId(), p.getPaymentNo(),
+                    p.getPaymentDate(), "/finance/payment");
+            }
+        }
+        if (finExpenseMapper != null)
+        {
+            FinExpense q = new FinExpense();
+            q.setStatus("0");
+            for (FinExpense e : safeList(finExpenseMapper.selectFinExpenseList(q)))
+            {
+                appendPendingApproveItem(list, "expense", "费用单", e.getExpenseId(), e.getExpenseNo(),
+                    e.getExpenseDate(), "/finance/expense");
+            }
+        }
+        if (finInvoiceMapper != null)
+        {
+            FinInvoice q = new FinInvoice();
+            q.setStatus("0");
+            if (bizScopeHelper != null)
+            {
+                bizScopeHelper.applyScopeFilter(q, "", true, false);
+            }
+            for (FinInvoice inv : safeList(finInvoiceMapper.selectFinInvoiceList(q)))
+            {
+                String invoiceRoute = "purchase".equals(inv.getInvoiceType()) ? "/finance/purchaseInvoice" : "/finance/salesInvoice";
+                appendPendingApproveItem(list, "invoice", "发票单", inv.getInvoiceId(), inv.getInvoiceNo(),
+                    inv.getInvoiceDate() != null ? inv.getInvoiceDate() : inv.getBusinessDate(), invoiceRoute);
+            }
+        }
+        if (finWriteOffMapper != null)
+        {
+            FinWriteOff q = new FinWriteOff();
+            q.setStatus("0");
+            for (FinWriteOff w : safeList(finWriteOffMapper.selectFinWriteOffList(q)))
+            {
+                appendPendingApproveItem(list, "writeOff", "核销单", w.getWriteOffId(), w.getWriteOffNo(),
+                    w.getWriteOffDate(), "/finance/writeOff");
+            }
+        }
+        if (finBadDebtMapper != null)
+        {
+            FinBadDebt q = new FinBadDebt();
+            q.setStatus("0");
+            if (bizScopeHelper != null)
+            {
+                bizScopeHelper.applyScopeFilter(q, "", true, false);
+            }
+            for (FinBadDebt bd : safeList(finBadDebtMapper.selectFinBadDebtList(q)))
+            {
+                appendPendingApproveItem(list, "badDebt", "坏账单", bd.getBadDebtId(), bd.getBadDebtNo(),
+                    bd.getBadDebtDate(), "/finance/badDebt");
+            }
+        }
+
+        list.sort((a, b) -> {
+            Date da = (Date) a.get("businessDate");
+            Date db = (Date) b.get("businessDate");
+            if (da == null && db == null)
+            {
+                return 0;
+            }
+            if (da == null)
+            {
+                return 1;
+            }
+            if (db == null)
+            {
+                return -1;
+            }
+            return db.compareTo(da);
+        });
+        return list;
     }
 
-    /**
-     * 追加审批待办项
-     * 
-     * @param pendingApproveList 审批待办列表
-     * @param billType 单据类型
-     * @param billTypeLabel 单据类型名称
-     * @param billId 单据编号
-     * @param billNo 单据单号
-     * @param businessDate 业务日期
-     */
-    private void appendPendingApproveItem(List<Map<String, Object>> pendingApproveList, String billType, String billTypeLabel, Long billId, String billNo,
-        Date businessDate)
+    private void appendPendingApproveItem(List<Map<String, Object>> pendingApproveList, String billType,
+        String billTypeLabel, Long billId, String billNo, Date businessDate, String route)
     {
         Map<String, Object> pendingApproveItem = new LinkedHashMap<String, Object>();
         pendingApproveItem.put("billType", billType);
@@ -479,67 +688,10 @@ public class BusinessWorkbenchServiceImpl implements IBusinessWorkbenchService
         pendingApproveItem.put("billId", billId);
         pendingApproveItem.put("billNo", billNo);
         pendingApproveItem.put("businessDate", businessDate);
+        pendingApproveItem.put("route", route);
         pendingApproveList.add(pendingApproveItem);
     }
 
-    /**
-     * 统计低库存数量
-     * 
-     * @param wmsStockList 库存集合
-     * @return 低库存数量
-     */
-    private int countLowStock(List<WmsStock> wmsStockList)
-    {
-        if (wmsStockList == null)
-        {
-            return 0;
-        }
-        int lowStockCount = 0;
-        Map<Long, MdProduct> productCacheMap = new LinkedHashMap<Long, MdProduct>();
-        for (WmsStock wmsStock : wmsStockList)
-        {
-            BigDecimal warningMinQty = resolveWarningMinQty(wmsStock, productCacheMap);
-            if (warningMinQty.compareTo(BigDecimal.ZERO) > 0
-                && defaultAmount(wmsStock.getQuantity()).compareTo(warningMinQty) < 0)
-            {
-                lowStockCount++;
-            }
-        }
-        return lowStockCount;
-    }
-
-    /**
-     * 解析库存最小预警值
-     * 
-     * @param wmsStock 库存信息
-     * @param productCacheMap 商品缓存
-     * @return 最小预警值
-     */
-    private BigDecimal resolveWarningMinQty(WmsStock wmsStock, Map<Long, MdProduct> productCacheMap)
-    {
-        if (wmsStock == null)
-        {
-            return BigDecimal.ZERO;
-        }
-        if (defaultAmount(wmsStock.getWarningMinQty()).compareTo(BigDecimal.ZERO) > 0)
-        {
-            return defaultAmount(wmsStock.getWarningMinQty());
-        }
-        MdProduct mdProduct = loadProduct(wmsStock.getProductId(), productCacheMap);
-        if (mdProduct == null)
-        {
-            return BigDecimal.ZERO;
-        }
-        return defaultAmount(mdProduct.getWarningMinQty());
-    }
-
-    /**
-     * 按商品编号加载商品信息
-     * 
-     * @param productId 商品编号
-     * @param productCacheMap 商品缓存
-     * @return 商品信息
-     */
     private MdProduct loadProduct(Long productId, Map<Long, MdProduct> productCacheMap)
     {
         if (productId == null)
@@ -553,12 +705,45 @@ public class BusinessWorkbenchServiceImpl implements IBusinessWorkbenchService
         return productCacheMap.get(productId);
     }
 
-    /**
-     * 判断是否今天
-     * 
-     * @param businessDate 业务日期
-     * @return 判断结果
-     */
+    private MdWarehouse loadWarehouse(Long warehouseId, Map<Long, MdWarehouse> warehouseCacheMap)
+    {
+        if (warehouseId == null || mdWarehouseMapper == null)
+        {
+            return null;
+        }
+        if (!warehouseCacheMap.containsKey(warehouseId))
+        {
+            warehouseCacheMap.put(warehouseId, mdWarehouseMapper.selectMdWarehouseById(warehouseId));
+        }
+        return warehouseCacheMap.get(warehouseId);
+    }
+
+    private MdCustomer loadCustomer(Long customerId, Map<Long, MdCustomer> customerCache)
+    {
+        if (customerId == null || mdCustomerMapper == null)
+        {
+            return null;
+        }
+        if (!customerCache.containsKey(customerId))
+        {
+            customerCache.put(customerId, mdCustomerMapper.selectMdCustomerById(customerId));
+        }
+        return customerCache.get(customerId);
+    }
+
+    private MdSupplier loadSupplier(Long supplierId, Map<Long, MdSupplier> supplierCache)
+    {
+        if (supplierId == null || mdSupplierMapper == null)
+        {
+            return null;
+        }
+        if (!supplierCache.containsKey(supplierId))
+        {
+            supplierCache.put(supplierId, mdSupplierMapper.selectMdSupplierById(supplierId));
+        }
+        return supplierCache.get(supplierId);
+    }
+
     private boolean isToday(Date businessDate)
     {
         if (businessDate == null)
@@ -572,31 +757,21 @@ public class BusinessWorkbenchServiceImpl implements IBusinessWorkbenchService
             && currentCalendar.get(Calendar.DAY_OF_YEAR) == businessDateCalendar.get(Calendar.DAY_OF_YEAR);
     }
 
-    /**
-     * 判断是否在指定天数内到期
-     * 
-     * @param dueDate 到期日期
-     * @param days 天数
-     * @return 判断结果
-     */
     private boolean isDueWithinDays(Date dueDate, int days)
     {
         if (dueDate == null)
         {
             return false;
         }
-        long currentTime = System.currentTimeMillis();
-        long dueTime = dueDate.getTime();
-        long maxInterval = days * 24L * 60L * 60L * 1000L;
-        return dueTime >= currentTime && dueTime - currentTime <= maxInterval;
+        Calendar maxCalendar = Calendar.getInstance();
+        maxCalendar.add(Calendar.DAY_OF_MONTH, days);
+        maxCalendar.set(Calendar.HOUR_OF_DAY, 23);
+        maxCalendar.set(Calendar.MINUTE, 59);
+        maxCalendar.set(Calendar.SECOND, 59);
+        maxCalendar.set(Calendar.MILLISECOND, 999);
+        return dueDate.getTime() <= maxCalendar.getTimeInMillis();
     }
 
-    /**
-     * 空金额转默认值
-     * 
-     * @param amount 金额
-     * @return 默认金额
-     */
     private BigDecimal defaultAmount(BigDecimal amount)
     {
         return amount == null ? BigDecimal.ZERO : amount;

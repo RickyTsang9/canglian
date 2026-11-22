@@ -1,6 +1,8 @@
 package com.canglian.web.controller.business;
 
+import java.math.BigDecimal;
 import java.util.List;
+import java.util.Map;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
@@ -87,6 +89,43 @@ public class FinPayableController extends BaseController
     public AjaxResult audit(@PathVariable Long payableId)
     {
         return toAjax(finPayableService.auditFinPayable(payableId, getUsername()));
+    }
+
+    @PreAuthorize("@ss.hasPermi('business:payable:audit')")
+    @Log(title = "应付反确认", businessType = BusinessType.UPDATE)
+    @PostMapping("/unconfirm/{payableId}")
+    public AjaxResult unconfirm(@PathVariable Long payableId)
+    {
+        return toAjax(finPayableService.unconfirmFinPayable(payableId, getUsername()));
+    }
+
+    /**
+     * 红蓝应付单互冲核销
+     */
+    @PreAuthorize("@ss.hasPermi('business:payable:edit')")
+    @Log(title = "应付红蓝对冲", businessType = BusinessType.UPDATE)
+    @PostMapping("/offset")
+    public AjaxResult offset(@RequestBody Map<String, Object> payload)
+    {
+        Long redId = payload.get("redPayableId") == null ? null : Long.valueOf(String.valueOf(payload.get("redPayableId")));
+        Long targetId = payload.get("targetPayableId") == null ? null : Long.valueOf(String.valueOf(payload.get("targetPayableId")));
+        BigDecimal amount = payload.get("offsetAmount") == null ? null : new BigDecimal(String.valueOf(payload.get("offsetAmount")));
+        return toAjax(finPayableService.offsetRedPayable(redId, targetId, amount, getUsername()));
+    }
+
+    @PreAuthorize("@ss.hasPermi('business:payable:list')")
+    @GetMapping("/offsetLogs")
+    public AjaxResult offsetLogs(@org.springframework.web.bind.annotation.RequestParam(required = false) Long payableId)
+    {
+        return success(finPayableService.selectOffsetLogs(payableId));
+    }
+
+    @PreAuthorize("@ss.hasPermi('business:payable:edit')")
+    @Log(title = "撤销应付红蓝对冲", businessType = BusinessType.UPDATE)
+    @PostMapping("/unoffset/{offsetId}")
+    public AjaxResult unoffset(@PathVariable Long offsetId)
+    {
+        return toAjax(finPayableService.unoffsetRedPayable(offsetId, getUsername()));
     }
 
     /**

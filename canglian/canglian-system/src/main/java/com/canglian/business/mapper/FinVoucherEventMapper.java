@@ -29,4 +29,6 @@ public interface FinVoucherEventMapper
      * @return 最大凭证号
      */
     public String selectMaxVoucherNoByPrefix(String voucherNoPrefix);
+
+    public String selectMaxReverseVoucherNoByPrefix(String reverseVoucherNoPrefix);
 }

@@ -57,5 +57,7 @@ public interface WmsSaleReturnItemMapper
      * @return 结果
      */
     public int deleteWmsSaleReturnItemByIds(Long[] saleReturnItemIds);
+
+    public int deleteWmsSaleReturnItemBySaleReturnId(Long saleReturnId);
 }
 

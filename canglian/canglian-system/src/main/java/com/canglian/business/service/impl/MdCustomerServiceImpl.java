@@ -3,8 +3,12 @@ package com.canglian.business.service.impl;
 import java.util.List;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import com.canglian.business.domain.FinReceivable;
 import com.canglian.business.domain.MdCustomer;
+import com.canglian.business.domain.SalOrder;
+import com.canglian.business.mapper.FinReceivableMapper;
 import com.canglian.business.mapper.MdCustomerMapper;
+import com.canglian.business.mapper.SalOrderMapper;
 import com.canglian.business.service.IMdCustomerService;
 import com.canglian.common.exception.ServiceException;
 import com.canglian.common.utils.StringUtils;
@@ -19,6 +23,12 @@ public class MdCustomerServiceImpl implements IMdCustomerService
 {
     @Autowired
     private MdCustomerMapper mdCustomerMapper;
+
+    @Autowired
+    private SalOrderMapper salOrderMapper;
+
+    @Autowired
+    private FinReceivableMapper finReceivableMapper;
 
     /**
      * 查询客户档案信息
@@ -103,6 +113,7 @@ public class MdCustomerServiceImpl implements IMdCustomerService
     @Override
     public int insertMdCustomer(MdCustomer mdCustomer)
     {
+        validateCustomerCodeUnique(mdCustomer);
         return mdCustomerMapper.insertMdCustomer(mdCustomer);
     }
 
@@ -115,6 +126,7 @@ public class MdCustomerServiceImpl implements IMdCustomerService
     @Override
     public int updateMdCustomer(MdCustomer mdCustomer)
     {
+        validateCustomerCodeUnique(mdCustomer);
         return mdCustomerMapper.updateMdCustomer(mdCustomer);
     }
 
@@ -127,6 +139,7 @@ public class MdCustomerServiceImpl implements IMdCustomerService
     @Override
     public int deleteMdCustomerById(Long customerId)
     {
+        validateCustomerDeletable(customerId);
         return mdCustomerMapper.deleteMdCustomerById(customerId);
     }
 
@@ -139,7 +152,39 @@ public class MdCustomerServiceImpl implements IMdCustomerService
     @Override
     public int deleteMdCustomerByIds(Long[] customerIds)
     {
+        if (customerIds != null)
+        {
+            for (Long customerId : customerIds)
+            {
+                validateCustomerDeletable(customerId);
+            }
+        }
         return mdCustomerMapper.deleteMdCustomerByIds(customerIds);
+    }
+
+    private void validateCustomerCodeUnique(MdCustomer mdCustomer)
+    {
+        if (mdCustomer == null || StringUtils.isEmpty(mdCustomer.getCustomerCode()))
+        {
+            throw new ServiceException("客户编码不能为空");
+        }
+        MdCustomer existing = mdCustomerMapper.selectMdCustomerByCode(mdCustomer.getCustomerCode());
+        if (existing != null && !existing.getCustomerId().equals(mdCustomer.getCustomerId()))
+        {
+            throw new ServiceException("客户编码[" + mdCustomer.getCustomerCode() + "]已存在，请勿重复");
+        }
+    }
+
+    private void validateCustomerDeletable(Long customerId)
+    {
+        if (customerId == null)
+        {
+            return;
+        }
+        if (mdCustomerMapper.countCustomerReferences(customerId) > 0)
+        {
+            throw new ServiceException("客户[" + customerId + "]已存在关联销售单、出库、退货、往来收款、发票或价格记录，不允许删除，请改为停用");
+        }
     }
 
     /**

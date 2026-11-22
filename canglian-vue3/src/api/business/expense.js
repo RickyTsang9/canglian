@@ -1,46 +1,29 @@
 import request from '@/utils/request'
 
 export function listExpense(query) {
-  return request({
-    url: '/business/expense/list',
-    method: 'get',
-    params: query
-  })
+  return request({ url: '/business/expense/list', method: 'get', params: query })
 }
 
 export function getExpense(expenseId) {
-  return request({
-    url: '/business/expense/' + expenseId,
-    method: 'get'
-  })
+  return request({ url: '/business/expense/' + expenseId, method: 'get' })
 }
 
 export function addExpense(data) {
-  return request({
-    url: '/business/expense',
-    method: 'post',
-    data: data
-  })
+  return request({ url: '/business/expense', method: 'post', data })
 }
 
 export function updateExpense(data) {
-  return request({
-    url: '/business/expense',
-    method: 'put',
-    data: data
-  })
+  return request({ url: '/business/expense', method: 'put', data })
 }
 
 export function confirmExpense(expenseId) {
-  return request({
-    url: '/business/expense/confirm/' + expenseId,
-    method: 'put'
-  })
+  return request({ url: '/business/expense/confirm/' + expenseId, method: 'put' })
+}
+
+export function unconfirmExpense(expenseId) {
+  return request({ url: '/business/expense/unconfirm/' + expenseId, method: 'post' })
 }
 
 export function delExpense(expenseId) {
-  return request({
-    url: '/business/expense/' + expenseId,
-    method: 'delete'
-  })
+  return request({ url: '/business/expense/' + expenseId, method: 'delete' })
 }

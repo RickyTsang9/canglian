@@ -18,6 +18,8 @@ public interface WmsSaleReturnMapper
      */
     public WmsSaleReturn selectWmsSaleReturnById(Long saleReturnId);
 
+    public WmsSaleReturn selectWmsSaleReturnByIdForUpdate(Long saleReturnId);
+
     /**
      * 查询销售退货列表
      * 

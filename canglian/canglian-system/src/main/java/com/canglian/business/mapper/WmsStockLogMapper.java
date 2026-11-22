@@ -1,6 +1,7 @@
 package com.canglian.business.mapper;
 
 import java.util.List;
+import org.apache.ibatis.annotations.Param;
 import com.canglian.business.domain.WmsStockLog;
 
 /**
@@ -25,6 +26,11 @@ public interface WmsStockLogMapper
      * @return 库存流水集合
      */
     public List<WmsStockLog> selectWmsStockLogList(WmsStockLog wmsStockLog);
+
+    /**
+     * 按时间正序查询库存流水（供成本期末重算回放使用）
+     */
+    public List<WmsStockLog> selectWmsStockLogChronological(@Param("warehouseId") Long warehouseId, @Param("productId") Long productId);
 
     /**
      * 新增库存流水

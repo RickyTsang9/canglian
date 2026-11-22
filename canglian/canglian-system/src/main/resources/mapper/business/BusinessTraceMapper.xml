@@ -91,6 +91,40 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
                create_time
         from wms_inbound
         union all
+        select 'warehouse' as node_type,
+               '销售退货单' as node_name,
+               'sale_return' as bill_type,
+               sale_return_id as bill_id,
+               return_no as bill_no,
+               business_date,
+               total_amount as amount,
+               status,
+               biz_status,
+               source_bill_type,
+               source_bill_id,
+               source_bill_no,
+               '销售退货' as relation_label,
+               create_by,
+               create_time
+        from wms_sale_return
+        union all
+        select 'warehouse' as node_type,
+               '采购退货单' as node_name,
+               'purchase_return' as bill_type,
+               purchase_return_id as bill_id,
+               return_no as bill_no,
+               business_date,
+               total_amount as amount,
+               status,
+               biz_status,
+               source_bill_type,
+               source_bill_id,
+               source_bill_no,
+               '采购退货' as relation_label,
+               create_by,
+               create_time
+        from wms_purchase_return
+        union all
         select 'invoice' as node_type,
                case when invoice_type = 'purchase' then '采购发票' else '销售发票' end as node_name,
                'invoice' as bill_type,
@@ -109,7 +143,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         from fin_invoice
         union all
         select 'finance' as node_type,
-               '应收单' as node_name,
+               case when bill_direction = '2' then '红字应收冲减单' else '应收单' end as node_name,
                'receivable' as bill_type,
                receivable_id as bill_id,
                receivable_no as bill_no,
@@ -117,16 +151,16 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
                amount,
                status,
                biz_status,
-               source_bill_type,
-               source_bill_id,
+               coalesce(nullif(source_bill_type, ''), bill_type) as source_bill_type,
+               coalesce(source_bill_id, bill_id) as source_bill_id,
                source_bill_no,
-               '应收往来' as relation_label,
+               case when bill_direction = '2' then '退货冲减应收' else '应收往来' end as relation_label,
                create_by,
                create_time
         from fin_receivable
         union all
         select 'finance' as node_type,
-               '应付单' as node_name,
+               case when bill_direction = '2' then '红字应付冲减单' else '应付单' end as node_name,
                'payable' as bill_type,
                payable_id as bill_id,
                payable_no as bill_no,
@@ -134,10 +168,10 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
                amount,
                status,
                biz_status,
-               source_bill_type,
-               source_bill_id,
+               coalesce(nullif(source_bill_type, ''), bill_type) as source_bill_type,
+               coalesce(source_bill_id, bill_id) as source_bill_id,
                source_bill_no,
-               '应付往来' as relation_label,
+               case when bill_direction = '2' then '退货冲减应付' else '应付往来' end as relation_label,
                create_by,
                create_time
         from fin_payable
@@ -228,7 +262,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         ) trace_node
         where (trace_node.bill_type = #{rootBillType} and trace_node.bill_id = #{rootBillId})
            or (trace_node.source_bill_type = #{rootBillType} and trace_node.source_bill_id = #{rootBillId})
-           or (trace_node.source_bill_no is not null and trace_node.source_bill_no = #{rootBillNo})
+           or (#{rootBillNo} is not null and #{rootBillNo} != '' and trace_node.source_bill_no is not null and trace_node.source_bill_no != '' and trace_node.source_bill_no = #{rootBillNo})
            or (
                 trace_node.bill_type in ('receipt', 'write_off')
                 and trace_node.source_bill_type in ('receivable', 'receive')
@@ -236,7 +270,8 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
                     select receivable_id
                     from fin_receivable
                     where (source_bill_type = #{rootBillType} and source_bill_id = #{rootBillId})
-                       or (source_bill_no is not null and source_bill_no = #{rootBillNo})
+                       or (bill_type = #{rootBillType} and bill_id = #{rootBillId})
+                       or (#{rootBillNo} is not null and #{rootBillNo} != '' and source_bill_no is not null and source_bill_no != '' and source_bill_no = #{rootBillNo})
                 )
            )
            or (
@@ -246,27 +281,72 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
                     select payable_id
                     from fin_payable
                     where (source_bill_type = #{rootBillType} and source_bill_id = #{rootBillId})
-                       or (source_bill_no is not null and source_bill_no = #{rootBillNo})
+                       or (bill_type = #{rootBillType} and bill_id = #{rootBillId})
+                       or (#{rootBillNo} is not null and #{rootBillNo} != '' and source_bill_no is not null and source_bill_no != '' and source_bill_no = #{rootBillNo})
+                )
+           )
+           or (
+                trace_node.bill_type = 'receivable'
+                and trace_node.source_bill_type in ('sale_return', 'outbound_return')
+                and (
+                    (trace_node.source_bill_type = 'sale_return' and trace_node.source_bill_id in (
+                        select sale_return_id
+                        from wms_sale_return
+                        where (source_bill_type = #{rootBillType} and source_bill_id = #{rootBillId})
+                           or (#{rootBillNo} is not null and #{rootBillNo} != '' and source_bill_no is not null and source_bill_no != '' and source_bill_no = #{rootBillNo})
+                    ))
+                    or (trace_node.source_bill_type = 'outbound_return' and trace_node.source_bill_id in (
+                        select outbound_id
+                        from wms_outbound
+                        where (source_bill_type = #{rootBillType} and source_bill_id = #{rootBillId})
+                           or (outbound_id = #{rootBillId} and #{rootBillType} = 'outbound')
+                           or (#{rootBillNo} is not null and #{rootBillNo} != '' and source_bill_no is not null and source_bill_no != '' and source_bill_no = #{rootBillNo})
+                    ))
+                )
+           )
+           or (
+                trace_node.bill_type = 'payable'
+                and trace_node.source_bill_type = 'purchase_return'
+                and trace_node.source_bill_id in (
+                    select purchase_return_id
+                    from wms_purchase_return
+                    where (source_bill_type = #{rootBillType} and source_bill_id = #{rootBillId})
+                       or (#{rootBillNo} is not null and #{rootBillNo} != '' and source_bill_no is not null and source_bill_no != '' and source_bill_no = #{rootBillNo})
                 )
            )
            or (
                 trace_node.bill_type = 'voucher_event'
-                and trace_node.source_bill_type in ('outbound', 'inbound', 'invoice')
-                and trace_node.source_bill_id in (
-                    select outbound_id
-                    from wms_outbound
-                    where source_bill_type = #{rootBillType}
-                      and source_bill_id = #{rootBillId}
-                    union all
-                    select inbound_id
-                    from wms_inbound
-                    where source_bill_type = #{rootBillType}
-                      and source_bill_id = #{rootBillId}
-                    union all
-                    select invoice_id
-                    from fin_invoice
-                    where (source_bill_type = #{rootBillType} and source_bill_id = #{rootBillId})
-                       or (source_bill_no is not null and source_bill_no = #{rootBillNo})
+                and (
+                    (trace_node.source_bill_type = 'outbound' and trace_node.source_bill_id in (
+                        select outbound_id
+                        from wms_outbound
+                        where (source_bill_type = #{rootBillType} and source_bill_id = #{rootBillId})
+                           or (#{rootBillNo} is not null and #{rootBillNo} != '' and source_bill_no is not null and source_bill_no != '' and source_bill_no = #{rootBillNo})
+                    ))
+                    or (trace_node.source_bill_type = 'inbound' and trace_node.source_bill_id in (
+                        select inbound_id
+                        from wms_inbound
+                        where (source_bill_type = #{rootBillType} and source_bill_id = #{rootBillId})
+                           or (#{rootBillNo} is not null and #{rootBillNo} != '' and source_bill_no is not null and source_bill_no != '' and source_bill_no = #{rootBillNo})
+                    ))
+                    or (trace_node.source_bill_type = 'invoice' and trace_node.source_bill_id in (
+                        select invoice_id
+                        from fin_invoice
+                        where (source_bill_type = #{rootBillType} and source_bill_id = #{rootBillId})
+                           or (#{rootBillNo} is not null and #{rootBillNo} != '' and source_bill_no is not null and source_bill_no != '' and source_bill_no = #{rootBillNo})
+                    ))
+                    or (trace_node.source_bill_type = 'sale_return' and trace_node.source_bill_id in (
+                        select sale_return_id
+                        from wms_sale_return
+                        where (source_bill_type = #{rootBillType} and source_bill_id = #{rootBillId})
+                           or (#{rootBillNo} is not null and #{rootBillNo} != '' and source_bill_no is not null and source_bill_no != '' and source_bill_no = #{rootBillNo})
+                    ))
+                    or (trace_node.source_bill_type = 'purchase_return' and trace_node.source_bill_id in (
+                        select purchase_return_id
+                        from wms_purchase_return
+                        where (source_bill_type = #{rootBillType} and source_bill_id = #{rootBillId})
+                           or (#{rootBillNo} is not null and #{rootBillNo} != '' and source_bill_no is not null and source_bill_no != '' and source_bill_no = #{rootBillNo})
+                    ))
                 )
            )
         order by trace_node.business_date asc, trace_node.create_time asc, trace_node.bill_id asc

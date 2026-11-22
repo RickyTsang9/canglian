@@ -1,13 +1,16 @@
 package com.canglian.business.domain;
 
 import java.math.BigDecimal;
+import java.util.Date;
+import java.util.List;
+import com.fasterxml.jackson.annotation.JsonFormat;
 import org.apache.commons.lang3.builder.ToStringBuilder;
 import org.apache.commons.lang3.builder.ToStringStyle;
 import com.canglian.common.core.domain.BaseEntity;
 
 /**
  * 调拨单
- * 
+ *
  * @author canglian
  */
 public class WmsTransfer extends BaseEntity
@@ -22,157 +25,65 @@ public class WmsTransfer extends BaseEntity
 
     private Long inWarehouseId;
 
+    @JsonFormat(pattern = "yyyy-MM-dd")
+    private Date businessDate;
+
+    public Date getBusinessDate() { return businessDate; }
+    public void setBusinessDate(Date businessDate) { this.businessDate = businessDate; }
+
+    private Long deptId;
+
+    private Long ownerUserId;
+
     private BigDecimal totalQty;
 
     private BigDecimal totalAmount;
 
     private String status;
 
-    /**
-     * 获取调拨单id
-     * 
-     * @return 调拨单id
-     */
-    public Long getTransferId()
-    {
-        return transferId;
-    }
+    private String isReversal;
 
-    /**
-     * 设置调拨单id
-     * 
-     * @param transferId 调拨单id
-     */
-    public void setTransferId(Long transferId)
-    {
-        this.transferId = transferId;
-    }
+    private Long originBillId;
 
-    /**
-     * 获取调拨单号
-     * 
-     * @return 调拨单号
-     */
-    public String getTransferNo()
-    {
-        return transferNo;
-    }
+    private String reversedFlag;
 
-    /**
-     * 设置调拨单号
-     * 
-     * @param transferNo 调拨单号
-     */
-    public void setTransferNo(String transferNo)
-    {
-        this.transferNo = transferNo;
-    }
+    private String unauditBy;
 
-    /**
-     * 获取调出仓库id
-     * 
-     * @return 调出仓库id
-     */
-    public Long getOutWarehouseId()
-    {
-        return outWarehouseId;
-    }
+    private Date unauditTime;
 
-    /**
-     * 设置调出仓库id
-     * 
-     * @param outWarehouseId 调出仓库id
-     */
-    public void setOutWarehouseId(Long outWarehouseId)
-    {
-        this.outWarehouseId = outWarehouseId;
-    }
+    private List<WmsTransferItem> itemList;
 
-    /**
-     * 获取调入仓库id
-     * 
-     * @return 调入仓库id
-     */
-    public Long getInWarehouseId()
-    {
-        return inWarehouseId;
-    }
+    public List<WmsTransferItem> getItemList() { return itemList; }
+    public void setItemList(List<WmsTransferItem> itemList) { this.itemList = itemList; }
+    public Long getTransferId() { return transferId; }
+    public void setTransferId(Long transferId) { this.transferId = transferId; }
+    public String getTransferNo() { return transferNo; }
+    public void setTransferNo(String transferNo) { this.transferNo = transferNo; }
+    public Long getOutWarehouseId() { return outWarehouseId; }
+    public void setOutWarehouseId(Long outWarehouseId) { this.outWarehouseId = outWarehouseId; }
+    public Long getInWarehouseId() { return inWarehouseId; }
+    public void setInWarehouseId(Long inWarehouseId) { this.inWarehouseId = inWarehouseId; }
+    public Long getDeptId() { return deptId; }
+    public void setDeptId(Long deptId) { this.deptId = deptId; }
+    public Long getOwnerUserId() { return ownerUserId; }
+    public void setOwnerUserId(Long ownerUserId) { this.ownerUserId = ownerUserId; }
+    public BigDecimal getTotalQty() { return totalQty; }
+    public void setTotalQty(BigDecimal totalQty) { this.totalQty = totalQty; }
+    public BigDecimal getTotalAmount() { return totalAmount; }
+    public void setTotalAmount(BigDecimal totalAmount) { this.totalAmount = totalAmount; }
+    public String getStatus() { return status; }
+    public void setStatus(String status) { this.status = status; }
+    public String getIsReversal() { return isReversal; }
+    public void setIsReversal(String isReversal) { this.isReversal = isReversal; }
+    public Long getOriginBillId() { return originBillId; }
+    public void setOriginBillId(Long originBillId) { this.originBillId = originBillId; }
+    public String getReversedFlag() { return reversedFlag; }
+    public void setReversedFlag(String reversedFlag) { this.reversedFlag = reversedFlag; }
+    public String getUnauditBy() { return unauditBy; }
+    public void setUnauditBy(String unauditBy) { this.unauditBy = unauditBy; }
+    public Date getUnauditTime() { return unauditTime; }
+    public void setUnauditTime(Date unauditTime) { this.unauditTime = unauditTime; }
 
-    /**
-     * 设置调入仓库id
-     * 
-     * @param inWarehouseId 调入仓库id
-     */
-    public void setInWarehouseId(Long inWarehouseId)
-    {
-        this.inWarehouseId = inWarehouseId;
-    }
-
-    /**
-     * 获取总数量
-     * 
-     * @return 总数量
-     */
-    public BigDecimal getTotalQty()
-    {
-        return totalQty;
-    }
-
-    /**
-     * 设置总数量
-     * 
-     * @param totalQty 总数量
-     */
-    public void setTotalQty(BigDecimal totalQty)
-    {
-        this.totalQty = totalQty;
-    }
-
-    /**
-     * 获取总金额
-     * 
-     * @return 总金额
-     */
-    public BigDecimal getTotalAmount()
-    {
-        return totalAmount;
-    }
-
-    /**
-     * 设置总金额
-     * 
-     * @param totalAmount 总金额
-     */
-    public void setTotalAmount(BigDecimal totalAmount)
-    {
-        this.totalAmount = totalAmount;
-    }
-
-    /**
-     * 获取状态
-     * 
-     * @return 状态
-     */
-    public String getStatus()
-    {
-        return status;
-    }
-
-    /**
-     * 设置状态
-     * 
-     * @param status 状态
-     */
-    public void setStatus(String status)
-    {
-        this.status = status;
-    }
-
-    /**
-     * 获取调拨单字符串
-     * 
-     * @return 调拨单字符串
-     */
     @Override
     public String toString()
     {
@@ -184,12 +95,9 @@ public class WmsTransfer extends BaseEntity
             .append("totalQty", getTotalQty())
             .append("totalAmount", getTotalAmount())
             .append("status", getStatus())
-            .append("createBy", getCreateBy())
-            .append("createTime", getCreateTime())
-            .append("updateBy", getUpdateBy())
-            .append("updateTime", getUpdateTime())
-            .append("remark", getRemark())
+            .append("isReversal", getIsReversal())
+            .append("originBillId", getOriginBillId())
+            .append("reversedFlag", getReversedFlag())
             .toString();
     }
 }
-

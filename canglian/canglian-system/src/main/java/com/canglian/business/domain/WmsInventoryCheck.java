@@ -1,13 +1,16 @@
 package com.canglian.business.domain;
 
 import java.math.BigDecimal;
+import java.util.Date;
+import java.util.List;
+import com.fasterxml.jackson.annotation.JsonFormat;
 import org.apache.commons.lang3.builder.ToStringBuilder;
 import org.apache.commons.lang3.builder.ToStringStyle;
 import com.canglian.common.core.domain.BaseEntity;
 
 /**
  * 盘点单
- * 
+ *
  * @author canglian
  */
 public class WmsInventoryCheck extends BaseEntity
@@ -20,137 +23,63 @@ public class WmsInventoryCheck extends BaseEntity
 
     private Long warehouseId;
 
+    @JsonFormat(pattern = "yyyy-MM-dd")
+    private Date businessDate;
+
+    public Date getBusinessDate() { return businessDate; }
+    public void setBusinessDate(Date businessDate) { this.businessDate = businessDate; }
+
+    private Long deptId;
+
+    private Long ownerUserId;
+
     private String status;
 
     private BigDecimal totalDiffQty;
 
     private BigDecimal totalDiffAmount;
 
-    /**
-     * 获取盘点单id
-     * 
-     * @return 盘点单id
-     */
-    public Long getCheckId()
-    {
-        return checkId;
-    }
+    private String isReversal;
 
-    /**
-     * 设置盘点单id
-     * 
-     * @param checkId 盘点单id
-     */
-    public void setCheckId(Long checkId)
-    {
-        this.checkId = checkId;
-    }
+    private Long originBillId;
 
-    /**
-     * 获取盘点单号
-     * 
-     * @return 盘点单号
-     */
-    public String getCheckNo()
-    {
-        return checkNo;
-    }
+    private String reversedFlag;
 
-    /**
-     * 设置盘点单号
-     * 
-     * @param checkNo 盘点单号
-     */
-    public void setCheckNo(String checkNo)
-    {
-        this.checkNo = checkNo;
-    }
+    private String unauditBy;
 
-    /**
-     * 获取仓库id
-     * 
-     * @return 仓库id
-     */
-    public Long getWarehouseId()
-    {
-        return warehouseId;
-    }
+    private Date unauditTime;
 
-    /**
-     * 设置仓库id
-     * 
-     * @param warehouseId 仓库id
-     */
-    public void setWarehouseId(Long warehouseId)
-    {
-        this.warehouseId = warehouseId;
-    }
+    private List<WmsInventoryCheckItem> itemList;
 
-    /**
-     * 获取状态
-     * 
-     * @return 状态
-     */
-    public String getStatus()
-    {
-        return status;
-    }
+    public List<WmsInventoryCheckItem> getItemList() { return itemList; }
+    public void setItemList(List<WmsInventoryCheckItem> itemList) { this.itemList = itemList; }
+    public Long getCheckId() { return checkId; }
+    public void setCheckId(Long checkId) { this.checkId = checkId; }
+    public String getCheckNo() { return checkNo; }
+    public void setCheckNo(String checkNo) { this.checkNo = checkNo; }
+    public Long getWarehouseId() { return warehouseId; }
+    public void setWarehouseId(Long warehouseId) { this.warehouseId = warehouseId; }
+    public Long getDeptId() { return deptId; }
+    public void setDeptId(Long deptId) { this.deptId = deptId; }
+    public Long getOwnerUserId() { return ownerUserId; }
+    public void setOwnerUserId(Long ownerUserId) { this.ownerUserId = ownerUserId; }
+    public String getStatus() { return status; }
+    public void setStatus(String status) { this.status = status; }
+    public BigDecimal getTotalDiffQty() { return totalDiffQty; }
+    public void setTotalDiffQty(BigDecimal totalDiffQty) { this.totalDiffQty = totalDiffQty; }
+    public BigDecimal getTotalDiffAmount() { return totalDiffAmount; }
+    public void setTotalDiffAmount(BigDecimal totalDiffAmount) { this.totalDiffAmount = totalDiffAmount; }
+    public String getIsReversal() { return isReversal; }
+    public void setIsReversal(String isReversal) { this.isReversal = isReversal; }
+    public Long getOriginBillId() { return originBillId; }
+    public void setOriginBillId(Long originBillId) { this.originBillId = originBillId; }
+    public String getReversedFlag() { return reversedFlag; }
+    public void setReversedFlag(String reversedFlag) { this.reversedFlag = reversedFlag; }
+    public String getUnauditBy() { return unauditBy; }
+    public void setUnauditBy(String unauditBy) { this.unauditBy = unauditBy; }
+    public Date getUnauditTime() { return unauditTime; }
+    public void setUnauditTime(Date unauditTime) { this.unauditTime = unauditTime; }
 
-    /**
-     * 设置状态
-     * 
-     * @param status 状态
-     */
-    public void setStatus(String status)
-    {
-        this.status = status;
-    }
-
-    /**
-     * 获取差异数量合计
-     * 
-     * @return 差异数量合计
-     */
-    public BigDecimal getTotalDiffQty()
-    {
-        return totalDiffQty;
-    }
-
-    /**
-     * 设置差异数量合计
-     * 
-     * @param totalDiffQty 差异数量合计
-     */
-    public void setTotalDiffQty(BigDecimal totalDiffQty)
-    {
-        this.totalDiffQty = totalDiffQty;
-    }
-
-    /**
-     * 获取差异金额合计
-     * 
-     * @return 差异金额合计
-     */
-    public BigDecimal getTotalDiffAmount()
-    {
-        return totalDiffAmount;
-    }
-
-    /**
-     * 设置差异金额合计
-     * 
-     * @param totalDiffAmount 差异金额合计
-     */
-    public void setTotalDiffAmount(BigDecimal totalDiffAmount)
-    {
-        this.totalDiffAmount = totalDiffAmount;
-    }
-
-    /**
-     * 获取盘点单字符串
-     * 
-     * @return 盘点单字符串
-     */
     @Override
     public String toString()
     {
@@ -161,12 +90,9 @@ public class WmsInventoryCheck extends BaseEntity
             .append("status", getStatus())
             .append("totalDiffQty", getTotalDiffQty())
             .append("totalDiffAmount", getTotalDiffAmount())
-            .append("createBy", getCreateBy())
-            .append("createTime", getCreateTime())
-            .append("updateBy", getUpdateBy())
-            .append("updateTime", getUpdateTime())
-            .append("remark", getRemark())
+            .append("isReversal", getIsReversal())
+            .append("originBillId", getOriginBillId())
+            .append("reversedFlag", getReversedFlag())
             .toString();
     }
 }
-

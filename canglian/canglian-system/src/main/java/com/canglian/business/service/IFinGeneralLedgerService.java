@@ -1,7 +1,9 @@
 package com.canglian.business.service;
 
+import java.util.Date;
 import java.util.List;
 import java.util.Map;
+import com.canglian.business.domain.FinVoucherTemplate;
 
 /**
  * 基础总账接口服务层
@@ -10,45 +12,35 @@ import java.util.Map;
  */
 public interface IFinGeneralLedgerService
 {
-    /**
-     * 查询会计科目列表
-     * 
-     * @param status 状态
-     * @return 会计科目集合
-     */
     public List<Map<String, Object>> selectAccountSubjectList(String status);
 
-    /**
-     * 查询辅助核算列表
-     * 
-     * @param auxiliaryType 辅助核算类型
-     * @return 辅助核算集合
-     */
+    public int insertAccountSubject(Map<String, Object> subject, String operator);
+
+    public int updateAccountSubject(Map<String, Object> subject, String operator);
+
+    public int deleteAccountSubjectById(Long subjectId);
+
     public List<Map<String, Object>> selectAuxiliaryItemList(String auxiliaryType);
 
-    /**
-     * 查询会计期间列表
-     * 
-     * @param closeStatus 结账状态
-     * @return 会计期间集合
-     */
+    public Map<String, Object> syncAuxiliaryItems(String operator);
+
     public List<Map<String, Object>> selectFiscalPeriodList(String closeStatus);
 
-    /**
-     * 结账会计期间
-     * 
-     * @param periodId 会计期间id
-     * @param operator 操作人
-     * @return 结果
-     */
+    public Map<String, Object> initFiscalPeriodsByYear(Integer year, String operator);
+
+    public Map<String, Object> checkPeriodCloseReadiness(Long periodId);
+
     public int closeFiscalPeriod(Long periodId, String operator);
 
-    /**
-     * 反结账会计期间
-     * 
-     * @param periodId 会计期间id
-     * @param operator 操作人
-     * @return 结果
-     */
     public int reopenFiscalPeriod(Long periodId, String operator);
+
+    public void assertPeriodOpen(Date businessDate);
+
+    public List<FinVoucherTemplate> selectVoucherTemplateList(FinVoucherTemplate template);
+
+    public int insertVoucherTemplate(FinVoucherTemplate template, String operator);
+
+    public int updateVoucherTemplate(FinVoucherTemplate template);
+
+    public int deleteVoucherTemplateById(Long templateId);
 }

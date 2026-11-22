@@ -1,8 +1,11 @@
 package com.canglian.web.controller.system;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import javax.servlet.http.HttpServletResponse;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -33,6 +36,24 @@ public class SysConfigController extends BaseController
 {
     @Autowired
     private ISysConfigService configService;
+
+    @Value("${swagger.enabled:false}")
+    private boolean swaggerEnabled;
+
+    @Value("${spring.datasource.druid.statViewServlet.enabled:true}")
+    private boolean druidEnabled;
+
+    /**
+     * 获取内置运维工具开关状态（供 Swagger/Druid 页面友好展示，避免生产安全关闭时加载 401 iframe）
+     */
+    @GetMapping("/runtimeStatus")
+    public AjaxResult runtimeStatus()
+    {
+        Map<String, Object> data = new HashMap<String, Object>();
+        data.put("swaggerEnabled", swaggerEnabled);
+        data.put("druidEnabled", druidEnabled);
+        return success(data);
+    }
 
     /**
      * 获取参数配置列表

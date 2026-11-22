@@ -1,6 +1,8 @@
 package com.canglian.business.domain;
 
 import java.math.BigDecimal;
+import java.util.Date;
+import com.fasterxml.jackson.annotation.JsonFormat;
 import org.apache.commons.lang3.builder.ToStringBuilder;
 import org.apache.commons.lang3.builder.ToStringStyle;
 import com.canglian.common.core.domain.BaseEntity;
@@ -22,7 +24,33 @@ public class PriceCustomerLevel extends BaseEntity
 
     private BigDecimal salePrice;
 
+    @JsonFormat(pattern = "yyyy-MM-dd")
+    private Date effectiveDate;
+
+    @JsonFormat(pattern = "yyyy-MM-dd")
+    private Date expireDate;
+
     private String status;
+
+    public Date getEffectiveDate()
+    {
+        return effectiveDate;
+    }
+
+    public void setEffectiveDate(Date effectiveDate)
+    {
+        this.effectiveDate = effectiveDate;
+    }
+
+    public Date getExpireDate()
+    {
+        return expireDate;
+    }
+
+    public void setExpireDate(Date expireDate)
+    {
+        this.expireDate = expireDate;
+    }
 
     public Long getLevelPriceId()
     {

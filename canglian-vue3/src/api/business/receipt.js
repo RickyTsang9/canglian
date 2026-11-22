@@ -1,44 +1,29 @@
 import request from '@/utils/request'
 
-// 查询收款单列表
 export function listReceipt(query) {
-  return request({
-    url: '/business/receipt/list',
-    method: 'get',
-    params: query
-  })
+  return request({ url: '/business/receipt/list', method: 'get', params: query })
 }
 
-// 查询收款单详细
 export function getReceipt(receiptId) {
-  return request({
-    url: '/business/receipt/' + receiptId,
-    method: 'get'
-  })
+  return request({ url: '/business/receipt/' + receiptId, method: 'get' })
 }
 
-// 新增收款单
 export function addReceipt(data) {
-  return request({
-    url: '/business/receipt',
-    method: 'post',
-    data: data
-  })
+  return request({ url: '/business/receipt', method: 'post', data })
 }
 
-// 修改收款单
 export function updateReceipt(data) {
-  return request({
-    url: '/business/receipt',
-    method: 'put',
-    data: data
-  })
+  return request({ url: '/business/receipt', method: 'put', data })
 }
 
-// 删除收款单
+export function confirmReceipt(receiptId) {
+  return request({ url: '/business/receipt/confirm/' + receiptId, method: 'post' })
+}
+
+export function unconfirmReceipt(receiptId) {
+  return request({ url: '/business/receipt/unconfirm/' + receiptId, method: 'post' })
+}
+
 export function delReceipt(receiptId) {
-  return request({
-    url: '/business/receipt/' + receiptId,
-    method: 'delete'
-  })
+  return request({ url: '/business/receipt/' + receiptId, method: 'delete' })
 }

@@ -1,0 +1,189 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.canglian.business.mapper.FinVoucherEntryMapper">
+
+    <resultMap type="FinVoucherTemplate" id="FinVoucherTemplateResult">
+        <id     property="templateId"      column="template_id"      />
+        <result property="eventType"       column="event_type"       />
+        <result property="entrySeq"        column="entry_seq"        />
+        <result property="direction"       column="direction"        />
+        <result property="subjectCode"     column="subject_code"     />
+        <result property="subjectName"     column="subject_name"     />
+        <result property="auxiliaryType"   column="auxiliary_type"   />
+        <result property="summaryTemplate" column="summary_template" />
+        <result property="status"          column="status"           />
+        <result property="createBy"        column="create_by"        />
+        <result property="createTime"      column="create_time"      />
+    </resultMap>
+
+    <resultMap type="FinVoucherEntry" id="FinVoucherEntryResult">
+        <id     property="entryId"        column="entry_id"         />
+        <result property="voucherEventId" column="voucher_event_id" />
+        <result property="voucherNo"      column="voucher_no"       />
+        <result property="entrySeq"       column="entry_seq"        />
+        <result property="direction"      column="direction"        />
+        <result property="subjectCode"    column="subject_code"     />
+        <result property="subjectName"    column="subject_name"     />
+        <result property="auxiliaryType"  column="auxiliary_type"   />
+        <result property="auxiliaryName"  column="auxiliary_name"   />
+        <result property="debitAmount"    column="debit_amount"     />
+        <result property="creditAmount"   column="credit_amount"    />
+        <result property="summary"        column="summary"          />
+        <result property="createTime"     column="create_time"      />
+        <result property="voucherDate"    column="voucher_date"     />
+        <result property="billNo"         column="bill_no"          />
+    </resultMap>
+
+    <select id="selectTemplateList" parameterType="FinVoucherTemplate" resultMap="FinVoucherTemplateResult">
+        select template_id, event_type, entry_seq, direction, subject_code, subject_name,
+               auxiliary_type, summary_template, status, create_by, create_time
+        from fin_voucher_template
+        <where>
+            <if test="eventType != null and eventType != ''">
+                and event_type = #{eventType}
+            </if>
+            <if test="direction != null and direction != ''">
+                and direction = #{direction}
+            </if>
+            <if test="subjectCode != null and subjectCode != ''">
+                and subject_code like concat('%', #{subjectCode}, '%')
+            </if>
+            <if test="status != null and status != ''">
+                and status = #{status}
+            </if>
+        </where>
+        order by event_type asc, entry_seq asc
+    </select>
+
+    <select id="selectTemplateById" resultMap="FinVoucherTemplateResult">
+        select template_id, event_type, entry_seq, direction, subject_code, subject_name,
+               auxiliary_type, summary_template, status, create_by, create_time
+        from fin_voucher_template
+        where template_id = #{templateId}
+    </select>
+
+    <select id="selectEnabledTemplatesByEventType" resultMap="FinVoucherTemplateResult">
+        select template_id, event_type, entry_seq, direction, subject_code, subject_name,
+               auxiliary_type, summary_template, status, create_by, create_time
+        from fin_voucher_template
+        where event_type = #{eventType}
+          and status = '0'
+        order by entry_seq asc
+    </select>
+
+    <select id="countTemplateByEventAndSeq" resultType="int">
+        select count(1)
+        from fin_voucher_template
+        where event_type = #{eventType}
+          and entry_seq = #{entrySeq}
+        <if test="excludeId != null">
+          and template_id != #{excludeId}
+        </if>
+    </select>
+
+    <select id="countTemplateBySubjectCode" resultType="int">
+        select count(1)
+        from fin_voucher_template
+        where subject_code = #{subjectCode}
+    </select>
+
+    <insert id="insertTemplate" parameterType="FinVoucherTemplate" useGeneratedKeys="true" keyProperty="templateId">
+        insert into fin_voucher_template (
+            event_type, entry_seq, direction, subject_code, subject_name,
+            auxiliary_type, summary_template, status, create_by, create_time
+        ) values (
+            #{eventType}, #{entrySeq}, #{direction}, #{subjectCode}, #{subjectName},
+            coalesce(#{auxiliaryType}, 'none'), coalesce(#{summaryTemplate}, ''), coalesce(#{status}, '0'),
+            coalesce(#{createBy}, 'admin'), sysdate()
+        )
+    </insert>
+
+    <update id="updateTemplate" parameterType="FinVoucherTemplate">
+        update fin_voucher_template
+        <set>
+            <if test="eventType != null and eventType != ''">event_type = #{eventType},</if>
+            <if test="entrySeq != null">entry_seq = #{entrySeq},</if>
+            <if test="direction != null and direction != ''">direction = #{direction},</if>
+            <if test="subjectCode != null and subjectCode != ''">subject_code = #{subjectCode},</if>
+            <if test="subjectName != null and subjectName != ''">subject_name = #{subjectName},</if>
+            <if test="auxiliaryType != null">auxiliary_type = #{auxiliaryType},</if>
+            <if test="summaryTemplate != null">summary_template = #{summaryTemplate},</if>
+            <if test="status != null and status != ''">status = #{status},</if>
+        </set>
+        where template_id = #{templateId}
+    </update>
+
+    <delete id="deleteTemplateById">
+        delete from fin_voucher_template where template_id = #{templateId}
+    </delete>
+
+    <select id="selectEntriesByEventId" resultMap="FinVoucherEntryResult">
+        select e.entry_id, e.voucher_event_id, e.voucher_no, e.entry_seq, e.direction,
+               e.subject_code, e.subject_name, e.auxiliary_type, e.auxiliary_name,
+               e.debit_amount, e.credit_amount, e.summary, e.create_time,
+               coalesce(v.voucher_date, v.event_date) as voucher_date,
+               v.bill_no
+        from fin_voucher_entry e
+        left join fin_voucher_event v on v.voucher_event_id = e.voucher_event_id
+        where e.voucher_event_id = #{voucherEventId}
+        order by e.entry_id asc, e.entry_seq asc
+    </select>
+
+    <select id="selectEntriesByEventAndVoucherNo" resultMap="FinVoucherEntryResult">
+        select entry_id, voucher_event_id, voucher_no, entry_seq, direction,
+               subject_code, subject_name, auxiliary_type, auxiliary_name,
+               debit_amount, credit_amount, summary, create_time
+        from fin_voucher_entry
+        where voucher_event_id = #{voucherEventId}
+          and voucher_no = #{voucherNo}
+        order by entry_seq asc, entry_id asc
+    </select>
+
+    <select id="selectEntriesForExport" resultMap="FinVoucherEntryResult">
+        select e.entry_id, e.voucher_event_id, e.voucher_no, e.entry_seq, e.direction,
+               e.subject_code, e.subject_name, e.auxiliary_type, e.auxiliary_name,
+               e.debit_amount, e.credit_amount, e.summary, e.create_time,
+               coalesce(v.voucher_date, v.event_date) as voucher_date,
+               v.bill_no
+        from fin_voucher_entry e
+        inner join fin_voucher_event v on v.voucher_event_id = e.voucher_event_id
+        <where>
+            <if test="billType != null and billType != ''">
+                and v.bill_type = #{billType}
+            </if>
+            <if test="eventType != null and eventType != ''">
+                and v.event_type = #{eventType}
+            </if>
+            <if test="status != null and status != ''">
+                and v.status = #{status}
+            </if>
+            <if test="voucherNo != null and voucherNo != ''">
+                and e.voucher_no like concat('%', #{voucherNo}, '%')
+            </if>
+        </where>
+        order by e.voucher_no asc, e.entry_seq asc, e.entry_id asc
+    </select>
+
+    <select id="countEntriesBySubjectCode" resultType="int">
+        select count(1)
+        from fin_voucher_entry
+        where subject_code = #{subjectCode}
+    </select>
+
+    <insert id="insertVoucherEntry" parameterType="FinVoucherEntry" useGeneratedKeys="true" keyProperty="entryId">
+        insert into fin_voucher_entry (
+            voucher_event_id, voucher_no, entry_seq, direction, subject_code, subject_name,
+            auxiliary_type, auxiliary_name, debit_amount, credit_amount, summary, create_time
+        ) values (
+            #{voucherEventId}, #{voucherNo}, #{entrySeq}, #{direction}, #{subjectCode}, #{subjectName},
+            coalesce(#{auxiliaryType}, 'none'), coalesce(#{auxiliaryName}, ''),
+            coalesce(#{debitAmount}, 0), coalesce(#{creditAmount}, 0), coalesce(#{summary}, ''), sysdate()
+        )
+    </insert>
+
+    <delete id="deleteEntriesByEventId">
+        delete from fin_voucher_entry where voucher_event_id = #{voucherEventId}
+    </delete>
+</mapper>

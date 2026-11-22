@@ -5,24 +5,30 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
 <mapper namespace="com.canglian.business.mapper.FinBadDebtMapper">
 
     <resultMap type="FinBadDebt" id="FinBadDebtResult">
-        <id     property="badDebtId"   column="bad_debt_id"   />
-        <result property="badDebtNo"   column="bad_debt_no"   />
-        <result property="receivableId" column="receivable_id" />
-        <result property="customerId"  column="customer_id"   />
-        <result property="amount"      column="amount"        />
-        <result property="badDebtDate" column="bad_debt_date" />
-        <result property="reason"      column="reason"        />
-        <result property="status"      column="status"        />
-        <result property="createBy"    column="create_by"     />
-        <result property="createTime"  column="create_time"   />
-        <result property="updateBy"    column="update_by"     />
-        <result property="updateTime"  column="update_time"   />
-        <result property="remark"      column="remark"        />
+        <id     property="badDebtId"        column="bad_debt_id"        />
+        <result property="badDebtNo"        column="bad_debt_no"        />
+        <result property="receivableId"     column="receivable_id"      />
+        <result property="customerId"       column="customer_id"        />
+        <result property="deptId"           column="dept_id"            />
+        <result property="ownerUserId"      column="owner_user_id"      />
+        <result property="amount"           column="amount"             />
+        <result property="recoveredAmount"  column="recovered_amount"   />
+        <result property="recoverTime"      column="recover_time"       />
+        <result property="recoverAccountId" column="recover_account_id" />
+        <result property="badDebtDate"      column="bad_debt_date"      />
+        <result property="reason"           column="reason"             />
+        <result property="status"           column="status"             />
+        <result property="createBy"         column="create_by"          />
+        <result property="createTime"       column="create_time"        />
+        <result property="updateBy"         column="update_by"          />
+        <result property="updateTime"       column="update_time"        />
+        <result property="remark"           column="remark"             />
     </resultMap>
 
     <sql id="selectFinBadDebtVo">
-        select bad_debt_id, bad_debt_no, receivable_id, customer_id, amount, bad_debt_date, reason,
-               status, create_by, create_time, update_by, update_time, remark
+        select bad_debt_id, bad_debt_no, receivable_id, customer_id, dept_id, owner_user_id,
+               amount, coalesce(recovered_amount, 0) as recovered_amount, recover_time, recover_account_id,
+               bad_debt_date, reason, status, create_by, create_time, update_by, update_time, remark
         from fin_bad_debt
     </sql>
 
@@ -34,19 +40,14 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
     <select id="selectFinBadDebtList" parameterType="FinBadDebt" resultMap="FinBadDebtResult">
         <include refid="selectFinBadDebtVo"/>
         <where>
-            <if test="badDebtNo != null and badDebtNo != ''">
-                and bad_debt_no like concat('%', #{badDebtNo}, '%')
-            </if>
-            <if test="receivableId != null">
-                and receivable_id = #{receivableId}
-            </if>
-            <if test="customerId != null">
-                and customer_id = #{customerId}
-            </if>
-            <if test="status != null and status != ''">
-                and status = #{status}
-            </if>
+            <if test="badDebtNo != null and badDebtNo != ''">and bad_debt_no like concat('%', #{badDebtNo}, '%')</if>
+            <if test="receivableId != null">and receivable_id = #{receivableId}</if>
+            <if test="customerId != null">and customer_id = #{customerId}</if>
+            <if test="recoverAccountId != null">and recover_account_id = #{recoverAccountId}</if>
+            <if test="status != null and status != ''">and status = #{status}</if>
+            ${params.dataScope}
         </where>
+        order by create_time desc, bad_debt_id desc
     </select>
 
     <insert id="insertFinBadDebt" parameterType="FinBadDebt" useGeneratedKeys="true" keyProperty="badDebtId">
@@ -55,7 +56,10 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             <if test="badDebtNo != null and badDebtNo != ''">bad_debt_no,</if>
             <if test="receivableId != null">receivable_id,</if>
             <if test="customerId != null">customer_id,</if>
+            <if test="deptId != null">dept_id,</if>
+            <if test="ownerUserId != null">owner_user_id,</if>
             <if test="amount != null">amount,</if>
+            <if test="recoveredAmount != null">recovered_amount,</if>
             <if test="badDebtDate != null">bad_debt_date,</if>
             <if test="reason != null and reason != ''">reason,</if>
             <if test="status != null">status,</if>
@@ -68,7 +72,10 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             <if test="badDebtNo != null and badDebtNo != ''">#{badDebtNo},</if>
             <if test="receivableId != null">#{receivableId},</if>
             <if test="customerId != null">#{customerId},</if>
+            <if test="deptId != null">#{deptId},</if>
+            <if test="ownerUserId != null">#{ownerUserId},</if>
             <if test="amount != null">#{amount},</if>
+            <if test="recoveredAmount != null">#{recoveredAmount},</if>
             <if test="badDebtDate != null">#{badDebtDate},</if>
             <if test="reason != null and reason != ''">#{reason},</if>
             <if test="status != null">#{status},</if>
@@ -86,6 +93,9 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             <if test="receivableId != null">receivable_id = #{receivableId},</if>
             <if test="customerId != null">customer_id = #{customerId},</if>
             <if test="amount != null">amount = #{amount},</if>
+            <if test="recoveredAmount != null">recovered_amount = #{recoveredAmount},</if>
+            <if test="recoverTime != null">recover_time = #{recoverTime},</if>
+            <if test="recoverAccountId != null">recover_account_id = #{recoverAccountId},</if>
             <if test="badDebtDate != null">bad_debt_date = #{badDebtDate},</if>
             <if test="reason != null and reason != ''">reason = #{reason},</if>
             <if test="status != null">status = #{status},</if>
@@ -107,4 +117,3 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         </foreach>
     </delete>
 </mapper>
-

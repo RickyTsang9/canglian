@@ -1,53 +1,41 @@
 import request from '@/utils/request'
 
-// 查询库存列表
 export function listStock(query) {
-  return request({
-    url: '/business/stock/list',
-    method: 'get',
-    params: query
-  })
+  return request({ url: '/business/stock/list', method: 'get', params: query })
 }
 
-// 查询库存预警列表
 export function listStockWarning(query) {
-  return request({
-    url: '/business/stock/warning',
-    method: 'get',
-    params: query
-  })
+  return request({ url: '/business/stock/warning', method: 'get', params: query })
 }
 
-// 查询库存详细
+export function listExpiryWarning(query) {
+  return request({ url: '/business/stock/expiryWarning', method: 'get', params: query })
+}
+
+export function listFefoBatches(params) {
+  return request({ url: '/business/stock/fefo', method: 'get', params })
+}
+
+export function freezeStock(data) {
+  return request({ url: '/business/stock/freeze', method: 'post', data })
+}
+
+export function unfreezeStock(data) {
+  return request({ url: '/business/stock/unfreeze', method: 'post', data })
+}
+
 export function getStock(stockId) {
-  return request({
-    url: '/business/stock/' + stockId,
-    method: 'get'
-  })
+  return request({ url: '/business/stock/' + stockId, method: 'get' })
 }
 
-// 新增库存
 export function addStock(data) {
-  return request({
-    url: '/business/stock',
-    method: 'post',
-    data: data
-  })
+  return request({ url: '/business/stock', method: 'post', data })
 }
 
-// 修改库存
 export function updateStock(data) {
-  return request({
-    url: '/business/stock',
-    method: 'put',
-    data: data
-  })
+  return request({ url: '/business/stock', method: 'put', data })
 }
 
-// 删除库存
 export function delStock(stockId) {
-  return request({
-    url: '/business/stock/' + stockId,
-    method: 'delete'
-  })
+  return request({ url: '/business/stock/' + stockId, method: 'delete' })
 }

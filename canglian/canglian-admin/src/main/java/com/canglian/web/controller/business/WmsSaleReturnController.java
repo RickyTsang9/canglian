@@ -89,6 +89,22 @@ public class WmsSaleReturnController extends BaseController
         return toAjax(wmsSaleReturnService.auditWmsSaleReturn(saleReturnId, getUsername()));
     }
 
+    @PreAuthorize("@ss.hasPermi('business:saleReturn:unaudit') or @ss.hasPermi('business:saleReturn:audit')")
+    @Log(title = "销售退货反审核", businessType = BusinessType.UPDATE)
+    @PutMapping("/unaudit/{saleReturnId}")
+    public AjaxResult unaudit(@PathVariable Long saleReturnId)
+    {
+        return toAjax(wmsSaleReturnService.unauditWmsSaleReturn(saleReturnId, getUsername()));
+    }
+
+    @PreAuthorize("@ss.hasPermi('business:saleReturn:unaudit') or @ss.hasPermi('business:saleReturn:audit')")
+    @Log(title = "销售退货红冲", businessType = BusinessType.INSERT)
+    @PostMapping("/reverse/{saleReturnId}")
+    public AjaxResult reverse(@PathVariable Long saleReturnId)
+    {
+        return success(wmsSaleReturnService.reverseWmsSaleReturn(saleReturnId, getUsername()));
+    }
+
     /**
      * 删除销售退货
      */

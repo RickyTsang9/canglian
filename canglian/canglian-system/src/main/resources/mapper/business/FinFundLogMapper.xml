@@ -1,0 +1,132 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.canglian.business.mapper.FinFundLogMapper">
+
+    <resultMap type="FinFundLog" id="FinFundLogResult">
+        <id property="fundLogId" column="fund_log_id" />
+        <result property="accountId" column="account_id" />
+        <result property="accountName" column="account_name" />
+        <result property="bizType" column="biz_type" />
+        <result property="billId" column="bill_id" />
+        <result property="billNo" column="bill_no" />
+        <result property="direction" column="direction" />
+        <result property="changeAmount" column="change_amount" />
+        <result property="beforeBalance" column="before_balance" />
+        <result property="afterBalance" column="after_balance" />
+        <result property="bizDate" column="biz_date" />
+        <result property="counterpartyName" column="counterparty_name" />
+        <result property="remark" column="remark" />
+        <result property="createBy" column="create_by" />
+        <result property="createTime" column="create_time" />
+    </resultMap>
+
+    <resultMap type="FinFundTransfer" id="FinFundTransferResult">
+        <id property="transferId" column="transfer_id" />
+        <result property="transferNo" column="transfer_no" />
+        <result property="outAccountId" column="out_account_id" />
+        <result property="inAccountId" column="in_account_id" />
+        <result property="amount" column="amount" />
+        <result property="feeAmount" column="fee_amount" />
+        <result property="transferDate" column="transfer_date" />
+        <result property="status" column="status" />
+        <result property="auditBy" column="audit_by" />
+        <result property="auditTime" column="audit_time" />
+        <result property="remark" column="remark" />
+        <result property="createBy" column="create_by" />
+        <result property="createTime" column="create_time" />
+        <result property="updateBy" column="update_by" />
+        <result property="updateTime" column="update_time" />
+    </resultMap>
+
+    <select id="selectFinFundLogList" parameterType="FinFundLog" resultMap="FinFundLogResult">
+        select l.fund_log_id, l.account_id, a.account_name, l.biz_type, l.bill_id, l.bill_no,
+               l.direction, l.change_amount, l.before_balance, l.after_balance, l.biz_date,
+               l.counterparty_name, l.remark, l.create_by, l.create_time
+        from fin_fund_log l
+        left join fin_fund_account a on a.account_id = l.account_id
+        <where>
+            <if test="accountId != null">and l.account_id = #{accountId}</if>
+            <if test="bizType != null and bizType != ''">and l.biz_type = #{bizType}</if>
+            <if test="direction != null and direction != ''">and l.direction = #{direction}</if>
+            <if test="billNo != null and billNo != ''">and l.bill_no like concat('%', #{billNo}, '%')</if>
+        </where>
+        order by l.create_time desc, l.fund_log_id desc
+    </select>
+
+    <select id="countLogsByAccountId" parameterType="Long" resultType="int">
+        select count(1) from fin_fund_log where account_id = #{accountId}
+    </select>
+
+    <insert id="insertFinFundLog" parameterType="FinFundLog" useGeneratedKeys="true" keyProperty="fundLogId">
+        insert into fin_fund_log(
+            account_id, biz_type, bill_id, bill_no, direction, change_amount,
+            before_balance, after_balance, biz_date, counterparty_name, remark, create_by, create_time
+        )
+        values(
+            #{accountId}, #{bizType}, #{billId}, #{billNo}, #{direction}, #{changeAmount},
+            #{beforeBalance}, #{afterBalance}, #{bizDate}, #{counterpartyName}, #{remark}, #{createBy}, sysdate()
+        )
+    </insert>
+
+    <select id="selectFinFundTransferById" parameterType="Long" resultMap="FinFundTransferResult">
+        select transfer_id, transfer_no, out_account_id, in_account_id, amount, fee_amount, transfer_date,
+               status, audit_by, audit_time, remark, create_by, create_time, update_by, update_time
+        from fin_fund_transfer
+        where transfer_id = #{transferId}
+    </select>
+
+    <select id="selectFinFundTransferList" parameterType="FinFundTransfer" resultMap="FinFundTransferResult">
+        select transfer_id, transfer_no, out_account_id, in_account_id, amount, fee_amount, transfer_date,
+               status, audit_by, audit_time, remark, create_by, create_time, update_by, update_time
+        from fin_fund_transfer
+        <where>
+            <if test="transferNo != null and transferNo != ''">and transfer_no like concat('%', #{transferNo}, '%')</if>
+            <if test="outAccountId != null">and out_account_id = #{outAccountId}</if>
+            <if test="inAccountId != null">and in_account_id = #{inAccountId}</if>
+            <if test="status != null and status != ''">and status = #{status}</if>
+        </where>
+        order by create_time desc, transfer_id desc
+    </select>
+
+    <insert id="insertFinFundTransfer" parameterType="FinFundTransfer" useGeneratedKeys="true" keyProperty="transferId">
+        insert into fin_fund_transfer(
+            transfer_no, out_account_id, in_account_id, amount, fee_amount, transfer_date,
+            status, audit_by, audit_time, remark, create_by, create_time
+        )
+        values(
+            #{transferNo}, #{outAccountId}, #{inAccountId}, #{amount}, coalesce(#{feeAmount}, 0), #{transferDate},
+            coalesce(#{status}, '0'), #{auditBy}, #{auditTime}, #{remark}, #{createBy}, sysdate()
+        )
+    </insert>
+
+    <update id="updateFinFundTransfer" parameterType="FinFundTransfer">
+        update fin_fund_transfer
+        <set>
+            <if test="status != null">status = #{status},</if>
+            <choose>
+                <when test="status == '0'">
+                    audit_by = null,
+                    audit_time = null,
+                </when>
+                <otherwise>
+                    <if test="auditBy != null">audit_by = #{auditBy},</if>
+                    <if test="auditTime != null">audit_time = #{auditTime},</if>
+                </otherwise>
+            </choose>
+            <if test="remark != null">remark = #{remark},</if>
+            <if test="updateBy != null">update_by = #{updateBy},</if>
+            update_time = sysdate(),
+        </set>
+        where transfer_id = #{transferId}
+    </update>
+
+    <delete id="deleteFinFundTransferById" parameterType="Long">
+        delete from fin_fund_transfer where transfer_id = #{transferId}
+    </delete>
+
+    <select id="selectMaxTransferNoByPrefix" parameterType="String" resultType="String">
+        select transfer_no from fin_fund_transfer where transfer_no like concat(#{prefix}, '%') order by length(transfer_no) desc, transfer_no desc limit 1
+    </select>
+</mapper>

@@ -1,51 +1,37 @@
 <template>
   <div class="app-container">
+    <el-alert
+      title="成本流水为不可篡改的财务审计明细，记录每笔出入库、调拨、盘点、退货及受控调价的历史真实结转成本，供销售毛利表与利润表溯源。"
+      type="info"
+      show-icon
+      :closable="false"
+      style="margin-bottom: 12px"
+    />
     <el-form :model="queryParams" ref="queryRef" :inline="true" v-show="showSearch">
-      <el-form-item label="成本账户" prop="costAccountId">
-        <el-input
-          v-model="queryParams.costAccountId"
-          placeholder="请输入成本账户编号"
-          clearable
-          style="width: 200px"
-          @keyup.enter="handleQuery"
-        />
+      <el-form-item label="商品" prop="productId">
+        <el-select v-model="queryParams.productId" placeholder="请选择商品" clearable filterable style="width: 220px">
+          <el-option v-for="p in productOptions" :key="p.productId" :label="`${p.productCode || ''} - ${p.productName}`" :value="p.productId" />
+        </el-select>
       </el-form-item>
-      <el-form-item label="商品编号" prop="productId">
-        <el-input
-          v-model="queryParams.productId"
-          placeholder="请输入商品编号"
-          clearable
-          style="width: 200px"
-          @keyup.enter="handleQuery"
-        />
-      </el-form-item>
-      <el-form-item label="仓库编号" prop="warehouseId">
-        <el-input
-          v-model="queryParams.warehouseId"
-          placeholder="请输入仓库编号"
-          clearable
-          style="width: 200px"
-          @keyup.enter="handleQuery"
-        />
+      <el-form-item label="仓库" prop="warehouseId">
+        <el-select v-model="queryParams.warehouseId" placeholder="请选择仓库" clearable filterable style="width: 200px">
+          <el-option v-for="w in warehouseOptions" :key="w.warehouseId" :label="w.warehouseName" :value="w.warehouseId" />
+        </el-select>
       </el-form-item>
       <el-form-item label="单据类型" prop="billType">
-        <el-input
-          v-model="queryParams.billType"
-          placeholder="请输入单据类型"
-          clearable
-          style="width: 200px"
-          @keyup.enter="handleQuery"
-        />
+        <el-select v-model="queryParams.billType" placeholder="请选择单据类型" clearable filterable style="width: 170px">
+          <el-option v-for="(label, code) in billTypeMap" :key="code" :label="label" :value="code" />
+        </el-select>
       </el-form-item>
-      <el-form-item label="出入库" prop="inOut">
-        <el-select v-model="queryParams.inOut" placeholder="请选择" clearable style="width: 200px">
-          <el-option label="入库" value="1" />
-          <el-option label="出库" value="2" />
+      <el-form-item label="方向" prop="inOut">
+        <el-select v-model="queryParams.inOut" placeholder="请选择" clearable style="width: 130px">
+          <el-option label="入库/调增" value="1" />
+          <el-option label="出库/调减" value="2" />
         </el-select>
       </el-form-item>
       <el-form-item label="成本算法" prop="costMethod">
-        <el-select v-model="queryParams.costMethod" placeholder="请选择" clearable style="width: 200px">
-          <el-option label="移动加权" value="moving" />
+        <el-select v-model="queryParams.costMethod" placeholder="请选择" clearable style="width: 150px">
+          <el-option label="移动加权平均" value="moving" />
           <el-option label="先进先出" value="fifo" />
         </el-select>
       </el-form-item>
@@ -56,60 +42,44 @@
     </el-form>
 
     <el-row :gutter="10" class="mb8">
-      <el-col :span="1.5">
-        <el-button
-          type="primary"
-          plain
-          icon="Plus"
-          @click="handleAdd"
-          v-hasPermi="['business:costLog:add']"
-        >新增</el-button>
-      </el-col>
-      <el-col :span="1.5">
-        <el-button
-          type="success"
-          plain
-          icon="Edit"
-          :disabled="isSingleDisabled"
-          @click="handleUpdate"
-          v-hasPermi="['business:costLog:edit']"
-        >修改</el-button>
-      </el-col>
-      <el-col :span="1.5">
-        <el-button
-          type="danger"
-          plain
-          icon="Delete"
-          :disabled="isMultipleDisabled"
-          @click="handleDelete"
-          v-hasPermi="['business:costLog:remove']"
-        >删除</el-button>
-      </el-col>
       <right-toolbar v-model:showSearch="showSearch" @queryTable="getList"></right-toolbar>
     </el-row>
 
-    <el-table v-loading="loading" :data="costLogList" @selection-change="handleSelectionChange">
-      <el-table-column type="selection" width="55" align="center" />
-      <el-table-column label="流水编号" align="center" prop="costLogId" />
-      <el-table-column label="成本账户" align="center" prop="costAccountId" />
-      <el-table-column label="商品编号" align="center" prop="productId" />
-      <el-table-column label="仓库编号" align="center" prop="warehouseId" />
-      <el-table-column label="单据类型" align="center" prop="billType" />
-      <el-table-column label="单据编号" align="center" prop="billId" />
-      <el-table-column label="出入库" align="center" prop="inOut" />
-      <el-table-column label="数量" align="center" prop="quantity" />
-      <el-table-column label="单价" align="center" prop="price" />
-      <el-table-column label="金额" align="center" prop="amount" />
-      <el-table-column label="成本算法" align="center" prop="costMethod" />
-      <el-table-column label="创建时间" align="center" prop="createTime" width="180">
+    <el-table v-loading="loading" :data="costLogList" border>
+      <el-table-column label="流水编号" align="center" prop="costLogId" width="90" />
+      <el-table-column label="商品" align="center" min-width="150" show-overflow-tooltip>
         <template #default="scope">
-          <span>{{ parseTime(scope.row.createTime) }}</span>
+          <span>{{ getProductName(scope.row.productId) }}</span>
         </template>
       </el-table-column>
-      <el-table-column label="操作" width="180" align="center" class-name="small-padding fixed-width">
+      <el-table-column label="仓库" align="center" min-width="115" show-overflow-tooltip>
         <template #default="scope">
-          <el-button link type="primary" icon="Edit" @click="handleUpdate(scope.row)" v-hasPermi="['business:costLog:edit']">修改</el-button>
-          <el-button link type="primary" icon="Delete" @click="handleDelete(scope.row)" v-hasPermi="['business:costLog:remove']">删除</el-button>
+          <span>{{ getWarehouseName(scope.row.warehouseId) }}</span>
+        </template>
+      </el-table-column>
+      <el-table-column label="单据类型" align="center" width="125">
+        <template #default="scope">
+          <el-tag effect="plain">{{ billTypeMap[scope.row.billType] || scope.row.billType || '-' }}</el-tag>
+        </template>
+      </el-table-column>
+      <el-table-column label="来源ID" align="center" prop="billId" width="85" />
+      <el-table-column label="方向" align="center" width="95">
+        <template #default="scope">
+          <el-tag :type="scope.row.inOut === '1' ? 'success' : 'warning'" size="small">
+            {{ scope.row.inOut === '1' ? '入库/调增' : '出库/调减' }}
+          </el-tag>
+        </template>
+      </el-table-column>
+      <el-table-column label="数量" align="right" prop="quantity" width="90" />
+      <el-table-column label="结转单价" align="right" prop="price" width="100" />
+      <el-table-column label="结转金额" align="right" prop="amount" width="110" />
+      <el-table-column label="成本算法" align="center" width="115">
+        <template #default="scope">{{ costMethodMap[scope.row.costMethod] || scope.row.costMethod || '移动加权平均' }}</template>
+      </el-table-column>
+      <el-table-column label="备注" align="center" prop="remark" min-width="140" show-overflow-tooltip />
+      <el-table-column label="记录时间" align="center" prop="createTime" width="175">
+        <template #default="scope">
+          <span>{{ parseTime(scope.row.createTime) }}</span>
         </template>
       </el-table-column>
     </el-table>
@@ -121,159 +91,65 @@
       v-model:limit="queryParams.pageSize"
       @pagination="getList"
     />
-
-    <el-dialog :title="title" v-model="open" width="860px" append-to-body>
-      <el-form ref="costLogRef" :model="form" :rules="rules" label-width="90px">
-        <el-row>
-          <el-col :span="12">
-            <el-form-item label="成本账户" prop="costAccountId">
-              <el-input v-model="form.costAccountId" placeholder="请输入成本账户编号" />
-            </el-form-item>
-          </el-col>
-          <el-col :span="12">
-            <el-form-item label="商品编号" prop="productId">
-              <el-input v-model="form.productId" placeholder="请输入商品编号" />
-            </el-form-item>
-          </el-col>
-        </el-row>
-        <el-row>
-          <el-col :span="12">
-            <el-form-item label="仓库编号" prop="warehouseId">
-              <el-input v-model="form.warehouseId" placeholder="请输入仓库编号" />
-            </el-form-item>
-          </el-col>
-          <el-col :span="12">
-            <el-form-item label="单据类型" prop="billType">
-              <el-input v-model="form.billType" placeholder="请输入单据类型" />
-            </el-form-item>
-          </el-col>
-        </el-row>
-        <el-row>
-          <el-col :span="12">
-            <el-form-item label="单据编号" prop="billId">
-              <el-input v-model="form.billId" placeholder="请输入单据编号" />
-            </el-form-item>
-          </el-col>
-          <el-col :span="12">
-            <el-form-item label="出入库" prop="inOut">
-              <el-select v-model="form.inOut" placeholder="请选择">
-                <el-option label="入库" value="1" />
-                <el-option label="出库" value="2" />
-              </el-select>
-            </el-form-item>
-          </el-col>
-        </el-row>
-        <el-row>
-          <el-col :span="12">
-            <el-form-item label="数量" prop="quantity">
-              <el-input v-model="form.quantity" placeholder="请输入数量" />
-            </el-form-item>
-          </el-col>
-          <el-col :span="12">
-            <el-form-item label="单价" prop="price">
-              <el-input v-model="form.price" placeholder="请输入单价" />
-            </el-form-item>
-          </el-col>
-        </el-row>
-        <el-row>
-          <el-col :span="12">
-            <el-form-item label="金额" prop="amount">
-              <el-input v-model="form.amount" placeholder="请输入金额" />
-            </el-form-item>
-          </el-col>
-          <el-col :span="12">
-            <el-form-item label="成本算法" prop="costMethod">
-              <el-select v-model="form.costMethod" placeholder="请选择">
-                <el-option label="移动加权" value="moving" />
-                <el-option label="先进先出" value="fifo" />
-              </el-select>
-            </el-form-item>
-          </el-col>
-        </el-row>
-        <el-form-item label="备注" prop="remark">
-          <el-input v-model="form.remark" type="textarea" placeholder="请输入内容" />
-        </el-form-item>
-      </el-form>
-      <template #footer>
-        <div class="dialog-footer">
-          <el-button type="primary" @click="submitForm">确 定</el-button>
-          <el-button @click="cancel">取 消</el-button>
-        </div>
-      </template>
-    </el-dialog>
   </div>
 </template>
 
 <script setup name="CostLog">
-import { listCostLog, addCostLog, delCostLog, getCostLog, updateCostLog } from "@/api/business/costLog"
+import { listCostLog } from "@/api/business/costLog"
+import { useBusinessOptions } from "@/utils/businessOptions"
 
 const { proxy } = getCurrentInstance()
+const { productOptions, warehouseOptions, loadProducts, loadWarehouses, getProductName, getWarehouseName } = useBusinessOptions()
 
 const costLogList = ref([])
-const open = ref(false)
 const loading = ref(true)
 const showSearch = ref(true)
-const selectedIds = ref([])
-const isSingleDisabled = ref(true)
-const isMultipleDisabled = ref(true)
 const total = ref(0)
-const title = ref("")
 
-const data = reactive({
-  form: {},
-  queryParams: {
-    pageNum: 1,
-    pageSize: 10,
-    costAccountId: undefined,
-    productId: undefined,
-    warehouseId: undefined,
-    billType: undefined,
-    inOut: undefined,
-    costMethod: undefined
-  },
-  rules: {
-    costAccountId: [{ required: true, message: "成本账户不能为空", trigger: "blur" }],
-    productId: [{ required: true, message: "商品编号不能为空", trigger: "blur" }],
-    warehouseId: [{ required: true, message: "仓库编号不能为空", trigger: "blur" }]
-  }
+const billTypeMap = {
+  inbound: "采购入库",
+  inbound_unaudit: "入库反审核",
+  inbound_reverse: "入库红冲",
+  outbound: "销售出库",
+  outbound_unaudit: "出库反审核",
+  outbound_reverse: "出库红冲",
+  outbound_return: "出库整单退货",
+  sale_return: "销售退货",
+  purchase_return: "采购退货",
+  transfer: "库存调拨",
+  transfer_out: "调拨出库",
+  transfer_in: "调拨入库",
+  inventory_check: "库存盘点",
+  cost_adjust: "受控调价"
+}
+
+const costMethodMap = {
+  moving: "移动加权平均",
+  fifo: "先进先出"
+}
+
+const queryParams = reactive({
+  pageNum: 1,
+  pageSize: 10,
+  productId: undefined,
+  warehouseId: undefined,
+  billType: undefined,
+  inOut: undefined,
+  costMethod: undefined
 })
-
-const { queryParams, form, rules } = toRefs(data)
 
 function getList() {
   loading.value = true
-  listCostLog(queryParams.value).then(response => {
-    costLogList.value = response.rows
-    total.value = response.total
+  listCostLog(queryParams).then(response => {
+    costLogList.value = response.rows || []
+    total.value = response.total || 0
+  }).finally(() => {
     loading.value = false
   })
 }
 
-function cancel() {
-  open.value = false
-  reset()
-}
-
-function reset() {
-  form.value = {
-    costLogId: undefined,
-    costAccountId: undefined,
-    productId: undefined,
-    warehouseId: undefined,
-    billType: undefined,
-    billId: undefined,
-    inOut: undefined,
-    quantity: undefined,
-    price: undefined,
-    amount: undefined,
-    costMethod: undefined,
-    remark: undefined
-  }
-  proxy.resetForm("costLogRef")
-}
-
 function handleQuery() {
-  queryParams.value.pageNum = 1
+  queryParams.pageNum = 1
   getList()
 }
 
@@ -282,57 +158,7 @@ function resetQuery() {
   handleQuery()
 }
 
-function handleSelectionChange(selection) {
-  selectedIds.value = selection.map(item => item.costLogId)
-  isSingleDisabled.value = selection.length !== 1
-  isMultipleDisabled.value = !selection.length
-}
-
-function handleAdd() {
-  reset()
-  open.value = true
-  title.value = "添加成本流水"
-}
-
-function handleUpdate(currentRow) {
-  reset()
-  const costLogId = currentRow.costLogId || selectedIds.value
-  getCostLog(costLogId).then(response => {
-    form.value = response.data
-    open.value = true
-    title.value = "修改成本流水"
-  })
-}
-
-function submitForm() {
-  proxy.$refs["costLogRef"].validate(valid => {
-    if (valid) {
-      if (form.value.costLogId != undefined) {
-        updateCostLog(form.value).then(() => {
-          proxy.$modal.msgSuccess("修改成功")
-          open.value = false
-          getList()
-        })
-      } else {
-        addCostLog(form.value).then(() => {
-          proxy.$modal.msgSuccess("新增成功")
-          open.value = false
-          getList()
-        })
-      }
-    }
-  })
-}
-
-function handleDelete(currentRow) {
-  const costLogIds = currentRow.costLogId || selectedIds.value
-  proxy.$modal.confirm('是否确认删除成本流水编号为"' + costLogIds + '"的数据项？').then(function() {
-    return delCostLog(costLogIds)
-  }).then(() => {
-    getList()
-    proxy.$modal.msgSuccess("删除成功")
-  }).catch(() => {})
-}
-
-getList()
+Promise.all([loadProducts(), loadWarehouses()]).finally(() => {
+  getList()
+})
 </script>

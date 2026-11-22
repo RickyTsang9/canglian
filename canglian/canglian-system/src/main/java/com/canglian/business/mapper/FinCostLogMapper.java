@@ -1,6 +1,7 @@
 package com.canglian.business.mapper;
 
 import java.util.List;
+import org.apache.ibatis.annotations.Param;
 import com.canglian.business.domain.FinCostLog;
 
 /**
@@ -57,5 +58,15 @@ public interface FinCostLogMapper
      * @return 结果
      */
     public int deleteFinCostLogByIds(Long[] costLogIds);
+
+    /**
+     * 按成本账户清空成本流水（重算专用）
+     */
+    public int deleteFinCostLogByAccountId(@Param("costAccountId") Long costAccountId);
+
+    /**
+     * 统计全系统成本流水总数
+     */
+    public long countAllCostLogs();
 }
 

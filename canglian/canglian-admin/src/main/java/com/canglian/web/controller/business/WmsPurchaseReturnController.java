@@ -89,6 +89,22 @@ public class WmsPurchaseReturnController extends BaseController
         return toAjax(wmsPurchaseReturnService.auditWmsPurchaseReturn(purchaseReturnId, getUsername()));
     }
 
+    @PreAuthorize("@ss.hasPermi('business:purchaseReturn:unaudit') or @ss.hasPermi('business:purchaseReturn:audit')")
+    @Log(title = "采购退货反审核", businessType = BusinessType.UPDATE)
+    @PutMapping("/unaudit/{purchaseReturnId}")
+    public AjaxResult unaudit(@PathVariable Long purchaseReturnId)
+    {
+        return toAjax(wmsPurchaseReturnService.unauditWmsPurchaseReturn(purchaseReturnId, getUsername()));
+    }
+
+    @PreAuthorize("@ss.hasPermi('business:purchaseReturn:unaudit') or @ss.hasPermi('business:purchaseReturn:audit')")
+    @Log(title = "采购退货红冲", businessType = BusinessType.INSERT)
+    @PostMapping("/reverse/{purchaseReturnId}")
+    public AjaxResult reverse(@PathVariable Long purchaseReturnId)
+    {
+        return success(wmsPurchaseReturnService.reverseWmsPurchaseReturn(purchaseReturnId, getUsername()));
+    }
+
     /**
      * 删除采购退货
      */

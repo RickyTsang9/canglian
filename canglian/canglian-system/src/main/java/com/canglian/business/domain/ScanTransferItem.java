@@ -17,6 +17,8 @@ public class ScanTransferItem
 
     private String productName;
 
+    private String batchNo;
+
     private BigDecimal quantity;
 
     private BigDecimal availableQty;
@@ -91,5 +93,15 @@ public class ScanTransferItem
     public void setCostPrice(BigDecimal costPrice)
     {
         this.costPrice = costPrice;
+    }
+
+    public String getBatchNo()
+    {
+        return batchNo;
+    }
+
+    public void setBatchNo(String batchNo)
+    {
+        this.batchNo = batchNo;
     }
 }
