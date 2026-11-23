@@ -2,20 +2,20 @@
   <div class="app-container">
     <el-form :model="queryParams" ref="queryRef" :inline="true" v-show="showSearch">
       <el-form-item label="序列号(SN)" prop="snCode">
-        <el-input v-model="queryParams.snCode" placeholder="请输入或扫描SN码" clearable style="width: 210px" @keyup.enter="handleQuery" />
+        <el-input v-model="queryParams.snCode" placeholder="请输入或扫描SN码" clearable style="width: 165px" @keyup.enter="handleQuery" />
       </el-form-item>
       <el-form-item label="商品" prop="productId">
-        <el-select v-model="queryParams.productId" placeholder="请选择商品" clearable filterable style="width: 220px">
+        <el-select v-model="queryParams.productId" placeholder="请选择商品" clearable filterable style="width: 175px">
           <el-option v-for="p in productOptions" :key="p.productId" :label="`${p.productCode || ''} - ${p.productName}`" :value="p.productId" />
         </el-select>
       </el-form-item>
       <el-form-item label="仓库" prop="warehouseId">
-        <el-select v-model="queryParams.warehouseId" placeholder="请选择仓库" clearable filterable style="width: 180px">
+        <el-select v-model="queryParams.warehouseId" placeholder="请选择仓库" clearable filterable style="width: 145px">
           <el-option v-for="w in warehouseOptions" :key="w.warehouseId" :label="w.warehouseName" :value="w.warehouseId" />
         </el-select>
       </el-form-item>
       <el-form-item label="状态" prop="status">
-        <el-select v-model="queryParams.status" placeholder="请选择状态" clearable style="width: 140px">
+        <el-select v-model="queryParams.status" placeholder="请选择状态" clearable style="width: 118px">
           <el-option label="在库" value="in_stock" />
           <el-option label="已出库" value="out_stock" />
           <el-option label="退货回库" value="returned" />
@@ -45,33 +45,37 @@
     </el-row>
 
     <el-table v-loading="loading" :data="serialList" @selection-change="handleSelectionChange">
-      <el-table-column type="selection" width="50" align="center" />
-      <el-table-column label="序列号(SN)" align="center" prop="snCode" min-width="170" />
-      <el-table-column label="商品" align="center" min-width="180" show-overflow-tooltip>
+      <el-table-column type="selection" width="46" align="center" />
+      <el-table-column label="序列号(SN)" align="center" prop="snCode" min-width="145" show-overflow-tooltip />
+      <el-table-column label="商品" align="center" min-width="140" show-overflow-tooltip>
         <template #default="scope">{{ getProductName(scope.row.productId) }}</template>
       </el-table-column>
-      <el-table-column label="当前仓库" align="center" min-width="120">
+      <el-table-column label="当前仓库" align="center" min-width="96" show-overflow-tooltip>
         <template #default="scope">{{ getWarehouseName(scope.row.warehouseId) }}</template>
       </el-table-column>
-      <el-table-column label="批次号" align="center" prop="batchNo" width="120" />
-      <el-table-column label="状态" align="center" prop="status" width="100">
+      <el-table-column label="批次号" align="center" prop="batchNo" width="110" show-overflow-tooltip>
+        <template #default="scope">{{ scope.row.batchNo || '-' }}</template>
+      </el-table-column>
+      <el-table-column label="状态" align="center" prop="status" width="88">
         <template #default="scope">
           <el-tag :type="statusTagType(scope.row.status)">{{ statusLabel(scope.row.status) }}</el-tag>
         </template>
       </el-table-column>
-      <el-table-column label="售出客户" align="center" min-width="130">
+      <el-table-column label="售出客户" align="center" min-width="105" show-overflow-tooltip>
         <template #default="scope">{{ scope.row.customerId ? getCustomerName(scope.row.customerId) : '-' }}</template>
       </el-table-column>
-      <el-table-column label="质保截止" align="center" prop="warrantyEndDate" width="120">
+      <el-table-column label="质保截止" align="center" prop="warrantyEndDate" width="102">
         <template #default="scope">{{ parseTime(scope.row.warrantyEndDate, '{y}-{m}-{d}') || '-' }}</template>
       </el-table-column>
-      <el-table-column label="登记时间" align="center" prop="createTime" width="165">
+      <el-table-column label="登记时间" align="center" prop="createTime" width="158">
         <template #default="scope">{{ parseTime(scope.row.createTime) }}</template>
       </el-table-column>
-      <el-table-column label="操作" align="center" width="160">
+      <el-table-column label="操作" align="center" width="155" fixed="right">
         <template #default="scope">
-          <el-button link type="primary" icon="Connection" @click="handleTrace(scope.row)">溯源履历</el-button>
-          <el-button link type="danger" icon="Delete" :disabled="scope.row.status === 'out_stock'" @click="handleDelete(scope.row)" v-hasPermi="['business:serialNo:edit']">删除</el-button>
+          <div class="table-action-cell">
+            <el-button link type="primary" icon="Connection" @click="handleTrace(scope.row)">溯源</el-button>
+            <el-button link type="danger" icon="Delete" :disabled="scope.row.status === 'out_stock'" @click="handleDelete(scope.row)" v-hasPermi="['business:serialNo:edit']">删除</el-button>
+          </div>
         </template>
       </el-table-column>
     </el-table>

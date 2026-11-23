@@ -2,17 +2,17 @@
   <div class="app-container">
     <el-form :model="queryParams" ref="queryRef" :inline="true" v-show="showSearch">
       <el-form-item label="客户" prop="customerId">
-        <el-select v-model="queryParams.customerId" placeholder="请选择客户" clearable filterable style="width: 210px">
+        <el-select v-model="queryParams.customerId" placeholder="请选择客户" clearable filterable style="width: 190px">
           <el-option v-for="c in customerOptions" :key="c.customerId" :label="`${c.customerCode || ''} - ${c.customerName}`" :value="c.customerId" />
         </el-select>
       </el-form-item>
       <el-form-item label="商品" prop="productId">
-        <el-select v-model="queryParams.productId" placeholder="请选择商品" clearable filterable style="width: 210px">
+        <el-select v-model="queryParams.productId" placeholder="请选择商品" clearable filterable style="width: 190px">
           <el-option v-for="p in productOptions" :key="p.productId" :label="`${p.productCode || ''} - ${p.productName}`" :value="p.productId" />
         </el-select>
       </el-form-item>
       <el-form-item label="状态" prop="status">
-        <el-select v-model="queryParams.status" placeholder="请选择状态" clearable style="width: 140px">
+        <el-select v-model="queryParams.status" placeholder="请选择状态" clearable style="width: 130px">
           <el-option v-for="dict in sys_normal_disable" :key="dict.value" :label="dict.label" :value="dict.value" />
         </el-select>
       </el-form-item>
@@ -43,7 +43,9 @@
       <el-table-column label="商品" align="center" min-width="180" show-overflow-tooltip>
         <template #default="scope">{{ getProductName(scope.row.productId) }}</template>
       </el-table-column>
-      <el-table-column label="专属单价" align="right" prop="salePrice" width="100" />
+      <el-table-column label="专属单价" align="right" prop="salePrice" width="110">
+        <template #default="scope">{{ Number(scope.row.salePrice || 0).toFixed(2) }}</template>
+      </el-table-column>
       <el-table-column label="生效日期" align="center" width="115">
         <template #default="scope">{{ scope.row.effectiveDate ? parseTime(scope.row.effectiveDate, '{y}-{m}-{d}') : '长期' }}</template>
       </el-table-column>
@@ -53,10 +55,12 @@
       <el-table-column label="状态" align="center" prop="status" width="80">
         <template #default="scope"><dict-tag :options="sys_normal_disable" :value="scope.row.status" /></template>
       </el-table-column>
-      <el-table-column label="操作" width="160" align="center">
+      <el-table-column label="操作" width="145" fixed="right" align="center">
         <template #default="scope">
-          <el-button link type="primary" icon="Edit" @click="handleUpdate(scope.row)" v-hasPermi="['business:customerSpecialPrice:edit']">修改</el-button>
-          <el-button link type="danger" icon="Delete" @click="handleDelete(scope.row)" v-hasPermi="['business:customerSpecialPrice:remove']">删除</el-button>
+          <div class="table-action-cell">
+            <el-button link type="primary" icon="Edit" @click="handleUpdate(scope.row)" v-hasPermi="['business:customerSpecialPrice:edit']">修改</el-button>
+            <el-button link type="danger" icon="Delete" @click="handleDelete(scope.row)" v-hasPermi="['business:customerSpecialPrice:remove']">删除</el-button>
+          </div>
         </template>
       </el-table-column>
     </el-table>

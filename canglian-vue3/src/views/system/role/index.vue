@@ -93,12 +93,12 @@
 
       <!-- 表格数据 -->
       <el-table v-loading="loading" :data="roleList" @selection-change="handleSelectionChange">
-         <el-table-column type="selection" width="55" align="center" />
-         <el-table-column label="角色编号" prop="roleId" width="120" />
-         <el-table-column label="角色名称" prop="roleName" :show-overflow-tooltip="true" width="150" />
-         <el-table-column label="权限字符" prop="roleKey" :show-overflow-tooltip="true" width="150" />
-         <el-table-column label="显示顺序" prop="roleSort" width="100" />
-         <el-table-column label="状态" align="center" width="100">
+         <el-table-column type="selection" width="48" align="center" />
+         <el-table-column label="角色编号" prop="roleId" align="center" width="84" />
+         <el-table-column label="角色名称" prop="roleName" :show-overflow-tooltip="true" min-width="115" />
+         <el-table-column label="权限字符" prop="roleKey" :show-overflow-tooltip="true" min-width="110" />
+         <el-table-column label="显示顺序" prop="roleSort" align="center" width="84" />
+         <el-table-column label="状态" align="center" width="76">
             <template #default="scope">
                <el-switch
                   v-model="scope.row.status"
@@ -108,17 +108,20 @@
                ></el-switch>
             </template>
          </el-table-column>
-         <el-table-column label="创建时间" align="center" prop="createTime">
+         <el-table-column label="创建时间" align="center" prop="createTime" width="162">
             <template #default="scope">
                <span>{{ parseTime(scope.row.createTime) }}</span>
             </template>
          </el-table-column>
-         <el-table-column label="操作" align="center" width="280" class-name="small-padding fixed-width">
+         <el-table-column label="操作" align="center" width="340" fixed="right" class-name="small-padding fixed-width">
             <template #default="scope">
-              <el-button link type="primary" icon="Edit" aria-label="修改角色" v-if="scope.row.roleId !== 1" @click="handleUpdate(scope.row)" v-hasPermi="['system:role:edit']">修改</el-button>
-              <el-button link type="danger" icon="Delete" aria-label="删除角色" v-if="scope.row.roleId !== 1" @click="handleDelete(scope.row)" v-hasPermi="['system:role:remove']">删除</el-button>
-              <el-button link type="primary" icon="CircleCheck" aria-label="分配数据权限" v-if="scope.row.roleId !== 1" @click="handleDataScope(scope.row)" v-hasPermi="['system:role:edit']">数据权限</el-button>
-              <el-button link type="primary" icon="User" aria-label="分配用户" v-if="scope.row.roleId !== 1" @click="handleAuthUser(scope.row)" v-hasPermi="['system:role:edit']">分配用户</el-button>
+              <div class="table-action-cell" v-if="scope.row.roleId !== 1">
+                <el-button link type="primary" icon="Edit" aria-label="修改角色" @click="handleUpdate(scope.row)" v-hasPermi="['system:role:edit']">修改</el-button>
+                <el-button link type="danger" icon="Delete" aria-label="删除角色" @click="handleDelete(scope.row)" v-hasPermi="['system:role:remove']">删除</el-button>
+                <el-button link type="primary" icon="CircleCheck" aria-label="分配数据权限" @click="handleDataScope(scope.row)" v-hasPermi="['system:role:edit']">数据权限</el-button>
+                <el-button link type="primary" icon="User" aria-label="分配用户" @click="handleAuthUser(scope.row)" v-hasPermi="['system:role:edit']">分配用户</el-button>
+              </div>
+              <el-tag v-else size="small" type="info">超管锁定</el-tag>
             </template>
          </el-table-column>
       </el-table>

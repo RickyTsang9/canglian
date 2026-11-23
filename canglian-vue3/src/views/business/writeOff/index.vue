@@ -37,45 +37,49 @@
     </el-row>
 
     <el-table v-loading="loading" :data="writeOffList" @selection-change="handleSelectionChange">
-      <el-table-column type="selection" width="50" align="center" />
-      <el-table-column label="核销单号" align="center" prop="writeOffNo" min-width="145" />
-      <el-table-column label="核销类型" align="center" width="105">
+      <el-table-column type="selection" width="46" align="center" />
+      <el-table-column label="核销单号" align="center" prop="writeOffNo" min-width="142" show-overflow-tooltip />
+      <el-table-column label="核销类型" align="center" width="96">
         <template #default="scope">
-          <el-tag :type="scope.row.writeOffType === 'receivable' ? 'primary' : 'warning'">
+          <el-tag size="small" :type="scope.row.writeOffType === 'receivable' ? 'primary' : 'warning'">
             {{ scope.row.writeOffType === 'receivable' ? '应收核销' : '应付核销' }}
           </el-tag>
         </template>
       </el-table-column>
-      <el-table-column label="关联往来单" align="center" min-width="120">
+      <el-table-column label="关联往来单" align="center" min-width="138" show-overflow-tooltip>
         <template #default="scope">
-          <span v-if="scope.row.receivableId">AR #{{ scope.row.receivableId }}</span>
-          <span v-else-if="scope.row.payableId">AP #{{ scope.row.payableId }}</span>
+          <span v-if="scope.row.receivableId">{{ getReceivableNo(scope.row.receivableId) }}</span>
+          <span v-else-if="scope.row.payableId">{{ getPayableNo(scope.row.payableId) }}</span>
           <span v-else>-</span>
         </template>
       </el-table-column>
-      <el-table-column label="关联收/付款单" align="center" min-width="120">
+      <el-table-column label="关联收/付款单" align="center" min-width="138" show-overflow-tooltip>
         <template #default="scope">
-          <span v-if="scope.row.receiptId">收款 #{{ scope.row.receiptId }}</span>
-          <span v-else-if="scope.row.paymentId">付款 #{{ scope.row.paymentId }}</span>
+          <span v-if="scope.row.receiptId">{{ getReceiptNo(scope.row.receiptId) }}</span>
+          <span v-else-if="scope.row.paymentId">{{ getPaymentNo(scope.row.paymentId) }}</span>
           <span v-else>-</span>
         </template>
       </el-table-column>
-      <el-table-column label="核销金额" align="right" prop="amount" width="110" />
-      <el-table-column label="核销日期" align="center" width="115">
+      <el-table-column label="核销金额" align="right" header-align="right" prop="amount" width="102">
+        <template #default="scope">{{ Number(scope.row.amount || 0).toFixed(2) }}</template>
+      </el-table-column>
+      <el-table-column label="核销日期" align="center" width="106">
         <template #default="scope">{{ parseTime(scope.row.writeOffDate, '{y}-{m}-{d}') }}</template>
       </el-table-column>
-      <el-table-column label="状态" align="center" width="90">
+      <el-table-column label="状态" align="center" width="84">
         <template #default="scope">
-          <el-tag :type="scope.row.status === '1' ? 'success' : 'info'">{{ scope.row.status === '1' ? '已核销' : '草稿' }}</el-tag>
+          <el-tag size="small" :type="scope.row.status === '1' ? 'success' : 'info'">{{ scope.row.status === '1' ? '已核销' : '草稿' }}</el-tag>
         </template>
       </el-table-column>
-      <el-table-column label="操作" width="290" align="center">
+      <el-table-column label="操作" width="215" fixed="right" align="center">
         <template #default="scope">
-          <el-button link type="primary" icon="Edit" :disabled="!canEditRow(scope.row)" @click="handleUpdate(scope.row)" v-hasPermi="['business:writeOff:edit']">修改</el-button>
-          <el-button link type="success" icon="CircleCheck" v-if="canConfirmRow(scope.row)" @click="handleConfirm(scope.row)" v-hasPermi="['business:writeOff:confirm']">确认</el-button>
-          <el-button link type="warning" icon="RefreshLeft" v-if="scope.row.status === '1'" @click="handleUnconfirm(scope.row)" v-hasPermi="['business:writeOff:confirm']">反确认</el-button>
-          <el-button link type="danger" icon="Delete" :disabled="!canDeleteRow(scope.row)" @click="handleDelete(scope.row)" v-hasPermi="['business:writeOff:remove']">删除</el-button>
-          <el-button link type="primary" icon="Printer" @click="handlePrint(scope.row)">打印</el-button>
+          <div class="table-action-cell">
+            <el-button v-if="canEditRow(scope.row)" link type="primary" icon="Edit" @click="handleUpdate(scope.row)" v-hasPermi="['business:writeOff:edit']">修改</el-button>
+            <el-button v-if="canConfirmRow(scope.row)" link type="success" icon="CircleCheck" @click="handleConfirm(scope.row)" v-hasPermi="['business:writeOff:confirm']">确认</el-button>
+            <el-button v-if="scope.row.status === '1'" link type="warning" icon="RefreshLeft" @click="handleUnconfirm(scope.row)" v-hasPermi="['business:writeOff:confirm']">反确认</el-button>
+            <el-button link type="primary" icon="Printer" @click="handlePrint(scope.row)">打印</el-button>
+            <el-button v-if="canDeleteRow(scope.row)" link type="danger" icon="Delete" @click="handleDelete(scope.row)" v-hasPermi="['business:writeOff:remove']">删除</el-button>
+          </div>
         </template>
       </el-table-column>
     </el-table>
@@ -162,7 +166,7 @@
           </el-col>
           <el-col :span="12">
             <el-form-item label="核销日期" prop="writeOffDate">
-              <el-date-picker v-model="form.writeOffDate" type="date" value-format="YYYY-MM-DD" style="width: 100%" />
+              <el-date-picker v-model="form.writeOffDate" type="date" value-format="YYYY-MM-DD" placeholder="请选择核销日期" style="width: 100%" />
             </el-form-item>
           </el-col>
         </el-row>
@@ -178,6 +182,10 @@
 
 <script setup name="WriteOff">
 import { listWriteOff, addWriteOff, delWriteOff, getWriteOff, updateWriteOff, confirmWriteOff, unconfirmWriteOff } from "@/api/business/writeOff"
+import { listReceivable } from "@/api/business/receivable"
+import { listPayable } from "@/api/business/payable"
+import { listReceipt } from "@/api/business/receipt"
+import { listPayment } from "@/api/business/payment"
 import { useBusinessOptions } from "@/utils/businessOptions"
 import { printFinancialDocument } from "@/utils/documentPrint"
 
@@ -188,7 +196,19 @@ const {
   getCustomerName, getSupplierName
 } = useBusinessOptions()
 
-loadCustomers(); loadSuppliers()
+const docNoMaps = reactive({ receivable: {}, payable: {}, receipt: {}, payment: {} })
+function loadDocNoMaps() {
+  listReceivable({ pageNum: 1, pageSize: 500 }).then(r => (r.rows || []).forEach(i => { docNoMaps.receivable[i.receivableId] = i.receivableNo })).catch(() => {})
+  listPayable({ pageNum: 1, pageSize: 500 }).then(r => (r.rows || []).forEach(i => { docNoMaps.payable[i.payableId] = i.payableNo })).catch(() => {})
+  listReceipt({ pageNum: 1, pageSize: 500 }).then(r => (r.rows || []).forEach(i => { docNoMaps.receipt[i.receiptId] = i.receiptNo })).catch(() => {})
+  listPayment({ pageNum: 1, pageSize: 500 }).then(r => (r.rows || []).forEach(i => { docNoMaps.payment[i.paymentId] = i.paymentNo })).catch(() => {})
+}
+function getReceivableNo(id) { return docNoMaps.receivable[id] || `AR #${id}` }
+function getPayableNo(id) { return docNoMaps.payable[id] || `AP #${id}` }
+function getReceiptNo(id) { return docNoMaps.receipt[id] || `收款 #${id}` }
+function getPaymentNo(id) { return docNoMaps.payment[id] || `付款 #${id}` }
+
+loadCustomers(); loadSuppliers(); loadDocNoMaps()
 
 const writeOffList = ref([])
 const openReceivables = ref([])

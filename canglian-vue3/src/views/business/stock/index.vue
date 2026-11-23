@@ -47,27 +47,29 @@
     </el-row>
 
     <el-table v-loading="loading" :data="stockList">
-      <el-table-column label="仓库" align="center" min-width="110" show-overflow-tooltip>
+      <el-table-column label="仓库" align="center" min-width="95" show-overflow-tooltip>
         <template #default="scope">{{ getWarehouseName(scope.row.warehouseId) }}</template>
       </el-table-column>
-      <el-table-column label="库位" align="center" width="115" show-overflow-tooltip>
+      <el-table-column label="库位" align="center" min-width="120" show-overflow-tooltip>
         <template #default="scope">{{ getLocationName(scope.row.locationId) }}</template>
       </el-table-column>
-      <el-table-column label="商品" align="center" min-width="165" show-overflow-tooltip>
+      <el-table-column label="商品" align="center" min-width="140" show-overflow-tooltip>
         <template #default="scope">{{ getProductName(scope.row.productId) }}</template>
       </el-table-column>
-      <el-table-column label="批次号" align="center" prop="batchNo" width="105" />
-      <el-table-column label="现存" align="right" prop="quantity" width="75" />
-      <el-table-column label="可用" align="right" prop="availableQuantity" width="75" />
-      <el-table-column label="锁定" align="right" prop="lockedQuantity" width="70" />
-      <el-table-column label="冻结" align="right" prop="frozenQuantity" width="70" />
-      <el-table-column label="生产日期" align="center" prop="productionDate" width="105">
+      <el-table-column label="批次号" align="center" prop="batchNo" width="132" show-overflow-tooltip>
+        <template #default="scope">{{ scope.row.batchNo || '-' }}</template>
+      </el-table-column>
+      <el-table-column label="现存" align="right" prop="quantity" width="70" />
+      <el-table-column label="可用" align="right" prop="availableQuantity" width="70" />
+      <el-table-column label="锁定" align="right" prop="lockedQuantity" width="66" />
+      <el-table-column label="冻结" align="right" prop="frozenQuantity" width="66" />
+      <el-table-column label="生产日期" align="center" prop="productionDate" width="102">
         <template #default="scope">{{ parseTime(scope.row.productionDate, '{y}-{m}-{d}') || '-' }}</template>
       </el-table-column>
-      <el-table-column label="有效期至" align="center" prop="expiryDate" width="105">
+      <el-table-column label="有效期至" align="center" prop="expiryDate" width="102">
         <template #default="scope">{{ parseTime(scope.row.expiryDate, '{y}-{m}-{d}') || '-' }}</template>
       </el-table-column>
-      <el-table-column label="效期状态" align="center" width="115">
+      <el-table-column label="效期状态" align="center" width="106">
         <template #default="scope">
           <el-tag v-if="scope.row.expiryStatus === 'expired'" type="danger">已过期({{ scope.row.remainDays }}天)</el-tag>
           <el-tag v-else-if="scope.row.expiryStatus === 'near_expiry'" type="warning">临期({{ scope.row.remainDays }}天)</el-tag>
@@ -75,17 +77,19 @@
           <span v-else>-</span>
         </template>
       </el-table-column>
-      <el-table-column v-if="viewMode === 'warning'" label="预警类型" align="center" width="110">
+      <el-table-column v-if="viewMode === 'warning'" label="预警类型" align="center" width="105" fixed="right">
         <template #default="scope">
           <el-tag :type="getWarningTagType(scope.row.warningType)">{{ getWarningTypeLabel(scope.row.warningType) }}</el-tag>
         </template>
       </el-table-column>
-      <el-table-column v-if="viewMode === 'warning'" label="预警说明" align="center" prop="warningMessage" min-width="200" />
-      <el-table-column v-if="viewMode === 'normal'" label="操作" width="215" align="center">
+      <el-table-column v-if="viewMode === 'warning'" label="预警说明" align="center" prop="warningMessage" min-width="180" show-overflow-tooltip />
+      <el-table-column v-if="viewMode === 'normal'" label="操作" width="225" fixed="right" align="center">
         <template #default="scope">
-          <el-button link type="warning" icon="Lock" @click="openFreezeDialog(scope.row, 'freeze')" v-hasPermi="['business:stock:freeze']">冻结</el-button>
-          <el-button link type="success" icon="Unlock" :disabled="Number(scope.row.frozenQuantity || 0) <= 0" @click="openFreezeDialog(scope.row, 'unfreeze')" v-hasPermi="['business:stock:freeze']">解冻</el-button>
-          <el-button link type="primary" icon="Setting" @click="handleUpdateThreshold(scope.row)" v-hasPermi="['business:stock:edit']">预警设置</el-button>
+          <div class="table-action-cell">
+            <el-button link type="warning" icon="Lock" @click="openFreezeDialog(scope.row, 'freeze')" v-hasPermi="['business:stock:freeze']">冻结</el-button>
+            <el-button link type="success" icon="Unlock" :disabled="Number(scope.row.frozenQuantity || 0) <= 0" @click="openFreezeDialog(scope.row, 'unfreeze')" v-hasPermi="['business:stock:freeze']">解冻</el-button>
+            <el-button link type="primary" icon="Setting" @click="handleUpdateThreshold(scope.row)" v-hasPermi="['business:stock:edit']">预警设置</el-button>
+          </div>
         </template>
       </el-table-column>
     </el-table>

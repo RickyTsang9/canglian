@@ -192,7 +192,7 @@
         <el-col :xs="24" :sm="24" :md="16" :lg="18" :xl="19">
           <div class="rank-panel">
             <div class="rank-header">
-              <span class="rank-title">产品可用库存排行</span>
+              <span class="rank-title">{{ productRankMetric === 'amount' ? '产品库存价值排行（金额）' : '产品可用库存排行（数量）' }}</span>
               <span class="rank-count">产品种类：{{ overviewData.productRankList.length }}</span>
             </div>
             <el-empty v-if="overviewData.productRankList.length === 0" description="暂无产品库存排行数据" />
@@ -579,7 +579,17 @@ watch(() => overviewData.productRankList, () => {
 .warehouse-statistics-page {
   background: var(--el-bg-color-page, #f3f7ff);
 
-  .panel-row,
+  .panel-row {
+    display: flex;
+    flex-wrap: wrap;
+    margin-bottom: 12px;
+
+    > .el-col {
+      display: flex;
+      flex-direction: column;
+    }
+  }
+
   .panel-card {
     margin-bottom: 12px;
   }
@@ -668,7 +678,10 @@ watch(() => overviewData.productRankList, () => {
 }
 
 .business-list-card {
-  height: 330px;
+  flex: 1;
+  min-height: 360px;
+  display: flex;
+  flex-direction: column;
   .panel-title-wrap {
     display: flex;
     justify-content: space-between;
@@ -770,7 +783,8 @@ watch(() => overviewData.productRankList, () => {
 }
 
 .center-panel {
-  height: 330px;
+  flex: 1;
+  min-height: 360px;
   .filter-toolbar {
     display: flex;
     justify-content: space-between;

@@ -62,45 +62,53 @@
             <span>{{ parseTime(scope.row.createTime) }}</span>
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="290" align="center">
+        <el-table-column label="操作" width="275" fixed="right" align="center">
           <template #default="scope">
-            <el-button
-              link
-              type="success"
-              icon="CircleCheck"
-              @click="handleVerify(scope.row)"
-              v-hasPermi="['business:dataBackup:verify']"
-            >校验</el-button>
-            <el-button
-              link
-              type="primary"
-              icon="Download"
-              @click="handleDownload(scope.row)"
-              v-hasPermi="['business:dataBackup:download']"
-            >下载</el-button>
-            <el-button
-              link
-              type="warning"
-              icon="RefreshLeft"
-              @click="openRestoreDialog(scope.row)"
-              v-hasPermi="['business:dataBackup:restore']"
-            >受控恢复</el-button>
-            <el-button
-              link
-              type="danger"
-              icon="Delete"
-              @click="handleDelete(scope.row)"
-              v-hasPermi="['business:dataBackup:remove']"
-            >删除</el-button>
+            <div class="table-action-cell">
+              <el-button
+                link
+                type="success"
+                icon="CircleCheck"
+                @click="handleVerify(scope.row)"
+                v-hasPermi="['business:dataBackup:verify']"
+              >校验</el-button>
+              <el-button
+                link
+                type="primary"
+                icon="Download"
+                @click="handleDownload(scope.row)"
+                v-hasPermi="['business:dataBackup:download']"
+              >下载</el-button>
+              <el-button
+                link
+                type="warning"
+                icon="RefreshLeft"
+                @click="openRestoreDialog(scope.row)"
+                v-hasPermi="['business:dataBackup:restore']"
+              >受控恢复</el-button>
+              <el-button
+                link
+                type="danger"
+                icon="Delete"
+                @click="handleDelete(scope.row)"
+                v-hasPermi="['business:dataBackup:remove']"
+              >删除</el-button>
+            </div>
           </template>
         </el-table-column>
       </el-table>
 
       <div class="backup-tips">
         <el-descriptions title="备份与恢复说明" :column="1" border size="small">
-          <el-descriptions-item label="自动备份">内置 Quartz 定时任务 `canglianBackupTask.autoBackup(30)`，默认每日凌晨 02:00 自动导出 GZIP 压缩快照并自动清理超过保留期的旧备份（至少保留最近 3 份）。</el-descriptions-item>
-          <el-descriptions-item label="完整性保护">每次创建备份自动生成 `.sha256` 伴生签名文件，点击「校验」可实时比对文件哈希与文件头签名。</el-descriptions-item>
-          <el-descriptions-item label="受控恢复">仅超级管理员可执行在线恢复；恢复前系统会自动先创建一份 `pre_restore_*.sql` 兜底快照，防止误操作导致数据不可逆损失。</el-descriptions-item>
+          <el-descriptions-item label="自动备份" label-class-name="tip-label">
+            内置 Quartz 定时任务 <code>canglianBackupTask.autoBackup(30)</code>，默认每日凌晨 02:00 自动导出 GZIP 压缩快照并自动清理超过保留期的旧备份（至少保留最近 3 份）。
+          </el-descriptions-item>
+          <el-descriptions-item label="完整性保护" label-class-name="tip-label">
+            每次创建备份自动生成 <code>.sha256</code> 伴生签名文件，点击「校验」可实时比对文件哈希与文件头签名。
+          </el-descriptions-item>
+          <el-descriptions-item label="受控恢复" label-class-name="tip-label">
+            仅超级管理员可执行在线恢复；恢复前系统会自动先创建一份 <code>pre_restore_*.sql</code> 兜底快照，防止误操作导致数据不可逆损失。
+          </el-descriptions-item>
         </el-descriptions>
       </div>
     </el-card>
@@ -305,6 +313,21 @@ refreshAll()
 
 .backup-tips {
   margin-top: 20px;
+}
+
+.backup-tips :deep(.tip-label) {
+  width: 112px;
+  white-space: nowrap;
+}
+
+.backup-tips code {
+  padding: 1px 6px;
+  margin: 0 2px;
+  border-radius: 4px;
+  background: var(--panel-subtle-bg, #f3f4f6);
+  border: 1px solid var(--panel-border, #e5e7eb);
+  font-size: 12px;
+  color: #1d4ed8;
 }
 
 .confirm-hint {

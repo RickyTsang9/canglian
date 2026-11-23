@@ -55,30 +55,36 @@
          :default-expand-all="isExpandAll"
          :tree-props="{ children: 'children', hasChildren: 'hasChildren' }"
       >
-         <el-table-column prop="menuName" label="菜单名称" :show-overflow-tooltip="true" width="160"></el-table-column>
-         <el-table-column prop="icon" label="图标" align="center" width="100">
+         <el-table-column prop="menuName" label="菜单名称" :show-overflow-tooltip="true" min-width="160"></el-table-column>
+         <el-table-column prop="icon" label="图标" align="center" width="72">
             <template #default="scope">
                <svg-icon :icon-class="scope.row.icon" />
             </template>
          </el-table-column>
-         <el-table-column prop="orderNum" label="排序" width="60"></el-table-column>
-         <el-table-column prop="perms" label="权限标识" :show-overflow-tooltip="true"></el-table-column>
-         <el-table-column prop="component" label="组件路径" :show-overflow-tooltip="true"></el-table-column>
-         <el-table-column prop="status" label="状态" width="80">
+         <el-table-column prop="orderNum" label="排序" align="center" width="68"></el-table-column>
+         <el-table-column prop="perms" label="权限标识" min-width="150" :show-overflow-tooltip="true">
+            <template #default="scope">{{ scope.row.perms || '-' }}</template>
+         </el-table-column>
+         <el-table-column prop="component" label="组件路径" min-width="160" :show-overflow-tooltip="true">
+            <template #default="scope">{{ scope.row.component || '-' }}</template>
+         </el-table-column>
+         <el-table-column prop="status" label="状态" align="center" width="76">
             <template #default="scope">
                <dict-tag :options="sys_normal_disable" :value="scope.row.status" />
             </template>
          </el-table-column>
-         <el-table-column label="创建时间" align="center" width="160" prop="createTime">
+         <el-table-column label="创建时间" align="center" width="168" prop="createTime">
             <template #default="scope">
                <span>{{ parseTime(scope.row.createTime) }}</span>
             </template>
          </el-table-column>
-         <el-table-column label="操作" align="center" width="210" class-name="small-padding fixed-width">
+         <el-table-column label="操作" align="center" width="215" fixed="right" class-name="small-padding fixed-width">
             <template #default="scope">
-               <el-button link type="primary" icon="Edit" @click="handleUpdate(scope.row)" v-hasPermi="['system:menu:edit']">修改</el-button>
-               <el-button link type="primary" icon="Plus" @click="handleAdd(scope.row)" v-hasPermi="['system:menu:add']">新增</el-button>
-               <el-button link type="primary" icon="Delete" @click="handleDelete(scope.row)" v-hasPermi="['system:menu:remove']">删除</el-button>
+               <div class="table-action-cell">
+                 <el-button link type="primary" icon="Edit" @click="handleUpdate(scope.row)" v-hasPermi="['system:menu:edit']">修改</el-button>
+                 <el-button link type="primary" icon="Plus" @click="handleAdd(scope.row)" v-hasPermi="['system:menu:add']">新增</el-button>
+                 <el-button link type="danger" icon="Delete" @click="handleDelete(scope.row)" v-hasPermi="['system:menu:remove']">删除</el-button>
+               </div>
             </template>
          </el-table-column>
       </el-table>

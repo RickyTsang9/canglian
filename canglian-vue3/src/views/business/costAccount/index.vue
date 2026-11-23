@@ -35,29 +35,37 @@
     </el-row>
 
     <el-table v-loading="loading" :data="costAccountList" border>
-      <el-table-column label="成本账户" align="center" prop="costAccountId" width="90" />
-      <el-table-column label="商品" align="center" min-width="160" show-overflow-tooltip>
+      <el-table-column label="成本账户" align="center" prop="costAccountId" width="84" />
+      <el-table-column label="商品" align="center" min-width="135" show-overflow-tooltip>
         <template #default="scope">
           <span>{{ getProductName(scope.row.productId) }}</span>
         </template>
       </el-table-column>
-      <el-table-column label="仓库" align="center" min-width="120" show-overflow-tooltip>
+      <el-table-column label="仓库" align="center" min-width="96" show-overflow-tooltip>
         <template #default="scope">
           <span>{{ getWarehouseName(scope.row.warehouseId) }}</span>
         </template>
       </el-table-column>
-      <el-table-column label="成本算法" align="center" width="120">
+      <el-table-column label="成本算法" align="center" width="96">
         <template #default="scope">
-          <el-tag effect="plain">{{ scope.row.costMethod === 'fifo' ? '先进先出' : '移动加权' }}</el-tag>
+          <el-tag size="small" effect="plain">{{ scope.row.costMethod === 'fifo' ? '先进先出' : '移动加权' }}</el-tag>
         </template>
       </el-table-column>
-      <el-table-column label="结存数量" align="center" prop="totalQty" />
-      <el-table-column label="结存总金额" align="center" prop="totalAmount" />
-      <el-table-column label="单位均价" align="center" prop="avgCost" />
-      <el-table-column label="最近入库单价" align="center" prop="lastCostPrice" />
-      <el-table-column label="最近入库数量" align="center" prop="lastCostQty" />
-      <el-table-column label="备注" align="center" prop="remark" show-overflow-tooltip />
-      <el-table-column label="更新时间" align="center" width="180">
+      <el-table-column label="结存数量" align="right" header-align="right" prop="totalQty" width="88" />
+      <el-table-column label="结存总金额" align="right" header-align="right" prop="totalAmount" width="104">
+        <template #default="scope">{{ Number(scope.row.totalAmount || 0).toFixed(2) }}</template>
+      </el-table-column>
+      <el-table-column label="单位均价" align="right" header-align="right" prop="avgCost" width="92">
+        <template #default="scope">{{ Number(scope.row.avgCost || 0).toFixed(2) }}</template>
+      </el-table-column>
+      <el-table-column label="最近入库价" align="right" header-align="right" prop="lastCostPrice" width="98">
+        <template #default="scope">{{ Number(scope.row.lastCostPrice || 0).toFixed(2) }}</template>
+      </el-table-column>
+      <el-table-column label="最近入库数" align="right" header-align="right" prop="lastCostQty" width="98" />
+      <el-table-column label="备注" align="center" prop="remark" min-width="115" show-overflow-tooltip>
+        <template #default="scope">{{ scope.row.remark || '-' }}</template>
+      </el-table-column>
+      <el-table-column label="更新时间" align="center" width="160">
         <template #default="scope">
           <span>{{ parseTime(scope.row.updateTime || scope.row.createTime) }}</span>
         </template>

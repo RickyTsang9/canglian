@@ -78,21 +78,28 @@
     </el-row>
 
     <el-table v-loading="loading" :data="productList" @selection-change="handleSelectionChange">
-      <el-table-column type="selection" width="50" align="center" />
-      <el-table-column label="商品编码" align="center" prop="productCode" min-width="110" show-overflow-tooltip />
-      <el-table-column label="商品名称" align="center" prop="productName" min-width="140" show-overflow-tooltip />
-      <el-table-column label="规格" align="center" prop="productSpec" width="100" show-overflow-tooltip />
-      <el-table-column label="条码" align="center" prop="barCode" width="120" show-overflow-tooltip />
-      <el-table-column label="图片" align="center" prop="productImage" width="76">
+      <el-table-column type="selection" width="48" align="center" />
+      <el-table-column label="商品编码" align="center" prop="productCode" width="105" show-overflow-tooltip />
+      <el-table-column label="商品名称" align="center" prop="productName" min-width="130" show-overflow-tooltip />
+      <el-table-column label="规格" align="center" prop="productSpec" width="95" show-overflow-tooltip>
+        <template #default="scope">{{ scope.row.productSpec || '-' }}</template>
+      </el-table-column>
+      <el-table-column label="条码" align="center" prop="barCode" width="115" show-overflow-tooltip>
+        <template #default="scope">{{ scope.row.barCode || '-' }}</template>
+      </el-table-column>
+      <el-table-column label="图片" align="center" prop="productImage" width="70">
         <template #default="scope">
-          <image-preview :src="scope.row.productImage" :width="44" :height="44" />
+          <image-preview v-if="scope.row.productImage" :src="scope.row.productImage" :width="40" :height="40" />
+          <span v-else style="color: #9ca3af">-</span>
         </template>
       </el-table-column>
-      <el-table-column label="基础单位" align="center" prop="unitName" width="80" />
-      <el-table-column label="采/销单位" align="center" width="95">
+      <el-table-column label="基础单位" align="center" prop="unitName" width="80">
+        <template #default="scope">{{ scope.row.unitName || '-' }}</template>
+      </el-table-column>
+      <el-table-column label="采/销单位" align="center" width="90">
         <template #default="scope">{{ scope.row.purchaseUnit || scope.row.unitName || '-' }} / {{ scope.row.saleUnit || scope.row.unitName || '-' }}</template>
       </el-table-column>
-      <el-table-column label="管控属性" align="center" width="120">
+      <el-table-column label="管控属性" align="center" width="108">
         <template #default="scope">
           <el-tag v-if="scope.row.enableBatch === '1'" size="small" type="info" style="margin-right: 4px">批次</el-tag>
           <el-tag v-if="scope.row.enableSerial === '1'" size="small" type="warning">SN</el-tag>
@@ -102,21 +109,30 @@
       <el-table-column label="保质期(天)" align="center" prop="shelfLifeDays" width="90">
         <template #default="scope">{{ scope.row.shelfLifeDays > 0 ? scope.row.shelfLifeDays : '-' }}</template>
       </el-table-column>
-      <el-table-column label="预警区间" align="center" width="100">
-        <template #default="scope">{{ scope.row.warningMinQty || 0 }} ~ {{ scope.row.warningMaxQty || '-' }}</template>
+      <el-table-column label="预警区间" align="center" width="96">
+        <template #default="scope">
+          <span v-if="!scope.row.warningMinQty && !scope.row.warningMaxQty">-</span>
+          <span v-else>{{ scope.row.warningMinQty || 0 }} ~ {{ scope.row.warningMaxQty || '不限' }}</span>
+        </template>
       </el-table-column>
-      <el-table-column label="成本价" align="right" prop="costPrice" width="85" />
-      <el-table-column label="售价" align="right" prop="salePrice" width="85" />
-      <el-table-column label="状态" align="center" prop="status" width="75">
+      <el-table-column label="成本价" align="right" prop="costPrice" width="90">
+        <template #default="scope">{{ Number(scope.row.costPrice || 0).toFixed(2) }}</template>
+      </el-table-column>
+      <el-table-column label="售价" align="right" prop="salePrice" width="90">
+        <template #default="scope">{{ Number(scope.row.salePrice || 0).toFixed(2) }}</template>
+      </el-table-column>
+      <el-table-column label="状态" align="center" prop="status" width="74">
         <template #default="scope">
           <dict-tag :options="sys_normal_disable" :value="scope.row.status" />
         </template>
       </el-table-column>
-      <el-table-column label="操作" width="210" align="center" class-name="small-padding fixed-width">
+      <el-table-column label="操作" width="205" fixed="right" align="center" class-name="small-padding fixed-width">
         <template #default="scope">
-          <el-button link type="success" icon="ScaleToOriginal" @click="openUnitDrawer(scope.row)" v-hasPermi="['business:product:edit']">多单位</el-button>
-          <el-button link type="primary" icon="Edit" @click="handleUpdate(scope.row)" v-hasPermi="['business:product:edit']">修改</el-button>
-          <el-button link type="danger" icon="Delete" @click="handleDelete(scope.row)" v-hasPermi="['business:product:remove']">删除</el-button>
+          <div class="table-action-cell">
+            <el-button link type="success" icon="ScaleToOriginal" @click="openUnitDrawer(scope.row)" v-hasPermi="['business:product:edit']">多单位</el-button>
+            <el-button link type="primary" icon="Edit" @click="handleUpdate(scope.row)" v-hasPermi="['business:product:edit']">修改</el-button>
+            <el-button link type="danger" icon="Delete" @click="handleDelete(scope.row)" v-hasPermi="['business:product:remove']">删除</el-button>
+          </div>
         </template>
       </el-table-column>
     </el-table>
@@ -129,9 +145,9 @@
       @pagination="getList"
     />
 
-    <el-dialog :title="title" v-model="open" width="680px" append-to-body>
-      <el-form ref="productRef" :model="form" :rules="rules" label-width="90px">
-        <el-row>
+    <el-dialog :title="title" v-model="open" width="760px" append-to-body>
+      <el-form ref="productRef" :model="form" :rules="rules" label-width="110px">
+        <el-row :gutter="14">
           <el-col :span="12">
             <el-form-item label="商品编码" prop="productCode">
               <el-input v-model="form.productCode" placeholder="请输入商品编码" />
@@ -143,7 +159,7 @@
             </el-form-item>
           </el-col>
         </el-row>
-        <el-row>
+        <el-row :gutter="14">
           <el-col :span="12">
             <el-form-item label="规格" prop="productSpec">
               <el-input v-model="form.productSpec" placeholder="请输入规格" />
@@ -151,11 +167,11 @@
           </el-col>
           <el-col :span="12">
             <el-form-item label="基础单位" prop="unitName">
-              <el-input v-model="form.unitName" placeholder="如：瓶/件/台（库存核算基准单位）" />
+              <el-input v-model="form.unitName" placeholder="如：瓶/件/台（库存基准单位）" />
             </el-form-item>
           </el-col>
         </el-row>
-        <el-row>
+        <el-row :gutter="14">
           <el-col :span="12">
             <el-form-item label="条码" prop="barCode">
               <el-input v-model="form.barCode" placeholder="请输入条码" />
@@ -167,31 +183,37 @@
             </el-form-item>
           </el-col>
         </el-row>
-        <el-row>
+        <el-row :gutter="14">
           <el-col :span="12">
             <el-form-item label="品牌" prop="brandName">
               <el-input v-model="form.brandName" placeholder="请输入品牌" />
             </el-form-item>
           </el-col>
           <el-col :span="12">
-            <el-form-item label="图片" prop="productImage">
-              <image-upload v-model="form.productImage" :limit="1" />
+            <el-form-item label="状态" prop="status">
+              <el-radio-group v-model="form.status">
+                <el-radio
+                  v-for="dict in sys_normal_disable"
+                  :key="dict.value"
+                  :value="dict.value"
+                >{{ dict.label }}</el-radio>
+              </el-radio-group>
             </el-form-item>
           </el-col>
         </el-row>
-        <el-row>
+        <el-row :gutter="14">
           <el-col :span="12">
             <el-form-item label="采购默认单位" prop="purchaseUnit">
-              <el-input v-model="form.purchaseUnit" placeholder="默认同基础单位，可在多单位中配置箱/盒" />
+              <el-input v-model="form.purchaseUnit" placeholder="默认同基础单位，可在多单位中配置" />
             </el-form-item>
           </el-col>
           <el-col :span="12">
             <el-form-item label="销售默认单位" prop="saleUnit">
-              <el-input v-model="form.saleUnit" placeholder="默认同基础单位，可在多单位中配置箱/盒" />
+              <el-input v-model="form.saleUnit" placeholder="默认同基础单位，可在多单位中配置" />
             </el-form-item>
           </el-col>
         </el-row>
-        <el-row>
+        <el-row :gutter="14">
           <el-col :span="12">
             <el-form-item label="启用批次" prop="enableBatch">
               <el-radio-group v-model="form.enableBatch">
@@ -209,55 +231,45 @@
             </el-form-item>
           </el-col>
         </el-row>
-        <el-row>
+        <el-row :gutter="14">
           <el-col :span="12">
             <el-form-item label="保质天数" prop="shelfLifeDays">
-              <el-input-number v-model="form.shelfLifeDays" controls-position="right" :min="0" />
+              <el-input-number v-model="form.shelfLifeDays" controls-position="right" :min="0" style="width: 100%" />
             </el-form-item>
           </el-col>
           <el-col :span="12">
             <el-form-item label="临期预警天" prop="warningBeforeDays">
-              <el-input-number v-model="form.warningBeforeDays" controls-position="right" :min="0" />
+              <el-input-number v-model="form.warningBeforeDays" controls-position="right" :min="0" style="width: 100%" />
             </el-form-item>
           </el-col>
         </el-row>
-        <el-row>
+        <el-row :gutter="14">
           <el-col :span="12">
             <el-form-item label="成本价" prop="costPrice">
-              <el-input-number v-model="form.costPrice" controls-position="right" :min="0" />
+              <el-input-number v-model="form.costPrice" controls-position="right" :min="0" :precision="2" style="width: 100%" />
             </el-form-item>
           </el-col>
           <el-col :span="12">
             <el-form-item label="售价" prop="salePrice">
-              <el-input-number v-model="form.salePrice" controls-position="right" :min="0" />
+              <el-input-number v-model="form.salePrice" controls-position="right" :min="0" :precision="2" style="width: 100%" />
             </el-form-item>
           </el-col>
         </el-row>
-        <el-row>
+        <el-row :gutter="14">
           <el-col :span="12">
             <el-form-item label="最小库存" prop="warningMinQty">
-              <el-input-number v-model="form.warningMinQty" controls-position="right" :min="0" />
+              <el-input-number v-model="form.warningMinQty" controls-position="right" :min="0" style="width: 100%" />
             </el-form-item>
           </el-col>
           <el-col :span="12">
             <el-form-item label="最大库存" prop="warningMaxQty">
-              <el-input-number v-model="form.warningMaxQty" controls-position="right" :min="0" />
+              <el-input-number v-model="form.warningMaxQty" controls-position="right" :min="0" style="width: 100%" />
             </el-form-item>
           </el-col>
         </el-row>
-        <el-row>
-          <el-col :span="24">
-            <el-form-item label="状态" prop="status">
-              <el-radio-group v-model="form.status">
-                <el-radio
-                  v-for="dict in sys_normal_disable"
-                  :key="dict.value"
-                  :value="dict.value"
-                >{{ dict.label }}</el-radio>
-              </el-radio-group>
-            </el-form-item>
-          </el-col>
-        </el-row>
+        <el-form-item label="商品图片" prop="productImage">
+          <image-upload v-model="form.productImage" :limit="1" />
+        </el-form-item>
         <el-form-item label="备注" prop="remark">
           <el-input v-model="form.remark" type="textarea" placeholder="请输入内容" />
         </el-form-item>
@@ -293,7 +305,7 @@
     </el-dialog>
 
     <!-- 商品多单位与条码换算抽屉 -->
-    <el-drawer v-model="unitDrawerOpen" :title="`多单位管理 - ${currentUnitProduct.productName || ''}`" size="680px">
+    <el-drawer v-model="unitDrawerOpen" :title="`多单位管理 - ${currentUnitProduct.productName || ''}`" size="780px">
       <div style="margin-bottom: 12px">
         <el-form :inline="true" :model="unitForm" size="small">
           <el-form-item label="单位名">
@@ -315,17 +327,23 @@
         </el-form>
       </div>
       <el-table :data="productUnitList" border size="small">
-        <el-table-column label="单位" prop="unitName" width="85" align="center" />
+        <el-table-column label="单位" prop="unitName" width="80" align="center" />
         <el-table-column label="基准单位" width="85" align="center">
           <template #default="scope">
             <el-tag :type="scope.row.isBaseUnit === '1' ? 'success' : 'info'">{{ scope.row.isBaseUnit === '1' ? '是' : '否' }}</el-tag>
           </template>
         </el-table-column>
         <el-table-column label="换算率(1=N基)" prop="convertRatio" width="115" align="right" />
-        <el-table-column label="包装条码" prop="barCode" min-width="120" />
-        <el-table-column label="采购价" prop="purchasePrice" width="85" align="right" />
-        <el-table-column label="销售价" prop="salePrice" width="85" align="right" />
-        <el-table-column label="操作" width="85" align="center">
+        <el-table-column label="包装条码" prop="barCode" min-width="120" show-overflow-tooltip>
+          <template #default="scope">{{ scope.row.barCode || '-' }}</template>
+        </el-table-column>
+        <el-table-column label="采购价" prop="purchasePrice" width="90" align="right">
+          <template #default="scope">{{ Number(scope.row.purchasePrice || 0).toFixed(2) }}</template>
+        </el-table-column>
+        <el-table-column label="销售价" prop="salePrice" width="90" align="right">
+          <template #default="scope">{{ Number(scope.row.salePrice || 0).toFixed(2) }}</template>
+        </el-table-column>
+        <el-table-column label="操作" width="96" fixed="right" align="center">
           <template #default="scope">
             <el-button v-if="scope.row.isBaseUnit !== '1'" link type="danger" @click="handleDeleteUnit(scope.row)">删除</el-button>
             <el-tag v-else size="small" type="info">基准锁定</el-tag>

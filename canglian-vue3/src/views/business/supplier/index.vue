@@ -88,23 +88,35 @@
 
     <el-table v-loading="loading" :data="supplierList" @selection-change="handleSelectionChange">
       <el-table-column type="selection" width="50" align="center" />
-      <el-table-column label="供应商编码" align="center" prop="supplierCode" width="110" />
+      <el-table-column label="供应商编码" align="center" prop="supplierCode" width="110" show-overflow-tooltip />
       <el-table-column label="供应商名称" align="center" prop="supplierName" min-width="140" show-overflow-tooltip />
-      <el-table-column label="联系人" align="center" prop="contactPerson" width="95" />
-      <el-table-column label="联系电话" align="center" prop="contactPhone" width="120" />
-      <el-table-column label="供应商等级" align="center" prop="supplierLevel" width="95" />
-      <el-table-column label="期初应付" align="right" prop="openingPayable" width="100" />
+      <el-table-column label="联系人" align="center" prop="contactPerson" width="90" show-overflow-tooltip>
+        <template #default="scope">{{ scope.row.contactPerson || '-' }}</template>
+      </el-table-column>
+      <el-table-column label="联系电话" align="center" prop="contactPhone" width="120" show-overflow-tooltip>
+        <template #default="scope">{{ scope.row.contactPhone || '-' }}</template>
+      </el-table-column>
+      <el-table-column label="供应商等级" align="center" prop="supplierLevel" width="95">
+        <template #default="scope">{{ scope.row.supplierLevel || '-' }}</template>
+      </el-table-column>
+      <el-table-column label="期初应付" align="right" prop="openingPayable" width="105">
+        <template #default="scope">{{ Number(scope.row.openingPayable || 0).toFixed(2) }}</template>
+      </el-table-column>
       <el-table-column label="账期(天)" align="center" prop="payableDays" width="85" />
-      <el-table-column label="地址" align="center" prop="address" min-width="140" show-overflow-tooltip />
-      <el-table-column label="状态" align="center" prop="status" width="80">
+      <el-table-column label="地址" align="center" prop="address" min-width="130" show-overflow-tooltip>
+        <template #default="scope">{{ scope.row.address || '-' }}</template>
+      </el-table-column>
+      <el-table-column label="状态" align="center" prop="status" width="76">
         <template #default="scope">
           <dict-tag :options="sys_normal_disable" :value="scope.row.status" />
         </template>
       </el-table-column>
-      <el-table-column label="操作" width="160" align="center" class-name="small-padding fixed-width">
+      <el-table-column label="操作" width="140" fixed="right" align="center" class-name="small-padding fixed-width">
         <template #default="scope">
-          <el-button link type="primary" icon="Edit" @click="handleUpdate(scope.row)" v-hasPermi="['business:supplier:edit']">修改</el-button>
-          <el-button link type="danger" icon="Delete" @click="handleDelete(scope.row)" v-hasPermi="['business:supplier:remove']">删除</el-button>
+          <div class="table-action-cell">
+            <el-button link type="primary" icon="Edit" @click="handleUpdate(scope.row)" v-hasPermi="['business:supplier:edit']">修改</el-button>
+            <el-button link type="danger" icon="Delete" @click="handleDelete(scope.row)" v-hasPermi="['business:supplier:remove']">删除</el-button>
+          </div>
         </template>
       </el-table-column>
     </el-table>
@@ -151,7 +163,7 @@
           </el-col>
           <el-col :span="12">
             <el-form-item label="账期天数" prop="payableDays">
-              <el-input-number v-model="form.payableDays" controls-position="right" :min="0" />
+              <el-input-number v-model="form.payableDays" controls-position="right" :min="0" style="width: 100%" />
             </el-form-item>
           </el-col>
         </el-row>

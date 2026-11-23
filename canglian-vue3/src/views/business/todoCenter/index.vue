@@ -18,22 +18,22 @@
       </el-col>
     </el-row>
 
-    <el-row :gutter="16">
-      <el-col :xs="24" :lg="12">
+    <el-row :gutter="16" class="todo-split-row">
+      <el-col :xs="24" :lg="12" class="todo-split-col">
         <div class="todo-panel">
           <div class="panel-header">
             <span>审批待办</span>
             <el-tag type="warning">{{ pendingApproveList.length }}</el-tag>
           </div>
           <el-table v-if="loading || pendingApproveList.length > 0" v-loading="loading" :data="pendingApproveList" border>
-            <el-table-column label="单据类型" align="center" prop="billTypeLabel" width="110" />
-            <el-table-column label="单据单号" align="center" prop="billNo" min-width="150" show-overflow-tooltip />
-            <el-table-column label="业务日期" align="center" prop="businessDate" width="160">
+            <el-table-column label="单据类型" align="center" prop="billTypeLabel" width="100" />
+            <el-table-column label="单据单号" align="center" prop="billNo" min-width="145" show-overflow-tooltip />
+            <el-table-column label="业务日期" align="center" prop="businessDate" width="110">
               <template #default="scope">
                 <span>{{ parseTime(scope.row.businessDate, "{y}-{m}-{d}") }}</span>
               </template>
             </el-table-column>
-            <el-table-column label="处理" align="center" width="90">
+            <el-table-column label="处理" align="center" width="80" fixed="right">
               <template #default="scope">
                 <el-button link type="primary" @click="handlePendingApprove(scope.row)">进入</el-button>
               </template>
@@ -43,31 +43,31 @@
         </div>
       </el-col>
 
-      <el-col :xs="24" :lg="12">
+      <el-col :xs="24" :lg="12" class="todo-split-col">
         <div class="todo-panel">
           <div class="panel-header">
             <span>库存预警</span>
             <el-tag type="danger">{{ lowStockList.length }}</el-tag>
           </div>
           <el-table v-if="loading || lowStockList.length > 0" v-loading="loading" :data="lowStockList" border>
-            <el-table-column label="仓库" align="center" min-width="100" show-overflow-tooltip>
+            <el-table-column label="仓库" align="center" min-width="95" show-overflow-tooltip>
               <template #default="scope">
                 <span>{{ getWarehouseName(scope.row.warehouseId) }}</span>
               </template>
             </el-table-column>
-            <el-table-column label="商品" align="center" min-width="140" show-overflow-tooltip>
+            <el-table-column label="商品" align="center" min-width="125" show-overflow-tooltip>
               <template #default="scope">
                 <span>{{ getProductName(scope.row.productId) }}</span>
               </template>
             </el-table-column>
-            <el-table-column label="库位" align="center" width="95">
+            <el-table-column label="库位" align="center" width="88">
               <template #default="scope">
                 <span>{{ scope.row.locationId ? `#${scope.row.locationId}` : "默认库位" }}</span>
               </template>
             </el-table-column>
-            <el-table-column label="当前库存" align="center" prop="quantity" />
-            <el-table-column label="最小库存" align="center" prop="warningMinQty" />
-            <el-table-column label="处理" align="center" width="90">
+            <el-table-column label="当前库存" align="right" prop="quantity" width="85" />
+            <el-table-column label="最小库存" align="right" prop="warningMinQty" width="85" />
+            <el-table-column label="处理" align="center" width="76" fixed="right">
               <template #default>
                 <el-button link type="primary" @click="handleStockWarning">进入</el-button>
               </template>
@@ -84,21 +84,25 @@
         <el-tag type="info">{{ financeTodoList.length }}</el-tag>
       </div>
       <el-table v-if="loading || financeTodoList.length > 0" v-loading="loading" :data="financeTodoList" border>
-        <el-table-column label="类型" align="center" prop="billTypeLabel" width="100" />
+        <el-table-column label="类型" align="center" prop="billTypeLabel" width="90" />
         <el-table-column label="单据单号" align="center" prop="billNo" min-width="150" show-overflow-tooltip />
         <el-table-column label="往来单位" align="center" min-width="140" show-overflow-tooltip>
           <template #default="scope">
             <span>{{ scope.row.billType === "receivable" ? getCustomerName(scope.row.partnerId) : getSupplierName(scope.row.partnerId) }}</span>
           </template>
         </el-table-column>
-        <el-table-column label="应收应付金额" align="center" prop="amount" />
-        <el-table-column label="已收已付金额" align="center" prop="settledAmount" />
-        <el-table-column label="到期日期" align="center" prop="dueDate" width="160">
+        <el-table-column label="应收应付金额" align="right" width="125">
+          <template #default="scope">￥{{ Number(scope.row.amount || 0).toFixed(2) }}</template>
+        </el-table-column>
+        <el-table-column label="已收已付金额" align="right" width="125">
+          <template #default="scope">￥{{ Number(scope.row.settledAmount || 0).toFixed(2) }}</template>
+        </el-table-column>
+        <el-table-column label="到期日期" align="center" prop="dueDate" width="115">
           <template #default="scope">
             <span>{{ parseTime(scope.row.dueDate, "{y}-{m}-{d}") }}</span>
           </template>
         </el-table-column>
-        <el-table-column label="处理" align="center" width="90">
+        <el-table-column label="处理" align="center" width="80" fixed="right">
           <template #default="scope">
             <el-button link type="primary" @click="handleFinanceTodo(scope.row)">进入</el-button>
           </template>
@@ -192,11 +196,19 @@ function handleSummaryClick(summaryItem) {
 
 // 进入审批待办对应页面
 function handlePendingApprove(todoItem) {
+  if (todoItem.routePath) {
+    router.push({ path: todoItem.routePath })
+    return
+  }
   const billTypePathMap = {
     saleOrder: "/business/saleOrder",
     purOrder: "/business/purOrder",
     inbound: "/wms/inbound",
-    outbound: "/wms/outbound"
+    outbound: "/wms/outbound",
+    purchaseReturn: "/wms/purchaseReturn",
+    saleReturn: "/wms/saleReturn",
+    salesInvoice: "/finance/salesInvoice",
+    purchaseInvoice: "/finance/purchaseInvoice"
   }
   router.push({ path: billTypePathMap[todoItem.billType] || "/business/workbench" })
 }
@@ -297,11 +309,24 @@ getSummary()
   font-size: 13px;
 }
 
+.todo-split-row {
+  display: flex;
+  flex-wrap: wrap;
+}
+
+.todo-split-col {
+  display: flex;
+  flex-direction: column;
+}
+
 .todo-panel {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
   margin-bottom: 16px;
   padding: 16px;
   border: 1px solid var(--el-border-color-light, #e5eaf3);
-  border-radius: 8px;
+  border-radius: 12px;
   background: var(--el-bg-color-overlay, #ffffff);
 }
 

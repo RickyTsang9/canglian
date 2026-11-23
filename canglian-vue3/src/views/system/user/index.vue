@@ -3,8 +3,8 @@
     <el-row :gutter="20">
       <splitpanes :horizontal="appStore.device === 'mobile'" class="default-theme">
         <!--部门数据-->
-        <pane size="16">
-          <el-col>
+        <pane size="17" min-size="14">
+          <el-col class="dept-tree-col">
             <div class="head-container">
               <el-input v-model="deptName" placeholder="请输入部门名称" clearable prefix-icon="Search" style="margin-bottom: 20px" />
             </div>
@@ -14,7 +14,7 @@
           </el-col>
         </pane>
         <!--用户数据-->
-        <pane size="84">
+        <pane size="83">
           <el-col>
             <el-form :model="queryParams" ref="queryRef" :inline="true" v-show="showSearch" label-width="68px">
               <el-form-item label="用户名称" prop="userName">
@@ -57,13 +57,13 @@
             </el-row>
 
             <el-table v-loading="loading" :data="userList" @selection-change="handleSelectionChange">
-              <el-table-column type="selection" width="50" align="center" />
-              <el-table-column label="用户编号" align="center" key="userId" prop="userId" v-if="columns.userId.visible" />
-              <el-table-column label="用户名称" align="center" key="userName" prop="userName" v-if="columns.userName.visible" :show-overflow-tooltip="true" />
-              <el-table-column label="用户昵称" align="center" key="nickName" prop="nickName" v-if="columns.nickName.visible" :show-overflow-tooltip="true" />
-              <el-table-column label="部门" align="center" key="deptName" prop="dept.deptName" v-if="columns.deptName.visible" :show-overflow-tooltip="true" />
-              <el-table-column label="手机号码" align="center" key="phonenumber" prop="phonenumber" v-if="columns.phonenumber.visible" width="120" />
-              <el-table-column label="状态" align="center" key="status" v-if="columns.status.visible">
+              <el-table-column type="selection" width="44" align="center" />
+              <el-table-column label="编号" align="center" key="userId" prop="userId" width="62" v-if="columns.userId.visible" />
+              <el-table-column label="用户名称" align="center" key="userName" prop="userName" min-width="86" v-if="columns.userName.visible" :show-overflow-tooltip="true" />
+              <el-table-column label="用户昵称" align="center" key="nickName" prop="nickName" min-width="86" v-if="columns.nickName.visible" :show-overflow-tooltip="true" />
+              <el-table-column label="部门" align="center" key="deptName" prop="dept.deptName" min-width="90" v-if="columns.deptName.visible" :show-overflow-tooltip="true" />
+              <el-table-column label="手机号码" align="center" key="phonenumber" prop="phonenumber" v-if="columns.phonenumber.visible" width="116" />
+              <el-table-column label="状态" align="center" key="status" width="66" v-if="columns.status.visible">
                 <template #default="scope">
                   <el-switch
                     v-model="scope.row.status"
@@ -73,25 +73,27 @@
                   ></el-switch>
                 </template>
               </el-table-column>
-              <el-table-column label="创建时间" align="center" prop="createTime" v-if="columns.createTime.visible" width="160">
+              <el-table-column label="创建时间" align="center" prop="createTime" v-if="columns.createTime.visible" width="162">
                 <template #default="scope">
                   <span>{{ parseTime(scope.row.createTime) }}</span>
                 </template>
               </el-table-column>
-              <el-table-column label="操作" align="center" width="150" class-name="small-padding fixed-width">
+              <el-table-column label="操作" align="center" width="205" fixed="right" class-name="small-padding fixed-width">
                 <template #default="scope">
-                  <el-tooltip content="修改" placement="top" v-if="scope.row.userId !== 1">
-                    <el-button link type="primary" icon="Edit" @click="handleUpdate(scope.row)" v-hasPermi="['system:user:edit']"></el-button>
-                  </el-tooltip>
-                  <el-tooltip content="删除" placement="top" v-if="scope.row.userId !== 1">
-                    <el-button link type="primary" icon="Delete" @click="handleDelete(scope.row)" v-hasPermi="['system:user:remove']"></el-button>
-                  </el-tooltip>
-                  <el-tooltip content="重置密码" placement="top" v-if="scope.row.userId !== 1">
-                    <el-button link type="primary" icon="Key" @click="handleResetPwd(scope.row)" v-hasPermi="['system:user:resetPwd']"></el-button>
-                  </el-tooltip>
-                  <el-tooltip content="分配角色" placement="top" v-if="scope.row.userId !== 1">
-                    <el-button link type="primary" icon="CircleCheck" @click="handleAuthRole(scope.row)" v-hasPermi="['system:user:edit']"></el-button>
-                  </el-tooltip>
+                  <div class="table-action-cell" v-if="scope.row.userId !== 1">
+                    <el-button link type="primary" icon="Edit" @click="handleUpdate(scope.row)" v-hasPermi="['system:user:edit']">修改</el-button>
+                    <el-button link type="danger" icon="Delete" @click="handleDelete(scope.row)" v-hasPermi="['system:user:remove']">删除</el-button>
+                    <el-dropdown trigger="click" @command="cmd => handleCommand(cmd, scope.row)">
+                      <el-button link type="primary">更多<el-icon class="el-icon--right"><ArrowDown /></el-icon></el-button>
+                      <template #dropdown>
+                        <el-dropdown-menu>
+                          <el-dropdown-item command="handleResetPwd">重置密码</el-dropdown-item>
+                          <el-dropdown-item command="handleAuthRole">分配角色</el-dropdown-item>
+                        </el-dropdown-menu>
+                      </template>
+                    </el-dropdown>
+                  </div>
+                  <el-tag v-else size="small" type="info">超管锁定</el-tag>
                 </template>
               </el-table-column>
             </el-table>
@@ -557,3 +559,10 @@ onMounted(() => {
   })
 })
 </script>
+
+<style scoped>
+.dept-tree-col {
+  padding: 12px 10px;
+  overflow-x: auto;
+}
+</style>

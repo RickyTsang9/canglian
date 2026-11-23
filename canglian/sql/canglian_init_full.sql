@@ -45,7 +45,7 @@ CREATE TABLE `fin_account_subject` (
 
 LOCK TABLES `fin_account_subject` WRITE;
 /*!40000 ALTER TABLE `fin_account_subject` DISABLE KEYS */;
-INSERT INTO `fin_account_subject` VALUES (1,'1001','库存现金','asset','debit','0','admin','2026-11-22 10:36:54','',NULL,'星辰轻量总账预置科目'),(2,'1002','银行存款','asset','debit','0','admin','2026-11-22 10:36:54','',NULL,'星辰轻量总账预置科目'),(3,'1122','应收账款','asset','debit','0','admin','2026-11-22 10:36:54','',NULL,'星辰轻量总账预置科目'),(4,'2202','应付账款','liability','credit','0','admin','2026-11-22 10:36:54','',NULL,'星辰轻量总账预置科目'),(5,'6001','主营业务收入','income','credit','0','admin','2026-11-22 10:36:54','',NULL,'星辰轻量总账预置科目'),(6,'6401','主营业务成本','cost','debit','0','admin','2026-11-22 10:36:54','',NULL,'星辰轻量总账预置科目'),(9,'1405','库存商品','asset','debit','0','admin','2026-11-22 20:55:28','',NULL,'仓链标准科目'),(10,'2221','应交税费','liability','credit','0','admin','2026-11-22 20:55:28','',NULL,'仓链标准科目'),(11,'5301','营业外收入','profit_loss','credit','0','admin','2026-11-22 20:55:28','',NULL,'仓链标准科目-盘盈等'),(12,'5711','营业外支出','profit_loss','debit','0','admin','2026-11-22 20:55:28','',NULL,'仓链标准科目-盘亏等'),(13,'6602','管理费用','profit_loss','debit','0','admin','2026-11-22 20:55:28','',NULL,'仓链标准科目'),(14,'6603','财务费用','profit_loss','debit','0','admin','2026-11-22 20:55:28','',NULL,'仓链标准科目-银行手续费等'),(15,'6701','信用减值损失','profit_loss','debit','0','admin','2026-11-22 20:55:28','',NULL,'仓链标准科目-坏账核销与收回');
+INSERT INTO `fin_account_subject` VALUES (1,'1001','库存现金','asset','debit','0','admin','2026-11-22 10:36:54','',NULL,'仓链轻量总账预置科目'),(2,'1002','银行存款','asset','debit','0','admin','2026-11-22 10:36:54','',NULL,'仓链轻量总账预置科目'),(3,'1122','应收账款','asset','debit','0','admin','2026-11-22 10:36:54','',NULL,'仓链轻量总账预置科目'),(4,'2202','应付账款','liability','credit','0','admin','2026-11-22 10:36:54','',NULL,'仓链轻量总账预置科目'),(5,'6001','主营业务收入','income','credit','0','admin','2026-11-22 10:36:54','',NULL,'仓链轻量总账预置科目'),(6,'6401','主营业务成本','cost','debit','0','admin','2026-11-22 10:36:54','',NULL,'仓链轻量总账预置科目'),(9,'1405','库存商品','asset','debit','0','admin','2026-11-22 20:55:28','',NULL,'仓链标准科目'),(10,'2221','应交税费','liability','credit','0','admin','2026-11-22 20:55:28','',NULL,'仓链标准科目'),(11,'5301','营业外收入','profit_loss','credit','0','admin','2026-11-22 20:55:28','',NULL,'仓链标准科目-盘盈等'),(12,'5711','营业外支出','profit_loss','debit','0','admin','2026-11-22 20:55:28','',NULL,'仓链标准科目-盘亏等'),(13,'6602','管理费用','profit_loss','debit','0','admin','2026-11-22 20:55:28','',NULL,'仓链标准科目'),(14,'6603','财务费用','profit_loss','debit','0','admin','2026-11-22 20:55:28','',NULL,'仓链标准科目-银行手续费等'),(15,'6701','信用减值损失','profit_loss','debit','0','admin','2026-11-22 20:55:28','',NULL,'仓链标准科目-坏账核销与收回');
 /*!40000 ALTER TABLE `fin_account_subject` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -334,7 +334,7 @@ CREATE TABLE `fin_fiscal_period` (
 
 LOCK TABLES `fin_fiscal_period` WRITE;
 /*!40000 ALTER TABLE `fin_fiscal_period` DISABLE KEYS */;
-INSERT INTO `fin_fiscal_period` VALUES (1,'2026-01','2026-01-01','2026-01-31','open',NULL,NULL,'admin','2026-11-22 10:36:54','admin','2026-11-22 11:43:34','星辰轻量总账预置期间'),(2,'2026-02','2026-02-01','2026-02-28','open',NULL,NULL,'admin','2026-11-22 10:36:54','',NULL,'星辰轻量总账预置期间'),(3,'2026-03','2026-03-01','2026-03-31','open',NULL,NULL,'admin','2026-11-22 10:36:54','',NULL,'星辰轻量总账预置期间'),(4,'2026-04','2026-04-01','2026-04-30','open',NULL,NULL,'admin','2026-11-22 10:36:54','',NULL,'星辰轻量总账预置期间'),(5,'2026-05','2026-05-01','2026-05-31','open',NULL,NULL,'admin','2026-11-22 10:36:54','',NULL,'星辰轻量总账预置期间'),(6,'2026-06','2026-06-01','2026-06-30','open',NULL,NULL,'admin','2026-11-22 10:36:54','',NULL,'星辰轻量总账预置期间'),(7,'2026-07','2026-07-01','2026-07-31','open',NULL,NULL,'admin','2026-11-22 10:36:54','',NULL,'星辰轻量总账预置期间'),(8,'2026-08','2026-08-01','2026-08-31','open',NULL,NULL,'admin','2026-11-22 10:36:54','',NULL,'星辰轻量总账预置期间'),(9,'2026-09','2026-09-01','2026-09-30','open',NULL,NULL,'admin','2026-11-22 10:36:54','',NULL,'星辰轻量总账预置期间'),(10,'2026-10','2026-10-01','2026-10-31','open',NULL,NULL,'admin','2026-11-22 10:36:54','',NULL,'星辰轻量总账预置期间'),(11,'2026-11','2026-11-01','2026-11-30','open',NULL,NULL,'admin','2026-11-22 10:36:54','',NULL,'星辰轻量总账预置期间'),(12,'2026-12','2026-12-01','2026-12-31','open',NULL,NULL,'admin','2026-11-22 10:36:54','',NULL,'星辰轻量总账预置期间');
+INSERT INTO `fin_fiscal_period` VALUES (1,'2026-01','2026-01-01','2026-01-31','open',NULL,NULL,'admin','2026-11-22 10:36:54','admin','2026-11-22 11:43:34','仓链轻量总账预置期间'),(2,'2026-02','2026-02-01','2026-02-28','open',NULL,NULL,'admin','2026-11-22 10:36:54','',NULL,'仓链轻量总账预置期间'),(3,'2026-03','2026-03-01','2026-03-31','open',NULL,NULL,'admin','2026-11-22 10:36:54','',NULL,'仓链轻量总账预置期间'),(4,'2026-04','2026-04-01','2026-04-30','open',NULL,NULL,'admin','2026-11-22 10:36:54','',NULL,'仓链轻量总账预置期间'),(5,'2026-05','2026-05-01','2026-05-31','open',NULL,NULL,'admin','2026-11-22 10:36:54','',NULL,'仓链轻量总账预置期间'),(6,'2026-06','2026-06-01','2026-06-30','open',NULL,NULL,'admin','2026-11-22 10:36:54','',NULL,'仓链轻量总账预置期间'),(7,'2026-07','2026-07-01','2026-07-31','open',NULL,NULL,'admin','2026-11-22 10:36:54','',NULL,'仓链轻量总账预置期间'),(8,'2026-08','2026-08-01','2026-08-31','open',NULL,NULL,'admin','2026-11-22 10:36:54','',NULL,'仓链轻量总账预置期间'),(9,'2026-09','2026-09-01','2026-09-30','open',NULL,NULL,'admin','2026-11-22 10:36:54','',NULL,'仓链轻量总账预置期间'),(10,'2026-10','2026-10-01','2026-10-31','open',NULL,NULL,'admin','2026-11-22 10:36:54','',NULL,'仓链轻量总账预置期间'),(11,'2026-11','2026-11-01','2026-11-30','open',NULL,NULL,'admin','2026-11-22 10:36:54','',NULL,'仓链轻量总账预置期间'),(12,'2026-12','2026-12-01','2026-12-31','open',NULL,NULL,'admin','2026-11-22 10:36:54','',NULL,'仓链轻量总账预置期间');
 /*!40000 ALTER TABLE `fin_fiscal_period` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -575,7 +575,7 @@ CREATE TABLE `fin_payable` (
 
 LOCK TABLES `fin_payable` WRITE;
 /*!40000 ALTER TABLE `fin_payable` DISABLE KEYS */;
-INSERT INTO `fin_payable` VALUES (1,'ap20260101001',1,'inbound',1,NULL,NULL,'','2026-12-07',750.00,'1',300.00,'1','confirmed','2026-12-07','admin','2026-11-22 10:36:50','admin','2026-11-22 10:36:50','样例应付',NULL,NULL),(100,'PAY202310010001',100,'inbound',100,NULL,NULL,'','2026-12-22',5000.00,'1',0.00,'0','confirmed','2026-12-22','admin','2026-11-22 10:36:51','',NULL,NULL,NULL,NULL);
+INSERT INTO `fin_payable` VALUES (1,'ap20260101001',1,'inbound',1,'inbound',1,'inb20260101001','2026-12-07',750.00,'1',300.00,'1','confirmed','2026-12-07','admin','2026-11-22 10:36:50','admin','2026-11-22 10:36:50','样例应付',NULL,NULL),(100,'PAY202310010001',100,'inbound',100,'inbound',100,'IN202310010001','2026-12-22',5000.00,'1',0.00,'0','confirmed','2026-12-22','admin','2026-11-22 10:36:51','',NULL,NULL,NULL,NULL);
 /*!40000 ALTER TABLE `fin_payable` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -706,7 +706,7 @@ CREATE TABLE `fin_receivable` (
 
 LOCK TABLES `fin_receivable` WRITE;
 /*!40000 ALTER TABLE `fin_receivable` DISABLE KEYS */;
-INSERT INTO `fin_receivable` VALUES (1,'ar20260101001',1,'outbound',1,NULL,NULL,'','2026-12-22',560.00,'1',200.00,'1','confirmed','2026-12-22','admin','2026-11-22 10:36:50','admin','2026-11-22 10:36:50','样例应收',NULL,NULL,0.00),(100,'REC202310020001',100,'outbound',100,NULL,NULL,'','2026-12-22',990.00,'1',0.00,'0','confirmed','2026-12-22','admin','2026-11-22 10:36:51','',NULL,NULL,NULL,NULL,0.00);
+INSERT INTO `fin_receivable` VALUES (1,'ar20260101001',1,'outbound',1,'outbound',1,'out20260101001','2026-12-22',560.00,'1',200.00,'1','confirmed','2026-12-22','admin','2026-11-22 10:36:50','admin','2026-11-22 10:36:50','样例应收',NULL,NULL,0.00),(100,'REC202310020001',100,'outbound',100,'outbound',100,'OUT202310020001','2026-12-22',990.00,'1',0.00,'0','confirmed','2026-12-22','admin','2026-11-22 10:36:51','',NULL,NULL,NULL,NULL,0.00);
 /*!40000 ALTER TABLE `fin_receivable` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -1278,7 +1278,7 @@ CREATE TABLE `price_recent_transaction` (
   `unit_name` varchar(32) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT NULL COMMENT '基准单位',
   PRIMARY KEY (`recent_price_id`),
   UNIQUE KEY `uk_price_recent_transaction` (`customer_id`,`product_id`)
-) ENGINE=InnoDB AUTO_INCREMENT=5 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='最近成交价格表';
+) ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='最近成交价格表';
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -1287,7 +1287,7 @@ CREATE TABLE `price_recent_transaction` (
 
 LOCK TABLES `price_recent_transaction` WRITE;
 /*!40000 ALTER TABLE `price_recent_transaction` DISABLE KEYS */;
-INSERT INTO `price_recent_transaction` VALUES (1,104,105,25.00,'outbound',102,'2026-11-22','admin','2026-11-22 11:43:33','',NULL,'销货出库完成自动更新',NULL);
+INSERT INTO `price_recent_transaction` VALUES (5,1,1,28.00,'outbound',1,'2026-11-22','admin','2026-11-23 00:17:20','',NULL,'销售出库签收自动更新','件'),(6,100,100,99.00,'outbound',100,'2026-11-22','admin','2026-11-23 00:17:20','',NULL,'销售出库签收自动更新','个');
 /*!40000 ALTER TABLE `price_recent_transaction` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -1993,7 +1993,7 @@ CREATE TABLE `sys_logininfor` (
   PRIMARY KEY (`info_id`),
   KEY `idx_sys_logininfor_s` (`status`),
   KEY `idx_sys_logininfor_lt` (`login_time`)
-) ENGINE=InnoDB AUTO_INCREMENT=131 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='系统访问记录';
+) ENGINE=InnoDB AUTO_INCREMENT=139 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='系统访问记录';
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -2002,7 +2002,7 @@ CREATE TABLE `sys_logininfor` (
 
 LOCK TABLES `sys_logininfor` WRITE;
 /*!40000 ALTER TABLE `sys_logininfor` DISABLE KEYS */;
-INSERT INTO `sys_logininfor` VALUES (100,'admin','127.0.0.1','内网IP','Antigravity 2.34.0','Windows 10.0','0','登录成功','2026-11-22 10:38:55'),(101,'admin','127.0.0.1','内网IP','WindowsPowerShell 5.1.19041.6456','Windows 10.0','0','登录成功','2026-11-22 11:38:04'),(102,'admin','127.0.0.1','内网IP','WindowsPowerShell 5.1.19041.6456','Windows 10.0','0','登录成功','2026-11-22 11:40:09'),(103,'admin','127.0.0.1','内网IP','WindowsPowerShell 5.1.19041.6456','Windows 10.0','0','登录成功','2026-11-22 11:41:55'),(104,'admin','127.0.0.1','内网IP','WindowsPowerShell 5.1.19041.6456','Windows 10.0','0','登录成功','2026-11-22 11:43:02'),(105,'admin','127.0.0.1','内网IP','WindowsPowerShell 5.1.19041.6456','Windows 10.0','0','登录成功','2026-11-22 11:43:32'),(106,'admin','127.0.0.1','内网IP','Antigravity 2.34.0','Windows 10.0','0','登录成功','2026-11-22 11:45:55'),(107,'admin','127.0.0.1','内网IP','WindowsPowerShell 5.1.19041.6456','Windows 10.0','0','登录成功','2026-11-22 15:27:00'),(108,'admin','127.0.0.1','内网IP','Antigravity 2.34.0','Windows 10.0','0','登录成功','2026-11-22 15:27:40'),(109,'admin','127.0.0.1','内网IP','Antigravity 2.34.0','Windows 10.0','0','登录成功','2026-11-22 15:28:45'),(110,'admin','127.0.0.1','内网IP','Antigravity 2.34.0','Windows 10.0','0','登录成功','2026-11-22 15:29:22'),(111,'admin','127.0.0.1','内网IP','Antigravity 2.34.0','Windows 10.0','0','登录成功','2026-11-22 15:30:38'),(112,'admin','127.0.0.1','内网IP','Antigravity 2.34.0','Windows 10.0','0','登录成功','2026-11-22 15:32:20'),(113,'admin','127.0.0.1','内网IP','Antigravity 2.34.0','Windows 10.0','0','登录成功','2026-11-22 15:34:11'),(114,'admin','127.0.0.1','内网IP','Antigravity 2.34.0','Windows 10.0','0','登录成功','2026-11-22 15:35:34'),(115,'admin','127.0.0.1','内网IP','Antigravity 2.34.0','Windows 10.0','0','登录成功','2026-11-22 15:37:54'),(116,'admin','127.0.0.1','内网IP','Antigravity 2.34.0','Windows 10.0','0','登录成功','2026-11-22 15:39:11'),(117,'admin','127.0.0.1','内网IP','WindowsPowerShell 5.1.19041.6456','Windows 10.0','0','登录成功','2026-11-22 15:42:36'),(118,'admin','127.0.0.1','内网IP','Antigravity 2.34.0','Windows 10.0','0','登录成功','2026-11-22 15:43:11'),(119,'admin','127.0.0.1','内网IP','Python-urllib 3.13','','0','登录成功','2026-11-22 17:12:50'),(120,'admin','127.0.0.1','内网IP','Python-urllib 3.13','','0','登录成功','2026-11-22 17:14:20'),(121,'admin','127.0.0.1','内网IP','Python-urllib 3.13','','0','登录成功','2026-11-22 17:15:08'),(122,'admin','127.0.0.1','内网IP','Antigravity 2.34.0','Windows 10.0','0','登录成功','2026-11-22 17:15:42'),(123,'admin','127.0.0.1','内网IP','Python-urllib 3.13','','0','登录成功','2026-11-22 18:58:26'),(124,'admin','127.0.0.1','内网IP','Python-urllib 3.13','','0','登录成功','2026-11-22 18:59:50'),(125,'admin','127.0.0.1','内网IP','Python-urllib 3.13','','0','登录成功','2026-11-22 19:02:30'),(126,'admin','127.0.0.1','内网IP','Antigravity 2.34.0','Windows 10.0','0','登录成功','2026-11-22 19:04:15'),(127,'admin','127.0.0.1','内网IP','Antigravity 2.34.0','Windows 10.0','0','登录成功','2026-11-22 19:51:46'),(128,'admin','127.0.0.1','内网IP','Python-urllib 3.13','','1','用户不存在/密码错误','2026-11-22 22:45:19'),(129,'admin','127.0.0.1','内网IP','Python-urllib 3.13','','0','登录成功','2026-11-22 22:45:19'),(130,'admin','127.0.0.1','内网IP','Python-urllib 3.13','','0','登录成功','2026-11-22 22:46:16');
+INSERT INTO `sys_logininfor` VALUES (100,'admin','127.0.0.1','内网IP','Antigravity 2.34.0','Windows 10.0','0','登录成功','2026-11-22 10:38:55'),(101,'admin','127.0.0.1','内网IP','WindowsPowerShell 5.1.19041.6456','Windows 10.0','0','登录成功','2026-11-22 11:38:04'),(102,'admin','127.0.0.1','内网IP','WindowsPowerShell 5.1.19041.6456','Windows 10.0','0','登录成功','2026-11-22 11:40:09'),(103,'admin','127.0.0.1','内网IP','WindowsPowerShell 5.1.19041.6456','Windows 10.0','0','登录成功','2026-11-22 11:41:55'),(104,'admin','127.0.0.1','内网IP','WindowsPowerShell 5.1.19041.6456','Windows 10.0','0','登录成功','2026-11-22 11:43:02'),(105,'admin','127.0.0.1','内网IP','WindowsPowerShell 5.1.19041.6456','Windows 10.0','0','登录成功','2026-11-22 11:43:32'),(106,'admin','127.0.0.1','内网IP','Antigravity 2.34.0','Windows 10.0','0','登录成功','2026-11-22 11:45:55'),(107,'admin','127.0.0.1','内网IP','WindowsPowerShell 5.1.19041.6456','Windows 10.0','0','登录成功','2026-11-22 15:27:00'),(108,'admin','127.0.0.1','内网IP','Antigravity 2.34.0','Windows 10.0','0','登录成功','2026-11-22 15:27:40'),(109,'admin','127.0.0.1','内网IP','Antigravity 2.34.0','Windows 10.0','0','登录成功','2026-11-22 15:28:45'),(110,'admin','127.0.0.1','内网IP','Antigravity 2.34.0','Windows 10.0','0','登录成功','2026-11-22 15:29:22'),(111,'admin','127.0.0.1','内网IP','Antigravity 2.34.0','Windows 10.0','0','登录成功','2026-11-22 15:30:38'),(112,'admin','127.0.0.1','内网IP','Antigravity 2.34.0','Windows 10.0','0','登录成功','2026-11-22 15:32:20'),(113,'admin','127.0.0.1','内网IP','Antigravity 2.34.0','Windows 10.0','0','登录成功','2026-11-22 15:34:11'),(114,'admin','127.0.0.1','内网IP','Antigravity 2.34.0','Windows 10.0','0','登录成功','2026-11-22 15:35:34'),(115,'admin','127.0.0.1','内网IP','Antigravity 2.34.0','Windows 10.0','0','登录成功','2026-11-22 15:37:54'),(116,'admin','127.0.0.1','内网IP','Antigravity 2.34.0','Windows 10.0','0','登录成功','2026-11-22 15:39:11'),(117,'admin','127.0.0.1','内网IP','WindowsPowerShell 5.1.19041.6456','Windows 10.0','0','登录成功','2026-11-22 15:42:36'),(118,'admin','127.0.0.1','内网IP','Antigravity 2.34.0','Windows 10.0','0','登录成功','2026-11-22 15:43:11'),(119,'admin','127.0.0.1','内网IP','Python-urllib 3.13','','0','登录成功','2026-11-22 17:12:50'),(120,'admin','127.0.0.1','内网IP','Python-urllib 3.13','','0','登录成功','2026-11-22 17:14:20'),(121,'admin','127.0.0.1','内网IP','Python-urllib 3.13','','0','登录成功','2026-11-22 17:15:08'),(122,'admin','127.0.0.1','内网IP','Antigravity 2.34.0','Windows 10.0','0','登录成功','2026-11-22 17:15:42'),(123,'admin','127.0.0.1','内网IP','Python-urllib 3.13','','0','登录成功','2026-11-22 18:58:26'),(124,'admin','127.0.0.1','内网IP','Python-urllib 3.13','','0','登录成功','2026-11-22 18:59:50'),(125,'admin','127.0.0.1','内网IP','Python-urllib 3.13','','0','登录成功','2026-11-22 19:02:30'),(126,'admin','127.0.0.1','内网IP','Antigravity 2.34.0','Windows 10.0','0','登录成功','2026-11-22 19:04:15'),(127,'admin','127.0.0.1','内网IP','Antigravity 2.34.0','Windows 10.0','0','登录成功','2026-11-22 19:51:46'),(128,'admin','127.0.0.1','内网IP','Python-urllib 3.13','','1','用户不存在/密码错误','2026-11-22 22:45:19'),(129,'admin','127.0.0.1','内网IP','Python-urllib 3.13','','0','登录成功','2026-11-22 22:45:19'),(130,'admin','127.0.0.1','内网IP','Python-urllib 3.13','','0','登录成功','2026-11-22 22:46:16'),(131,'admin','127.0.0.1','内网IP','Antigravity 2.34.0','Windows 10.0','0','登录成功','2026-11-22 22:57:09'),(132,'admin','127.0.0.1','内网IP','Antigravity 2.34.0','Windows 10.0','0','退出成功','2026-11-22 23:17:22'),(133,'admin','127.0.0.1','内网IP','Antigravity 2.34.0','Windows 10.0','0','登录成功','2026-11-22 23:17:41'),(134,'admin','127.0.0.1','内网IP','Antigravity 2.34.0','Windows 10.0','0','登录成功','2026-11-22 23:59:45'),(135,'admin','127.0.0.1','内网IP','Antigravity 2.34.0','Windows 10.0','0','退出成功','2026-11-23 00:06:23'),(136,'admin','127.0.0.1','内网IP','Antigravity 2.34.0','Windows 10.0','0','登录成功','2026-11-23 00:06:34'),(137,'admin','127.0.0.1','内网IP','Antigravity 2.34.0','Windows 10.0','0','登录成功','2026-11-23 00:06:48'),(138,'admin','127.0.0.1','内网IP','Antigravity 2.34.0','Windows 10.0','0','登录成功','2026-11-23 00:06:58');
 /*!40000 ALTER TABLE `sys_logininfor` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -2076,7 +2076,7 @@ CREATE TABLE `sys_notice` (
 
 LOCK TABLES `sys_notice` WRITE;
 /*!40000 ALTER TABLE `sys_notice` DISABLE KEYS */;
-INSERT INTO `sys_notice` VALUES (1,'温馨提醒：2018-07-01 仓链新版本发布啦','2',_binary '新版本内容','0','admin','2026-11-22 10:36:47','',NULL,'管理员'),(2,'维护通知：2018-07-01 仓链系统凌晨维护','1',_binary '维护内容','0','admin','2026-11-22 10:36:47','',NULL,'管理员');
+INSERT INTO `sys_notice` VALUES (1,'温馨提醒：2018-07-01 仓链新版本发布啦','2',0xE696B0E78988E69CACE58685E5AEB9,'0','admin','2026-11-22 10:36:47','',NULL,'管理员'),(2,'维护通知：2018-07-01 仓链系统凌晨维护','1',0xE7BBB4E68AA4E58685E5AEB9,'0','admin','2026-11-22 10:36:47','',NULL,'管理员');
 /*!40000 ALTER TABLE `sys_notice` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -2300,7 +2300,7 @@ CREATE TABLE `sys_user` (
 
 LOCK TABLES `sys_user` WRITE;
 /*!40000 ALTER TABLE `sys_user` DISABLE KEYS */;
-INSERT INTO `sys_user` VALUES (1,103,'admin','仓链','00','ry@163.com','15888888888','1','','$2a$10$7JB720yubVSZvUI0rEqK/.VqGOZTH.ulu33dHOiBE8ByOhJIrdAu2','0','0','127.0.0.1','2026-11-22 22:46:18','2026-11-22 10:36:44','admin','2026-11-22 10:36:44','',NULL,'管理员'),(2,105,'ry','仓链','00','ry@qq.com','15666666666','1','','$2a$10$7JB720yubVSZvUI0rEqK/.VqGOZTH.ulu33dHOiBE8ByOhJIrdAu2','0','0','127.0.0.1','2026-11-22 10:36:44','2026-11-22 10:36:44','admin','2026-11-22 10:36:44','',NULL,'测试员');
+INSERT INTO `sys_user` VALUES (1,103,'admin','仓链','00','admin@canglian.cn','15888888888','1','','$2a$10$7JB720yubVSZvUI0rEqK/.VqGOZTH.ulu33dHOiBE8ByOhJIrdAu2','0','0','127.0.0.1','2026-11-23 00:07:00','2026-11-22 10:36:44','admin','2026-11-22 10:36:44','',NULL,'管理员'),(2,105,'ry','仓链','00','ops@canglian.cn','15666666666','1','','$2a$10$7JB720yubVSZvUI0rEqK/.VqGOZTH.ulu33dHOiBE8ByOhJIrdAu2','0','0','127.0.0.1','2026-11-22 10:36:44','2026-11-22 10:36:44','admin','2026-11-22 10:36:44','',NULL,'测试员');
 /*!40000 ALTER TABLE `sys_user` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -3065,6 +3065,10 @@ INSERT INTO `wms_transfer_item` VALUES (1,1,2,0,0,'',10.00,20.00,200.00,NULL,1.0
 UNLOCK TABLES;
 
 --
+-- Dumping events for database 'canglian'
+--
+
+--
 -- Dumping routines for database 'canglian'
 --
 /*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
@@ -3077,4 +3081,4 @@ UNLOCK TABLES;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2026-11-22 22:56:26
+-- Dump completed on 2026-11-23  0:41:53

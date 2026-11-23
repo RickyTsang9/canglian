@@ -35,34 +35,40 @@
     </el-row>
 
     <el-table v-loading="loading" :data="receiptList" @selection-change="handleSelectionChange">
-      <el-table-column type="selection" width="50" align="center" />
-      <el-table-column label="收款单号" align="center" prop="receiptNo" min-width="150" />
-      <el-table-column label="客户" align="center" min-width="130" show-overflow-tooltip>
+      <el-table-column type="selection" width="46" align="center" />
+      <el-table-column label="收款单号" align="center" prop="receiptNo" min-width="142" show-overflow-tooltip />
+      <el-table-column label="客户" align="center" min-width="125" show-overflow-tooltip>
         <template #default="scope">{{ getCustomerName(scope.row.customerId) }}</template>
       </el-table-column>
-      <el-table-column label="关联应收" align="center" width="110">
-        <template #default="scope">{{ scope.row.receivableId ? `AR #${scope.row.receivableId}` : '-' }}</template>
+      <el-table-column label="关联应收" align="center" min-width="136" show-overflow-tooltip>
+        <template #default="scope">{{ getReceivableNo(scope.row.receivableId) }}</template>
       </el-table-column>
-      <el-table-column label="资金账户" align="center" min-width="125" show-overflow-tooltip>
+      <el-table-column label="资金账户" align="center" min-width="105" show-overflow-tooltip>
         <template #default="scope">{{ getFundAccountName(scope.row.fundAccountId) }}</template>
       </el-table-column>
-      <el-table-column label="收款金额" align="right" prop="amount" width="110" />
-      <el-table-column label="收款日期" align="center" width="115">
+      <el-table-column label="收款金额" align="right" header-align="right" prop="amount" width="102">
+        <template #default="scope">{{ Number(scope.row.amount || 0).toFixed(2) }}</template>
+      </el-table-column>
+      <el-table-column label="收款日期" align="center" width="106">
         <template #default="scope">{{ parseTime(scope.row.receiptDate, '{y}-{m}-{d}') }}</template>
       </el-table-column>
-      <el-table-column label="状态" align="center" width="90">
+      <el-table-column label="状态" align="center" width="80">
         <template #default="scope">
-          <el-tag :type="scope.row.status === '1' ? 'success' : 'info'">{{ scope.row.status === '1' ? '已确认' : '草稿' }}</el-tag>
+          <el-tag size="small" :type="scope.row.status === '1' ? 'success' : 'info'">{{ scope.row.status === '1' ? '已确认' : '草稿' }}</el-tag>
         </template>
       </el-table-column>
-      <el-table-column label="审核人" align="center" prop="auditBy" width="90" />
-      <el-table-column label="操作" width="290" align="center">
+      <el-table-column label="审核人" align="center" prop="auditBy" width="80">
+        <template #default="scope">{{ scope.row.auditBy || '-' }}</template>
+      </el-table-column>
+      <el-table-column label="操作" width="225" fixed="right" align="center">
         <template #default="scope">
-          <el-button link type="primary" icon="Edit" :disabled="scope.row.status === '1'" @click="handleUpdate(scope.row)" v-hasPermi="['business:receipt:edit']">修改</el-button>
-          <el-button link type="success" icon="CircleCheck" v-if="scope.row.status !== '1'" @click="handleConfirm(scope.row)" v-hasPermi="['business:receipt:confirm']">确认入账</el-button>
-          <el-button link type="warning" icon="RefreshLeft" v-if="scope.row.status === '1'" @click="handleUnconfirm(scope.row)" v-hasPermi="['business:receipt:confirm']">反确认</el-button>
-          <el-button link type="danger" icon="Delete" :disabled="scope.row.status === '1'" @click="handleDelete(scope.row)" v-hasPermi="['business:receipt:remove']">删除</el-button>
-          <el-button link type="primary" icon="Printer" @click="handlePrint(scope.row)">打印</el-button>
+          <div class="table-action-cell">
+            <el-button v-if="scope.row.status !== '1'" link type="primary" icon="Edit" @click="handleUpdate(scope.row)" v-hasPermi="['business:receipt:edit']">修改</el-button>
+            <el-button v-if="scope.row.status !== '1'" link type="success" icon="CircleCheck" @click="handleConfirm(scope.row)" v-hasPermi="['business:receipt:confirm']">确认</el-button>
+            <el-button v-if="scope.row.status === '1'" link type="warning" icon="RefreshLeft" @click="handleUnconfirm(scope.row)" v-hasPermi="['business:receipt:confirm']">反确认</el-button>
+            <el-button link type="primary" icon="Printer" @click="handlePrint(scope.row)">打印</el-button>
+            <el-button v-if="scope.row.status !== '1'" link type="danger" icon="Delete" @click="handleDelete(scope.row)" v-hasPermi="['business:receipt:remove']">删除</el-button>
+          </div>
         </template>
       </el-table-column>
     </el-table>
@@ -70,8 +76,8 @@
     <pagination v-show="total > 0" :total="total" v-model:page="queryParams.pageNum" v-model:limit="queryParams.pageSize" @pagination="getList" />
 
     <el-dialog :title="title" v-model="open" width="760px" append-to-body>
-      <el-form ref="receiptRef" :model="form" :rules="rules" label-width="95px">
-        <el-row>
+      <el-form ref="receiptRef" :model="form" :rules="rules" label-width="110px">
+        <el-row :gutter="12">
           <el-col :span="12">
             <el-form-item label="收款单号" prop="receiptNo">
               <el-input v-model="form.receiptNo" placeholder="留空自动生成" />
@@ -80,15 +86,15 @@
           <el-col :span="12">
             <el-form-item label="客户" prop="customerId">
               <el-select v-model="form.customerId" placeholder="请选择客户" filterable style="width: 100%" @change="handleCustomerChange">
-                <el-option v-for="c in customerOptions" :key="c.customerId" :label="`${c.customerCode || ''} - ${c.customerName}`" :value="c.customerId" />
+                <el-option v-for="c in customerOptions" :key="c.customerId" :label="c.customerName" :value="c.customerId" />
               </el-select>
             </el-form-item>
           </el-col>
         </el-row>
-        <el-row>
+        <el-row :gutter="12">
           <el-col :span="12">
             <el-form-item label="关联应收单" prop="receivableId">
-              <el-select v-model="form.receivableId" placeholder="按客户自动过滤未收应收（可选）" clearable filterable style="width: 100%" @change="handleArSelect">
+              <el-select v-model="form.receivableId" placeholder="按客户过滤（可选）" clearable filterable style="width: 100%" @change="handleArSelect">
                 <el-option
                   v-for="r in openReceivables"
                   :key="r.receivableId"
@@ -104,10 +110,10 @@
             </el-form-item>
           </el-col>
         </el-row>
-        <el-row>
+        <el-row :gutter="12">
           <el-col :span="12">
             <el-form-item label="收款日期" prop="receiptDate">
-              <el-date-picker v-model="form.receiptDate" type="date" value-format="YYYY-MM-DD" style="width: 100%" />
+              <el-date-picker v-model="form.receiptDate" type="date" value-format="YYYY-MM-DD" placeholder="请选择收款日期" style="width: 100%" />
             </el-form-item>
           </el-col>
           <el-col :span="12">
@@ -121,11 +127,11 @@
             </el-form-item>
           </el-col>
         </el-row>
-        <el-row>
+        <el-row :gutter="12">
           <el-col :span="12">
             <el-form-item label="入账资金账户" prop="fundAccountId">
-              <el-select v-model="form.fundAccountId" placeholder="请选择入账资金账户（必填）" filterable style="width: 100%">
-                <el-option v-for="acc in activeFundAccountOptions" :key="acc.accountId" :label="`${acc.accountNo || ''} - ${acc.accountName}`" :value="acc.accountId" />
+              <el-select v-model="form.fundAccountId" placeholder="请选择入账资金账户" filterable style="width: 100%">
+                <el-option v-for="acc in activeFundAccountOptions" :key="acc.accountId" :label="acc.accountName" :value="acc.accountId" />
               </el-select>
             </el-form-item>
           </el-col>
@@ -142,6 +148,7 @@
 
 <script setup name="Receipt">
 import { listReceipt, addReceipt, delReceipt, getReceipt, updateReceipt, confirmReceipt, unconfirmReceipt } from "@/api/business/receipt"
+import { listReceivable } from "@/api/business/receivable"
 import { useBusinessOptions } from "@/utils/businessOptions"
 import { printFinancialDocument } from "@/utils/documentPrint"
 
@@ -151,6 +158,17 @@ const {
   loadCustomers, loadFundAccounts, fetchOpenReceivables,
   getCustomerName, getFundAccountName
 } = useBusinessOptions()
+
+const receivableNoMap = reactive({})
+function loadReceivableNos() {
+  listReceivable({ pageNum: 1, pageSize: 500 }).then(r => {
+    ;(r.rows || []).forEach(it => { receivableNoMap[it.receivableId] = it.receivableNo })
+  }).catch(() => {})
+}
+function getReceivableNo(id) {
+  if (!id) return "-"
+  return receivableNoMap[id] || `AR #${id}`
+}
 
 function handlePrint(row) {
   printFinancialDocument({
@@ -270,5 +288,5 @@ function handleDelete(row) {
   }).catch(() => {})
 }
 
-loadFundAccounts(); loadCustomers(); getList()
+loadFundAccounts(); loadCustomers(); loadReceivableNos(); getList()
 </script>

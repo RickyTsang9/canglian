@@ -12,8 +12,8 @@
       <el-form :inline="true">
         <el-form-item label="默认成本算法">
           <el-select v-model="selectedMethod" style="width: 220px" :disabled="!costConfig.canSwitch">
-            <el-option label="移动加权平均 (moving)" value="moving" />
-            <el-option label="先进先出 (fifo)" value="fifo" />
+            <el-option label="移动加权平均" value="moving" />
+            <el-option label="先进先出" value="fifo" />
           </el-select>
         </el-form-item>
         <el-form-item>
@@ -86,13 +86,13 @@
 
       <el-tab-pane label="受控成本调价" name="adjust">
         <el-alert
-          title="当发生期初成本修正或运费分摊需调整结存成本均价时使用，系统将写入不可篡改的 cost_adjust 成本流水与凭证事件。"
+          title="当发生期初成本修正或运费分摊需调整结存成本均价时使用，系统将写入不可篡改的成本调价流水与凭证事件。"
           type="warning"
           show-icon
           :closable="false"
           style="margin-bottom: 14px"
         />
-        <el-form ref="adjustRef" :model="adjustForm" :rules="adjustRules" label-width="110px" style="max-width: 680px">
+        <el-form ref="adjustRef" :model="adjustForm" :rules="adjustRules" label-width="128px" style="max-width: 680px">
           <el-form-item label="仓库" prop="warehouseId">
             <el-select v-model="adjustForm.warehouseId" placeholder="请选择仓库" filterable style="width: 100%">
               <el-option v-for="w in warehouseOptions" :key="w.warehouseId" :label="w.warehouseName" :value="w.warehouseId" />
@@ -137,9 +137,9 @@
             <el-col :span="12">
               <el-form-item label="单据类型" prop="billType">
                 <el-select v-model="form.billType" placeholder="请选择单据类型" allow-create filterable style="width: 100%">
-                  <el-option label="采购入库(inbound)" value="inbound" />
-                  <el-option label="销售出库(outbound)" value="outbound" />
-                  <el-option label="手工模拟(manual)" value="manual" />
+                  <el-option label="采购入库" value="inbound" />
+                  <el-option label="销售出库" value="outbound" />
+                  <el-option label="手工模拟" value="manual" />
                 </el-select>
               </el-form-item>
             </el-col>

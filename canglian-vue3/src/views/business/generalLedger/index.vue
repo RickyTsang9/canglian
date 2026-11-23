@@ -36,11 +36,15 @@
               <el-tag :type="scope.row.status === '0' ? 'success' : 'info'" size="small">{{ scope.row.status === '0' ? '正常' : '停用' }}</el-tag>
             </template>
           </el-table-column>
-          <el-table-column label="备注" prop="remark" min-width="160" show-overflow-tooltip />
-          <el-table-column label="操作" align="center" width="150">
+          <el-table-column label="备注" prop="remark" min-width="160" show-overflow-tooltip>
+            <template #default="scope">{{ scope.row.remark || '-' }}</template>
+          </el-table-column>
+          <el-table-column label="操作" align="center" width="150" fixed="right">
             <template #default="scope">
-              <el-button link type="primary" icon="Edit" @click="openSubjectDialog(scope.row)" v-hasPermi="['business:generalLedger:edit']">修改</el-button>
-              <el-button link type="danger" icon="Delete" @click="handleDeleteSubject(scope.row)" v-hasPermi="['business:generalLedger:edit']">删除</el-button>
+              <div class="table-action-cell">
+                <el-button link type="primary" icon="Edit" @click="openSubjectDialog(scope.row)" v-hasPermi="['business:generalLedger:edit']">修改</el-button>
+                <el-button link type="danger" icon="Delete" @click="handleDeleteSubject(scope.row)" v-hasPermi="['business:generalLedger:edit']">删除</el-button>
+              </div>
             </template>
           </el-table-column>
         </el-table>
@@ -96,26 +100,30 @@
           </el-form-item>
         </el-form>
         <el-table v-loading="periodLoading" :data="periodList" border>
-          <el-table-column label="期间编码" align="center" prop="periodCode" width="120" />
-          <el-table-column label="开始日期" align="center" width="125">
+          <el-table-column label="期间编码" align="center" prop="periodCode" min-width="130" />
+          <el-table-column label="开始日期" align="center" min-width="140">
             <template #default="scope">{{ parseTime(scope.row.startDate, '{y}-{m}-{d}') }}</template>
           </el-table-column>
-          <el-table-column label="结束日期" align="center" width="125">
+          <el-table-column label="结束日期" align="center" min-width="140">
             <template #default="scope">{{ parseTime(scope.row.endDate, '{y}-{m}-{d}') }}</template>
           </el-table-column>
-          <el-table-column label="结账状态" align="center" width="100">
+          <el-table-column label="结账状态" align="center" min-width="120">
             <template #default="scope">
-              <el-tag :type="scope.row.closeStatus === 'closed' ? 'danger' : 'success'">
+              <el-tag :type="scope.row.closeStatus === 'closed' ? 'danger' : 'success'" size="small">
                 {{ scope.row.closeStatus === 'closed' ? '已结账' : '未结账' }}
               </el-tag>
             </template>
           </el-table-column>
-          <el-table-column label="结账人" align="center" prop="closeBy" width="100" />
-          <el-table-column label="操作" align="center" width="260">
+          <el-table-column label="结账人" align="center" prop="closeBy" min-width="120">
+            <template #default="scope">{{ scope.row.closeBy || '-' }}</template>
+          </el-table-column>
+          <el-table-column label="操作" align="center" width="220" fixed="right">
             <template #default="scope">
-              <el-button link type="info" icon="Checked" @click="openReadinessDrawer(scope.row, false)">结账前检查</el-button>
-              <el-button v-if="scope.row.closeStatus !== 'closed'" link type="primary" @click="openReadinessDrawer(scope.row, true)" v-hasPermi="['business:generalLedger:close']">结账</el-button>
-              <el-button v-else link type="warning" @click="handleReopen(scope.row)" v-hasPermi="['business:generalLedger:reopen']">反结账</el-button>
+              <div class="table-action-cell">
+                <el-button link type="info" icon="Checked" @click="openReadinessDrawer(scope.row, false)">结账前检查</el-button>
+                <el-button v-if="scope.row.closeStatus !== 'closed'" link type="primary" @click="openReadinessDrawer(scope.row, true)" v-hasPermi="['business:generalLedger:close']">结账</el-button>
+                <el-button v-else link type="warning" @click="handleReopen(scope.row)" v-hasPermi="['business:generalLedger:reopen']">反结账</el-button>
+              </div>
             </template>
           </el-table-column>
         </el-table>
@@ -148,11 +156,15 @@
           <el-table-column label="辅助核算" width="95" align="center">
             <template #default="scope">{{ auxiliaryTypeMap[scope.row.auxiliaryType] || scope.row.auxiliaryType || '无' }}</template>
           </el-table-column>
-          <el-table-column label="摘要模板" prop="summaryTemplate" min-width="180" show-overflow-tooltip />
-          <el-table-column label="操作" width="135" align="center">
+          <el-table-column label="摘要模板" prop="summaryTemplate" min-width="180" show-overflow-tooltip>
+            <template #default="scope">{{ scope.row.summaryTemplate || '-' }}</template>
+          </el-table-column>
+          <el-table-column label="操作" width="150" align="center" fixed="right">
             <template #default="scope">
-              <el-button link type="primary" icon="Edit" @click="openTemplateDialog(scope.row)" v-hasPermi="['business:generalLedger:edit']">修改</el-button>
-              <el-button link type="danger" icon="Delete" @click="handleDeleteTemplate(scope.row)" v-hasPermi="['business:generalLedger:edit']">删除</el-button>
+              <div class="table-action-cell">
+                <el-button link type="primary" icon="Edit" @click="openTemplateDialog(scope.row)" v-hasPermi="['business:generalLedger:edit']">修改</el-button>
+                <el-button link type="danger" icon="Delete" @click="handleDeleteTemplate(scope.row)" v-hasPermi="['business:generalLedger:edit']">删除</el-button>
+              </div>
             </template>
           </el-table-column>
         </el-table>
@@ -200,10 +212,10 @@
       <el-form :model="templateForm" label-width="95px">
         <el-form-item label="事件类型" required>
           <el-select v-model="templateForm.eventType" placeholder="请选择事件类型" filterable allow-create style="width: 100%">
-            <el-option v-for="(label, code) in eventTypeMap" :key="code" :label="`${label} (${code})`" :value="code" />
+            <el-option v-for="(label, code) in eventTypeMap" :key="code" :label="label" :value="code" />
           </el-select>
         </el-form-item>
-        <el-form-item label="分录行号" required><el-input-number v-model="templateForm.entrySeq" :min="1" controls-position="right" /></el-form-item>
+        <el-form-item label="分录行号" required><el-input-number v-model="templateForm.entrySeq" :min="1" controls-position="right" style="width: 100%" /></el-form-item>
         <el-form-item label="借贷方向" required>
           <el-radio-group v-model="templateForm.direction">
             <el-radio value="debit">借方</el-radio>

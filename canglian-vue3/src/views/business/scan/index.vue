@@ -3,9 +3,9 @@
     <el-tabs v-model="activeTab" type="border-card">
       <!-- 1. 扫码查询 -->
       <el-tab-pane label="条码/库位/库存解析" name="lookup">
-        <el-row :gutter="16">
-          <el-col :xs="24" :md="8">
-            <el-card shadow="never">
+        <el-row :gutter="16" class="equal-row">
+          <el-col :xs="24" :md="8" class="equal-col">
+            <el-card shadow="never" class="equal-card">
               <template #header>商品/包装条码解析</template>
               <el-form :model="productScanForm" label-width="80px">
                 <el-form-item label="条码">
@@ -24,8 +24,8 @@
               </el-descriptions>
             </el-card>
           </el-col>
-          <el-col :xs="24" :md="8">
-            <el-card shadow="never">
+          <el-col :xs="24" :md="8" class="equal-col">
+            <el-card shadow="never" class="equal-card">
               <template #header>库位扫码解析</template>
               <el-form :model="locationScanForm" label-width="80px">
                 <el-form-item label="库位码">
@@ -40,8 +40,8 @@
               </el-descriptions>
             </el-card>
           </el-col>
-          <el-col :xs="24" :md="8">
-            <el-card shadow="never">
+          <el-col :xs="24" :md="8" class="equal-col">
+            <el-card shadow="never" class="equal-card">
               <template #header>实时库存查询（支持批次过滤）</template>
               <el-form :model="stockScanForm" label-width="70px">
                 <el-form-item label="条码">
@@ -127,7 +127,7 @@
 
       <!-- 3. 扫码出库复核 -->
       <el-tab-pane label="出库扫码复核" name="outboundVerify">
-        <el-form :model="verifyForm" label-width="90px" inline>
+        <el-form :model="verifyForm" label-width="108px" inline>
           <el-form-item label="待核出库单" required>
             <el-select v-model="verifyForm.outboundId" placeholder="请选择待复核出库单" filterable style="width: 300px">
               <el-option v-for="ob in pendingVerifyOutbounds" :key="ob.outboundId" :label="`${ob.outboundNo} | ${getWarehouseName(ob.warehouseId)} | 数量:${ob.totalQty}`" :value="ob.outboundId" />
@@ -214,18 +214,18 @@
 
       <!-- 5. 扫码盘点与调拨 -->
       <el-tab-pane label="扫码盘点/调拨" name="checkTransfer">
-        <el-row :gutter="16">
-          <el-col :xs="24" :lg="12">
-            <el-card shadow="never">
+        <el-row :gutter="16" class="equal-row">
+          <el-col :xs="24" :lg="12" class="equal-col">
+            <el-card shadow="never" class="equal-card">
               <template #header>扫码盘点建单（支持批次）</template>
-              <el-form :model="inventoryCheckForm" label-width="80px" inline>
+              <el-form :model="inventoryCheckForm" label-width="86px" inline>
                 <el-form-item label="仓库" required>
-                  <el-select v-model="inventoryCheckForm.warehouseId" placeholder="仓库" filterable style="width: 155px">
+                  <el-select v-model="inventoryCheckForm.warehouseId" placeholder="请选择仓库" filterable style="width: 155px">
                     <el-option v-for="w in activeWarehouseOptions" :key="w.warehouseId" :label="w.warehouseName" :value="w.warehouseId" />
                   </el-select>
                 </el-form-item>
                 <el-form-item label="库位码" required>
-                  <el-input v-model="inventoryCheckForm.locationCode" placeholder="库位编码" style="width: 120px" />
+                  <el-input v-model="inventoryCheckForm.locationCode" placeholder="请输入库位码" style="width: 120px" />
                 </el-form-item>
                 <el-form-item label="批次号">
                   <el-input v-model="inventoryCheckForm.batchNo" placeholder="选填" style="width: 115px" />
@@ -239,6 +239,7 @@
                 <el-form-item>
                   <el-button type="success" @click="handleAppendInventoryCheckItem">加入</el-button>
                   <el-button type="primary" @click="handleInventoryCheck">生成盘点单</el-button>
+                  <el-button @click="inventoryCheckItemList = []; inventoryCheckResult = {}">清空</el-button>
                 </el-form-item>
               </el-form>
               <el-table v-if="inventoryCheckItemList.length" :data="inventoryCheckItemList" border size="small">
@@ -255,25 +256,25 @@
             </el-card>
           </el-col>
 
-          <el-col :xs="24" :lg="12">
-            <el-card shadow="never">
+          <el-col :xs="24" :lg="12" class="equal-col">
+            <el-card shadow="never" class="equal-card">
               <template #header>扫码调拨建单（支持批次）</template>
-              <el-form :model="transferForm" label-width="80px" inline>
+              <el-form :model="transferForm" label-width="86px" inline>
                 <el-form-item label="调出仓" required>
-                  <el-select v-model="transferForm.outWarehouseId" placeholder="调出仓" filterable style="width: 145px">
+                  <el-select v-model="transferForm.outWarehouseId" placeholder="请选择调出仓" filterable style="width: 145px">
                     <el-option v-for="w in activeWarehouseOptions" :key="w.warehouseId" :label="w.warehouseName" :value="w.warehouseId" />
                   </el-select>
                 </el-form-item>
                 <el-form-item label="调入仓" required>
-                  <el-select v-model="transferForm.inWarehouseId" placeholder="调入仓" filterable style="width: 145px">
+                  <el-select v-model="transferForm.inWarehouseId" placeholder="请选择调入仓" filterable style="width: 145px">
                     <el-option v-for="w in activeWarehouseOptions" :key="w.warehouseId" :label="w.warehouseName" :value="w.warehouseId" />
                   </el-select>
                 </el-form-item>
                 <el-form-item label="出库位码" required>
-                  <el-input v-model="transferForm.outLocationCode" placeholder="调出库位" style="width: 115px" />
+                  <el-input v-model="transferForm.outLocationCode" placeholder="请输入调出库位" style="width: 120px" />
                 </el-form-item>
                 <el-form-item label="入库位码" required>
-                  <el-input v-model="transferForm.inLocationCode" placeholder="调入库位" style="width: 115px" />
+                  <el-input v-model="transferForm.inLocationCode" placeholder="请输入调入库位" style="width: 120px" />
                 </el-form-item>
                 <el-form-item label="批次号">
                   <el-input v-model="transferForm.batchNo" placeholder="选填" style="width: 110px" />
@@ -287,6 +288,7 @@
                 <el-form-item>
                   <el-button type="success" @click="handleAppendTransferItem">加入</el-button>
                   <el-button type="primary" @click="handleTransfer">生成调拨单</el-button>
+                  <el-button @click="transferItemList = []; transferResult = {}">清空</el-button>
                 </el-form-item>
               </el-form>
               <el-table v-if="transferItemList.length" :data="transferItemList" border size="small">
@@ -564,6 +566,18 @@ function handleTransfer() {
 </script>
 
 <style scoped>
+.equal-row {
+  display: flex;
+  flex-wrap: wrap;
+}
+.equal-col {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 12px;
+}
+.equal-card {
+  flex: 1;
+}
 @media (max-width: 768px) {
   .scan-pda-container :deep(.el-form--inline .el-form-item) {
     display: flex;

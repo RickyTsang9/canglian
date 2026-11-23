@@ -36,36 +36,42 @@
     </el-row>
 
     <el-table v-loading="loading" :data="stockLogList" border>
-      <el-table-column label="流水编号" align="center" prop="stockLogId" width="90" />
-      <el-table-column label="仓库" align="center" min-width="120" show-overflow-tooltip>
+      <el-table-column label="流水号" align="center" prop="stockLogId" width="72" />
+      <el-table-column label="仓库" align="center" min-width="95" show-overflow-tooltip>
         <template #default="scope">
           <span>{{ getWarehouseName(scope.row.warehouseId) }}</span>
         </template>
       </el-table-column>
-      <el-table-column label="商品" align="center" min-width="170" show-overflow-tooltip>
+      <el-table-column label="商品" align="center" min-width="130" show-overflow-tooltip>
         <template #default="scope">
           <span>{{ getProductName(scope.row.productId) }}</span>
         </template>
       </el-table-column>
-      <el-table-column label="单据类型" align="center" prop="billType" width="120">
+      <el-table-column label="单据类型" align="center" prop="billType" width="96">
         <template #default="scope">
-          <el-tag effect="plain">{{ getBillTypeLabel(scope.row.billType) }}</el-tag>
+          <el-tag size="small" effect="plain">{{ getBillTypeLabel(scope.row.billType) }}</el-tag>
         </template>
       </el-table-column>
-      <el-table-column label="单据编号" align="center" prop="billId" width="95" />
-      <el-table-column label="方向" align="center" prop="inOut" width="85">
+      <el-table-column label="单据单号" align="center" min-width="140" show-overflow-tooltip>
+        <template #default="scope">{{ getBillNoLabel(scope.row) }}</template>
+      </el-table-column>
+      <el-table-column label="方向" align="center" prop="inOut" width="68">
         <template #default="scope">
-          <el-tag :type="scope.row.inOut === '1' ? 'success' : 'warning'">
+          <el-tag size="small" :type="scope.row.inOut === '1' ? 'success' : 'warning'">
             {{ scope.row.inOut === "1" ? "入库" : (scope.row.inOut === "2" ? "出库" : scope.row.inOut) }}
           </el-tag>
         </template>
       </el-table-column>
-      <el-table-column label="变动数量" align="center" prop="quantity" width="100" />
-      <el-table-column label="单价" align="center" prop="price" width="100" />
-      <el-table-column label="金额" align="center" prop="amount" width="110" />
-      <el-table-column label="变动前" align="center" prop="beforeQty" width="95" />
-      <el-table-column label="变动后" align="center" prop="afterQty" width="95" />
-      <el-table-column label="记录时间" align="center" prop="createTime" width="175">
+      <el-table-column label="变动数" align="right" header-align="right" prop="quantity" width="76" />
+      <el-table-column label="单价" align="right" header-align="right" prop="price" width="82">
+        <template #default="scope">{{ Number(scope.row.price || 0).toFixed(2) }}</template>
+      </el-table-column>
+      <el-table-column label="金额" align="right" header-align="right" prop="amount" width="92">
+        <template #default="scope">{{ Number(scope.row.amount || 0).toFixed(2) }}</template>
+      </el-table-column>
+      <el-table-column label="变动前" align="right" header-align="right" prop="beforeQty" width="76" />
+      <el-table-column label="变动后" align="right" header-align="right" prop="afterQty" width="76" />
+      <el-table-column label="记录时间" align="center" prop="createTime" width="160">
         <template #default="scope">
           <span>{{ parseTime(scope.row.createTime) }}</span>
         </template>
@@ -84,10 +90,40 @@
 
 <script setup name="StockLog">
 import { listStockLog } from "@/api/business/stockLog"
+import { listInbound } from "@/api/business/inbound"
+import { listOutbound } from "@/api/business/outbound"
+import { listTransfer } from "@/api/business/transfer"
+import { listInventoryCheck } from "@/api/business/inventoryCheck"
+import { listPurchaseReturn } from "@/api/business/purchaseReturn"
+import { listSaleReturn } from "@/api/business/saleReturn"
 import { useBusinessOptions } from "@/utils/businessOptions"
 
 const { proxy } = getCurrentInstance()
 const { warehouseOptions, productOptions, loadWarehouses, loadProducts, getWarehouseName, getProductName } = useBusinessOptions()
+
+const billNoMap = reactive({})
+function loadBillNoMaps() {
+  listInbound({ pageNum: 1, pageSize: 500 }).then(r => (r.rows || []).forEach(i => { billNoMap[`inbound:${i.inboundId}`] = i.inboundNo })).catch(() => {})
+  listOutbound({ pageNum: 1, pageSize: 500 }).then(r => (r.rows || []).forEach(i => {
+    billNoMap[`outbound:${i.outboundId}`] = i.outboundNo
+    billNoMap[`outbound_return:${i.outboundId}`] = i.outboundNo
+  })).catch(() => {})
+  listTransfer({ pageNum: 1, pageSize: 500 }).then(r => (r.rows || []).forEach(i => {
+    billNoMap[`transfer:${i.transferId}`] = i.transferNo
+    billNoMap[`scan_transfer:${i.transferId}`] = i.transferNo
+  })).catch(() => {})
+  listInventoryCheck({ pageNum: 1, pageSize: 500 }).then(r => (r.rows || []).forEach(i => {
+    billNoMap[`inventory_check:${i.checkId}`] = i.checkNo
+    billNoMap[`scan_check:${i.checkId}`] = i.checkNo
+  })).catch(() => {})
+  listPurchaseReturn({ pageNum: 1, pageSize: 500 }).then(r => (r.rows || []).forEach(i => { billNoMap[`purchase_return:${i.purchaseReturnId}`] = i.returnNo })).catch(() => {})
+  listSaleReturn({ pageNum: 1, pageSize: 500 }).then(r => (r.rows || []).forEach(i => { billNoMap[`sale_return:${i.saleReturnId}`] = i.returnNo })).catch(() => {})
+}
+function getBillNoLabel(row) {
+  if (row.billNo) return row.billNo
+  const key = `${row.billType || ""}:${row.billId}`
+  return billNoMap[key] || (row.billId ? `#${row.billId}` : "-")
+}
 
 const stockLogList = ref([])
 const loading = ref(true)
@@ -146,5 +182,6 @@ function resetQuery() {
 
 loadWarehouses()
 loadProducts()
+loadBillNoMaps()
 getList()
 </script>

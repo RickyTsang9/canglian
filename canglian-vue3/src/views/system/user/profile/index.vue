@@ -1,8 +1,8 @@
 <template>
    <div class="app-container">
-      <el-row :gutter="20">
-         <el-col :span="6" :xs="24">
-            <el-card class="box-card">
+      <el-row :gutter="20" class="profile-row">
+         <el-col :span="7" :xs="24" class="profile-col">
+            <el-card class="box-card profile-card">
                <template v-slot:header>
                  <div class="clearfix">
                    <span>个人信息</span>
@@ -41,8 +41,8 @@
                </div>
             </el-card>
          </el-col>
-         <el-col :span="18" :xs="24">
-            <el-card>
+         <el-col :span="17" :xs="24" class="profile-col">
+            <el-card class="profile-card">
                <template v-slot:header>
                  <div class="clearfix">
                    <span>基本资料</span>
@@ -92,3 +92,20 @@ onMounted(() => {
   getUser()
 })
 </script>
+
+<style scoped>
+.profile-row {
+  display: flex;
+  flex-wrap: wrap;
+}
+.profile-col {
+  display: flex;
+  flex-direction: column;
+}
+.profile-card {
+  flex: 1;
+}
+.list-group-item :deep(.svg-icon) {
+  margin-right: 6px;
+}
+</style>

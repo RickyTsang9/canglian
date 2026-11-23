@@ -37,27 +37,33 @@
         </el-row>
 
         <el-table v-loading="loading" :data="fundAccountList" @selection-change="handleSelectionChange">
-          <el-table-column type="selection" width="50" align="center" />
-          <el-table-column label="账户编码" align="center" prop="accountNo" width="130" />
-          <el-table-column label="账户名称" align="center" prop="accountName" min-width="140" />
-          <el-table-column label="账户类型" align="center" width="115">
+          <el-table-column type="selection" width="46" align="center" />
+          <el-table-column label="账户编码" align="center" prop="accountNo" width="102" show-overflow-tooltip />
+          <el-table-column label="账户名称" align="center" prop="accountName" min-width="110" show-overflow-tooltip />
+          <el-table-column label="账户类型" align="center" width="102">
             <template #default="scope">
-              <el-tag effect="plain">{{ getAccountTypeLabel(scope.row.accountType) }}</el-tag>
+              <el-tag size="small" effect="plain">{{ getAccountTypeLabel(scope.row.accountType) }}</el-tag>
             </template>
           </el-table-column>
-          <el-table-column label="开户行" align="center" prop="bankName" min-width="120" />
-          <el-table-column label="银行账号" align="center" prop="bankAccount" min-width="150" />
-          <el-table-column label="当前余额" align="right" prop="balance" width="125">
+          <el-table-column label="开户行" align="center" prop="bankName" min-width="105" show-overflow-tooltip>
+            <template #default="scope">{{ scope.row.bankName || '-' }}</template>
+          </el-table-column>
+          <el-table-column label="银行账号" align="center" prop="bankAccount" min-width="145" show-overflow-tooltip>
+            <template #default="scope">{{ scope.row.bankAccount || '-' }}</template>
+          </el-table-column>
+          <el-table-column label="当前余额" align="right" header-align="right" prop="balance" width="122">
             <template #default="scope"><strong>￥{{ Number(scope.row.balance || 0).toFixed(2) }}</strong></template>
           </el-table-column>
-          <el-table-column label="状态" align="center" prop="status" width="85">
+          <el-table-column label="状态" align="center" prop="status" width="74">
             <template #default="scope"><dict-tag :options="sys_normal_disable" :value="scope.row.status" /></template>
           </el-table-column>
-          <el-table-column label="操作" width="230" align="center" fixed="right">
+          <el-table-column label="操作" width="232" align="center" fixed="right">
             <template #default="scope">
-              <el-button link type="success" icon="Tickets" @click="openLogDrawer(scope.row)">资金流水</el-button>
-              <el-button link type="primary" icon="Edit" @click="handleUpdate(scope.row)" v-hasPermi="['business:fundAccount:edit']">修改</el-button>
-              <el-button link type="danger" icon="Delete" @click="handleDelete(scope.row)" v-hasPermi="['business:fundAccount:remove']">删除</el-button>
+              <div class="table-action-cell">
+                <el-button link type="success" icon="Tickets" @click="openLogDrawer(scope.row)">流水</el-button>
+                <el-button link type="primary" icon="Edit" @click="handleUpdate(scope.row)" v-hasPermi="['business:fundAccount:edit']">修改</el-button>
+                <el-button link type="danger" icon="Delete" @click="handleDelete(scope.row)" v-hasPermi="['business:fundAccount:remove']">删除</el-button>
+              </div>
             </template>
           </el-table-column>
         </el-table>
@@ -75,34 +81,38 @@
           </el-col>
         </el-row>
         <el-table v-loading="transferLoading" :data="transferList" border>
-          <el-table-column label="互转单号" align="center" prop="transferNo" min-width="155" />
-          <el-table-column label="转出账户" align="center" min-width="135">
+          <el-table-column label="互转单号" align="center" prop="transferNo" min-width="140" show-overflow-tooltip />
+          <el-table-column label="转出账户" align="center" min-width="105" show-overflow-tooltip>
             <template #default="scope">{{ getAccountName(scope.row.outAccountId) }}</template>
           </el-table-column>
-          <el-table-column label="转入账户" align="center" min-width="135">
+          <el-table-column label="转入账户" align="center" min-width="105" show-overflow-tooltip>
             <template #default="scope">{{ getAccountName(scope.row.inAccountId) }}</template>
           </el-table-column>
-          <el-table-column label="转账金额" align="right" prop="amount" width="115">
+          <el-table-column label="转账金额" align="right" header-align="right" prop="amount" width="108">
             <template #default="scope">￥{{ Number(scope.row.amount || 0).toFixed(2) }}</template>
           </el-table-column>
-          <el-table-column label="手续费" align="right" prop="feeAmount" width="95">
+          <el-table-column label="手续费" align="right" header-align="right" prop="feeAmount" width="90">
             <template #default="scope">￥{{ Number(scope.row.feeAmount || 0).toFixed(2) }}</template>
           </el-table-column>
-          <el-table-column label="转账日期" align="center" width="115">
+          <el-table-column label="转账日期" align="center" width="104">
             <template #default="scope">{{ parseTime(scope.row.transferDate, '{y}-{m}-{d}') }}</template>
           </el-table-column>
-          <el-table-column label="状态" align="center" width="95">
+          <el-table-column label="状态" align="center" width="78">
             <template #default="scope">
-              <el-tag :type="scope.row.status === '1' ? 'success' : 'info'">{{ scope.row.status === '1' ? '已确认' : '草稿' }}</el-tag>
+              <el-tag size="small" :type="scope.row.status === '1' ? 'success' : 'info'">{{ scope.row.status === '1' ? '已确认' : '草稿' }}</el-tag>
             </template>
           </el-table-column>
-          <el-table-column label="备注" prop="remark" min-width="140" show-overflow-tooltip />
-          <el-table-column label="操作" align="center" width="230" fixed="right">
+          <el-table-column label="备注" prop="remark" min-width="115" show-overflow-tooltip>
+            <template #default="scope">{{ scope.row.remark || '-' }}</template>
+          </el-table-column>
+          <el-table-column label="操作" align="center" width="205" fixed="right">
             <template #default="scope">
-              <el-button link type="info" icon="Printer" @click="handlePrintTransfer(scope.row)">打印</el-button>
-              <el-button v-if="scope.row.status === '0'" link type="success" icon="CircleCheck" @click="handleConfirmTransfer(scope.row)" v-hasPermi="['business:fundAccount:transfer']">确认转账</el-button>
-              <el-button v-if="scope.row.status === '0'" link type="danger" icon="Delete" @click="handleDeleteTransfer(scope.row)" v-hasPermi="['business:fundAccount:transfer']">删除</el-button>
-              <el-button v-if="scope.row.status === '1'" link type="warning" icon="RefreshLeft" @click="handleUnconfirmTransfer(scope.row)" v-hasPermi="['business:fundAccount:transfer']">反确认</el-button>
+              <div class="table-action-cell">
+                <el-button link type="info" icon="Printer" @click="handlePrintTransfer(scope.row)">打印</el-button>
+                <el-button v-if="scope.row.status === '0'" link type="success" icon="CircleCheck" @click="handleConfirmTransfer(scope.row)" v-hasPermi="['business:fundAccount:transfer']">确认</el-button>
+                <el-button v-if="scope.row.status === '0'" link type="danger" icon="Delete" @click="handleDeleteTransfer(scope.row)" v-hasPermi="['business:fundAccount:transfer']">删除</el-button>
+                <el-button v-if="scope.row.status === '1'" link type="warning" icon="RefreshLeft" @click="handleUnconfirmTransfer(scope.row)" v-hasPermi="['business:fundAccount:transfer']">反确认</el-button>
+              </div>
             </template>
           </el-table-column>
         </el-table>
@@ -200,36 +210,42 @@
     </el-dialog>
 
     <!-- 资金流水台账抽屉 -->
-    <el-drawer v-model="logDrawerOpen" :title="`资金逐笔流水台账 - ${currentLogAccount.accountName || ''}`" size="860px">
+    <el-drawer v-model="logDrawerOpen" :title="`资金逐笔流水台账 - ${currentLogAccount.accountName || ''}`" size="920px">
       <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px">
-        <span>当前余额：<strong style="color: #409eff; font-size: 16px">￥{{ Number(currentLogAccount.balance || 0).toFixed(2) }}</strong></span>
+        <span>当前余额：<strong style="color: #2563eb; font-size: 16px">￥{{ Number(currentLogAccount.balance || 0).toFixed(2) }}</strong></span>
         <el-button type="warning" plain size="small" icon="Download" @click="exportLogs">导出流水Excel</el-button>
       </div>
       <el-table v-loading="logLoading" :data="logList" border size="small">
-        <el-table-column label="时间" width="150" align="center">
+        <el-table-column label="时间" width="148" align="center">
           <template #default="scope">{{ parseTime(scope.row.createTime) }}</template>
         </el-table-column>
-        <el-table-column label="业务类型" width="115" align="center">
+        <el-table-column label="业务类型" width="96" align="center">
           <template #default="scope">
             <el-tag size="small" effect="plain">{{ getFundBizTypeLabel(scope.row.bizType) }}</el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="来源单号" prop="billNo" width="145" align="center" />
-        <el-table-column label="方向" width="70" align="center">
+        <el-table-column label="来源单号" prop="billNo" width="136" align="center" show-overflow-tooltip />
+        <el-table-column label="方向" width="64" align="center">
           <template #default="scope">
             <el-tag :type="scope.row.direction === '1' ? 'success' : 'danger'" size="small">{{ scope.row.direction === '1' ? '收入' : '支出' }}</el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="变动金额" align="right" width="100">
+        <el-table-column label="变动金额" align="right" header-align="right" width="98">
           <template #default="scope">
-            <span :style="scope.row.direction === '1' ? 'color:#67c23a' : 'color:#f56c6c'">
+            <span :style="scope.row.direction === '1' ? 'color:#10b981' : 'color:#ef4444'">
               {{ scope.row.direction === '1' ? '+' : '-' }}{{ Number(scope.row.changeAmount || 0).toFixed(2) }}
             </span>
           </template>
         </el-table-column>
-        <el-table-column label="变动前" prop="beforeBalance" align="right" width="95" />
-        <el-table-column label="变动后" prop="afterBalance" align="right" width="95" />
-        <el-table-column label="备注" prop="remark" min-width="140" show-overflow-tooltip />
+        <el-table-column label="变动前" align="right" header-align="right" width="96">
+          <template #default="scope">{{ Number(scope.row.beforeBalance || 0).toFixed(2) }}</template>
+        </el-table-column>
+        <el-table-column label="变动后" align="right" header-align="right" width="96">
+          <template #default="scope">{{ Number(scope.row.afterBalance || 0).toFixed(2) }}</template>
+        </el-table-column>
+        <el-table-column label="备注" prop="remark" min-width="125" show-overflow-tooltip>
+          <template #default="scope">{{ scope.row.remark || '-' }}</template>
+        </el-table-column>
       </el-table>
     </el-drawer>
   </div>

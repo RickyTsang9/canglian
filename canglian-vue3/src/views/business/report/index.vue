@@ -5,7 +5,7 @@
         <el-form :model="receivableQuery" ref="receivableAgingRef" :inline="true">
           <el-form-item label="客户" prop="customerId">
             <el-select v-model="receivableQuery.customerId" placeholder="请选择客户" clearable filterable style="width: 220px">
-              <el-option v-for="c in customerOptions" :key="c.customerId" :label="`${c.customerCode || ''} - ${c.customerName}`" :value="c.customerId" />
+              <el-option v-for="c in customerOptions" :key="c.customerId" :label="c.customerCode ? `${c.customerCode} - ${c.customerName}` : c.customerName" :value="c.customerId" />
             </el-select>
           </el-form-item>
           <el-form-item>
@@ -21,17 +21,29 @@
               <span>{{ scope.row.dimensionName || getCustomerName(scope.row.dimensionId) }}</span>
             </template>
           </el-table-column>
-          <el-table-column label="未逾期金额" align="right" prop="notDueAmount" />
-          <el-table-column label="0-30天逾期" align="right" prop="days0To30Amount" />
-          <el-table-column label="31-60天逾期" align="right" prop="days31To60Amount" />
-          <el-table-column label="61-90天逾期" align="right" prop="days61To90Amount" />
-          <el-table-column label="90天以上逾期" align="right" prop="days90AboveAmount" />
-          <el-table-column label="红字待抵扣" align="right" prop="creditBalance">
+          <el-table-column label="未逾期金额" align="right" header-align="right" prop="notDueAmount">
+            <template #default="scope">{{ formatAmount(scope.row.notDueAmount) }}</template>
+          </el-table-column>
+          <el-table-column label="0-30天逾期" align="right" header-align="right" prop="days0To30Amount">
+            <template #default="scope">{{ formatAmount(scope.row.days0To30Amount) }}</template>
+          </el-table-column>
+          <el-table-column label="31-60天逾期" align="right" header-align="right" prop="days31To60Amount">
+            <template #default="scope">{{ formatAmount(scope.row.days31To60Amount) }}</template>
+          </el-table-column>
+          <el-table-column label="61-90天逾期" align="right" header-align="right" prop="days61To90Amount">
+            <template #default="scope">{{ formatAmount(scope.row.days61To90Amount) }}</template>
+          </el-table-column>
+          <el-table-column label="90天以上逾期" align="right" header-align="right" prop="days90AboveAmount">
+            <template #default="scope">{{ formatAmount(scope.row.days90AboveAmount) }}</template>
+          </el-table-column>
+          <el-table-column label="红字待抵扣" align="right" header-align="right" prop="creditBalance">
             <template #default="scope">
-              <span :style="Number(scope.row.creditBalance || 0) < 0 ? 'color:#ef4444;font-weight:600' : ''">{{ scope.row.creditBalance ?? 0 }}</span>
+              <span :style="Number(scope.row.creditBalance || 0) < 0 ? 'color:#ef4444;font-weight:600' : ''">{{ formatAmount(scope.row.creditBalance) }}</span>
             </template>
           </el-table-column>
-          <el-table-column label="净欠款余额" align="right" prop="netBalance" />
+          <el-table-column label="净欠款余额" align="right" header-align="right" prop="netBalance">
+            <template #default="scope">{{ formatAmount(scope.row.netBalance) }}</template>
+          </el-table-column>
         </el-table>
       </el-tab-pane>
 
@@ -39,7 +51,7 @@
         <el-form :model="payableQuery" ref="payableAgingRef" :inline="true">
           <el-form-item label="供应商" prop="supplierId">
             <el-select v-model="payableQuery.supplierId" placeholder="请选择供应商" clearable filterable style="width: 220px">
-              <el-option v-for="s in supplierOptions" :key="s.supplierId" :label="`${s.supplierCode || ''} - ${s.supplierName}`" :value="s.supplierId" />
+              <el-option v-for="s in supplierOptions" :key="s.supplierId" :label="s.supplierCode ? `${s.supplierCode} - ${s.supplierName}` : s.supplierName" :value="s.supplierId" />
             </el-select>
           </el-form-item>
           <el-form-item>
@@ -55,17 +67,29 @@
               <span>{{ scope.row.dimensionName || getSupplierName(scope.row.dimensionId) }}</span>
             </template>
           </el-table-column>
-          <el-table-column label="未逾期金额" align="right" prop="notDueAmount" />
-          <el-table-column label="0-30天逾期" align="right" prop="days0To30Amount" />
-          <el-table-column label="31-60天逾期" align="right" prop="days31To60Amount" />
-          <el-table-column label="61-90天逾期" align="right" prop="days61To90Amount" />
-          <el-table-column label="90天以上逾期" align="right" prop="days90AboveAmount" />
-          <el-table-column label="红字待抵扣" align="right" prop="creditBalance">
+          <el-table-column label="未逾期金额" align="right" header-align="right" prop="notDueAmount">
+            <template #default="scope">{{ formatAmount(scope.row.notDueAmount) }}</template>
+          </el-table-column>
+          <el-table-column label="0-30天逾期" align="right" header-align="right" prop="days0To30Amount">
+            <template #default="scope">{{ formatAmount(scope.row.days0To30Amount) }}</template>
+          </el-table-column>
+          <el-table-column label="31-60天逾期" align="right" header-align="right" prop="days31To60Amount">
+            <template #default="scope">{{ formatAmount(scope.row.days31To60Amount) }}</template>
+          </el-table-column>
+          <el-table-column label="61-90天逾期" align="right" header-align="right" prop="days61To90Amount">
+            <template #default="scope">{{ formatAmount(scope.row.days61To90Amount) }}</template>
+          </el-table-column>
+          <el-table-column label="90天以上逾期" align="right" header-align="right" prop="days90AboveAmount">
+            <template #default="scope">{{ formatAmount(scope.row.days90AboveAmount) }}</template>
+          </el-table-column>
+          <el-table-column label="红字待抵扣" align="right" header-align="right" prop="creditBalance">
             <template #default="scope">
-              <span :style="Number(scope.row.creditBalance || 0) < 0 ? 'color:#ef4444;font-weight:600' : ''">{{ scope.row.creditBalance ?? 0 }}</span>
+              <span :style="Number(scope.row.creditBalance || 0) < 0 ? 'color:#ef4444;font-weight:600' : ''">{{ formatAmount(scope.row.creditBalance) }}</span>
             </template>
           </el-table-column>
-          <el-table-column label="净应付余额" align="right" prop="netBalance" />
+          <el-table-column label="净应付余额" align="right" header-align="right" prop="netBalance">
+            <template #default="scope">{{ formatAmount(scope.row.netBalance) }}</template>
+          </el-table-column>
         </el-table>
       </el-tab-pane>
 
@@ -73,7 +97,7 @@
         <el-form :model="receivableReconciliationQuery" ref="receivableReconciliationRef" :inline="true">
           <el-form-item label="客户" prop="customerId">
             <el-select v-model="receivableReconciliationQuery.customerId" placeholder="请选择客户" clearable filterable style="width: 220px">
-              <el-option v-for="c in customerOptions" :key="c.customerId" :label="`${c.customerCode || ''} - ${c.customerName}`" :value="c.customerId" />
+              <el-option v-for="c in customerOptions" :key="c.customerId" :label="c.customerCode ? `${c.customerCode} - ${c.customerName}` : c.customerName" :value="c.customerId" />
             </el-select>
           </el-form-item>
           <el-form-item>
@@ -89,9 +113,15 @@
               <span>{{ scope.row.dimensionName || getCustomerName(scope.row.dimensionId) }}</span>
             </template>
           </el-table-column>
-          <el-table-column label="应收净额（含退货冲减）" align="right" prop="billAmount" />
-          <el-table-column label="已收/已抵扣金额" align="right" prop="paidAmount" />
-          <el-table-column label="剩余未收（已扣坏账）" align="right" prop="diffAmount" />
+          <el-table-column label="应收净额（含退货冲减）" align="right" header-align="right" prop="billAmount">
+            <template #default="scope">{{ formatAmount(scope.row.billAmount) }}</template>
+          </el-table-column>
+          <el-table-column label="已收/已抵扣金额" align="right" header-align="right" prop="paidAmount">
+            <template #default="scope">{{ formatAmount(scope.row.paidAmount) }}</template>
+          </el-table-column>
+          <el-table-column label="剩余未收（已扣坏账）" align="right" header-align="right" prop="diffAmount">
+            <template #default="scope">{{ formatAmount(scope.row.diffAmount) }}</template>
+          </el-table-column>
         </el-table>
       </el-tab-pane>
 
@@ -99,7 +129,7 @@
         <el-form :model="payableReconciliationQuery" ref="payableReconciliationRef" :inline="true">
           <el-form-item label="供应商" prop="supplierId">
             <el-select v-model="payableReconciliationQuery.supplierId" placeholder="请选择供应商" clearable filterable style="width: 220px">
-              <el-option v-for="s in supplierOptions" :key="s.supplierId" :label="`${s.supplierCode || ''} - ${s.supplierName}`" :value="s.supplierId" />
+              <el-option v-for="s in supplierOptions" :key="s.supplierId" :label="s.supplierCode ? `${s.supplierCode} - ${s.supplierName}` : s.supplierName" :value="s.supplierId" />
             </el-select>
           </el-form-item>
           <el-form-item>
@@ -115,9 +145,15 @@
               <span>{{ scope.row.dimensionName || getSupplierName(scope.row.dimensionId) }}</span>
             </template>
           </el-table-column>
-          <el-table-column label="应付净额（含退货冲减）" align="right" prop="billAmount" />
-          <el-table-column label="已付金额" align="right" prop="paidAmount" />
-          <el-table-column label="未付差额" align="right" prop="diffAmount" />
+          <el-table-column label="应付净额（含退货冲减）" align="right" header-align="right" prop="billAmount">
+            <template #default="scope">{{ formatAmount(scope.row.billAmount) }}</template>
+          </el-table-column>
+          <el-table-column label="已付金额" align="right" header-align="right" prop="paidAmount">
+            <template #default="scope">{{ formatAmount(scope.row.paidAmount) }}</template>
+          </el-table-column>
+          <el-table-column label="未付差额" align="right" header-align="right" prop="diffAmount">
+            <template #default="scope">{{ formatAmount(scope.row.diffAmount) }}</template>
+          </el-table-column>
         </el-table>
       </el-tab-pane>
 
@@ -145,23 +181,23 @@
         <div v-if="profitLossData" class="stat-strip">
           <div class="stat-box blue">
             <div class="stat-label">营业净收入</div>
-            <div class="stat-val">￥{{ Number(profitLossData.netIncomeAmount || 0).toFixed(2) }}</div>
-            <div class="stat-sub">签收收入 ￥{{ Number(profitLossData.salesIncomeAmount || 0).toFixed(2) }} · 退货 ￥{{ Number(profitLossData.saleReturnAmount || 0).toFixed(2) }}</div>
+            <div class="stat-val">{{ formatMoney(profitLossData.netIncomeAmount) }}</div>
+            <div class="stat-sub">签收收入 {{ formatMoney(profitLossData.salesIncomeAmount) }} · 退货 {{ formatMoney(profitLossData.saleReturnAmount) }}</div>
           </div>
           <div class="stat-box teal">
-            <div class="stat-label">销售毛利（毛利率 {{ profitLossData.grossMarginRate }}%）</div>
-            <div class="stat-val">￥{{ Number(profitLossData.grossProfitAmount || 0).toFixed(2) }}</div>
-            <div class="stat-sub">减：销售成本 ￥{{ Number(profitLossData.salesCostAmount || 0).toFixed(2) }}</div>
+            <div class="stat-label">销售毛利（毛利率 {{ Number(profitLossData.grossMarginRate || 0).toFixed(2) }}%）</div>
+            <div class="stat-val">{{ formatMoney(profitLossData.grossProfitAmount) }}</div>
+            <div class="stat-sub">减：销售成本 {{ formatMoney(profitLossData.salesCostAmount) }}</div>
           </div>
           <div class="stat-box amber">
             <div class="stat-label">期间费用与坏账净损失</div>
-            <div class="stat-val">￥{{ (Number(profitLossData.expenseAmount || 0) + Number(profitLossData.badDebtAmount || 0)).toFixed(2) }}</div>
-            <div class="stat-sub">费用 ￥{{ Number(profitLossData.expenseAmount || 0).toFixed(2) }} · 坏账 ￥{{ Number(profitLossData.badDebtAmount || 0).toFixed(2) }}</div>
+            <div class="stat-val">{{ formatMoney(Number(profitLossData.expenseAmount || 0) + Number(profitLossData.badDebtAmount || 0)) }}</div>
+            <div class="stat-sub">费用 {{ formatMoney(profitLossData.expenseAmount) }} · 坏账 {{ formatMoney(profitLossData.badDebtAmount) }}</div>
           </div>
           <div class="stat-box" :class="Number(profitLossData.netProfitAmount || 0) >= 0 ? 'green' : 'rose'">
             <div class="stat-label">营业净利润 / 净利率</div>
-            <div class="stat-val">￥{{ Number(profitLossData.netProfitAmount || 0).toFixed(2) }}</div>
-            <div class="stat-sub">净利率 {{ profitLossData.netMarginRate }}%</div>
+            <div class="stat-val">{{ formatMoney(profitLossData.netProfitAmount) }}</div>
+            <div class="stat-sub">净利率 {{ Number(profitLossData.netMarginRate || 0).toFixed(2) }}%</div>
           </div>
         </div>
         <div v-if="profitLossData" ref="profitLossChartRef" class="report-chart"></div>
@@ -191,15 +227,15 @@
         <div v-if="revenueExpenseData" class="stat-strip cols-3">
           <div class="stat-box green">
             <div class="stat-label">现金流入总额</div>
-            <div class="stat-val">￥{{ Number(revenueExpenseData.incomeAmount || 0).toFixed(2) }}</div>
+            <div class="stat-val">{{ formatMoney(revenueExpenseData.incomeAmount) }}</div>
           </div>
           <div class="stat-box amber">
             <div class="stat-label">现金流出总额</div>
-            <div class="stat-val">￥{{ Number(revenueExpenseData.expenseAmount || 0).toFixed(2) }}</div>
+            <div class="stat-val">{{ formatMoney(revenueExpenseData.expenseAmount) }}</div>
           </div>
           <div class="stat-box" :class="Number(revenueExpenseData.netAmount || 0) >= 0 ? 'blue' : 'rose'">
             <div class="stat-label">现金净流量</div>
-            <div class="stat-val">￥{{ Number(revenueExpenseData.netAmount || 0).toFixed(2) }}</div>
+            <div class="stat-val">{{ formatMoney(revenueExpenseData.netAmount) }}</div>
           </div>
         </div>
         <div v-if="revenueExpenseData" ref="revenueExpenseChartRef" class="report-chart"></div>
@@ -222,23 +258,23 @@
         <div class="stat-strip cols-3">
           <div class="stat-box slate">
             <div class="stat-label">成本费用总额（与利润表一致）</div>
-            <div class="stat-val">￥{{ costSummary.total.toFixed(2) }}</div>
+            <div class="stat-val">{{ formatMoney(costSummary.total) }}</div>
           </div>
           <div class="stat-box blue">
             <div class="stat-label">主营成本及存货调整（结转/盘点/调价）</div>
-            <div class="stat-val">￥{{ costSummary.cogs.toFixed(2) }}</div>
+            <div class="stat-val">{{ formatMoney(costSummary.cogs) }}</div>
           </div>
           <div class="stat-box amber">
             <div class="stat-label">期间费用、手续费与坏账损失</div>
-            <div class="stat-val">￥{{ costSummary.opex.toFixed(2) }}</div>
+            <div class="stat-val">{{ formatMoney(costSummary.opex) }}</div>
           </div>
         </div>
         <el-row :gutter="16" style="margin-top: 12px">
           <el-col :xs="24" :lg="13">
             <el-table v-loading="loading.costStructure" :data="displayCostStructureList" border style="width: 100%">
               <el-table-column label="成本费用构成项" align="center" prop="displayCostType" />
-              <el-table-column label="金额" align="right" width="160">
-                <template #default="scope">￥{{ Number(scope.row.costAmount || 0).toFixed(2) }}</template>
+              <el-table-column label="金额" align="right" header-align="right" width="160">
+                <template #default="scope">{{ formatMoney(scope.row.costAmount) }}</template>
               </el-table-column>
               <el-table-column label="占比" align="center" width="110">
                 <template #default="scope">
@@ -265,6 +301,15 @@ import { useBusinessOptions } from "@/utils/businessOptions"
 const route = useRoute()
 const { proxy } = getCurrentInstance()
 const { customerOptions, supplierOptions, loadCustomers, loadSuppliers, getCustomerName, getSupplierName } = useBusinessOptions()
+
+function formatMoney(v) {
+  const n = Number(v || 0)
+  return n < 0 ? `-￥${Math.abs(n).toFixed(2)}` : `￥${n.toFixed(2)}`
+}
+
+function formatAmount(v) {
+  return Number(v || 0).toFixed(2)
+}
 
 const validTabs = ["receivableAging", "payableAging", "receivableReconciliation", "payableReconciliation", "profitLoss", "revenueExpense", "costStructure"]
 const active = ref(validTabs.includes(route.query.tab) ? String(route.query.tab) : "receivableAging")
@@ -546,15 +591,19 @@ function renderProfitLossChart() {
     Number(d.netProfitAmount || 0)
   ]
   profitLossChartInstance.setOption({
-    tooltip: { trigger: "axis", axisPointer: { type: "shadow" }, ...chartTooltip },
-    grid: { top: 28, right: 20, bottom: 28, left: 56 },
+    tooltip: { trigger: "axis", axisPointer: { type: "shadow" }, valueFormatter: v => formatMoney(v), ...chartTooltip },
+    grid: { top: 36, right: 20, bottom: 28, left: 72 },
     xAxis: { type: "category", data: ["营业净收入", "销售成本", "销售毛利", "期间费用", "坏账损失", "营业净利润"], ...commonAxis },
     yAxis: { type: "value", ...commonAxis },
     series: [{
       type: "bar",
       barMaxWidth: 40,
-      label: { show: true, position: "top", color: "#475569", formatter: p => `￥${Number(p.value).toFixed(0)}` },
-      data: vals.map((v, i) => ({ value: v, itemStyle: { color: colors[i], borderRadius: v >= 0 ? [8, 8, 0, 0] : [0, 0, 8, 8] } }))
+      label: { show: true, color: "#475569", formatter: p => formatMoney(p.value) },
+      data: vals.map((v, i) => ({
+        value: v,
+        label: { position: v >= 0 ? "top" : "bottom" },
+        itemStyle: { color: colors[i], borderRadius: v >= 0 ? [8, 8, 0, 0] : [0, 0, 8, 8] }
+      }))
     }]
   })
 }
@@ -568,9 +617,9 @@ function renderAging(inst, el, list, resolver) {
   const labels = list.map(i => i.dimensionName || resolver(i.dimensionId))
   c.setOption({
     color: ["#10b981", "#3b82f6", "#f59e0b", "#f97316", "#ef4444"],
-    tooltip: { trigger: "axis", axisPointer: { type: "shadow" }, ...chartTooltip },
+    tooltip: { trigger: "axis", axisPointer: { type: "shadow" }, valueFormatter: v => formatMoney(v), ...chartTooltip },
     legend: { top: 0, icon: "roundRect", itemWidth: 10, itemHeight: 10 },
-    grid: { top: 38, right: 20, bottom: 28, left: 56 },
+    grid: { top: 38, right: 20, bottom: 28, left: 68 },
     xAxis: { type: "category", data: labels, ...commonAxis },
     yAxis: { type: "value", ...commonAxis },
     series: [
@@ -600,9 +649,9 @@ function renderRecon(inst, el, list, resolver, names) {
   const labels = list.map(i => i.dimensionName || resolver(i.dimensionId))
   c.setOption({
     color: ["#2563eb", "#10b981", "#f59e0b"],
-    tooltip: { trigger: "axis", axisPointer: { type: "shadow" }, ...chartTooltip },
+    tooltip: { trigger: "axis", axisPointer: { type: "shadow" }, valueFormatter: v => formatMoney(v), ...chartTooltip },
     legend: { top: 0, icon: "roundRect", itemWidth: 10, itemHeight: 10 },
-    grid: { top: 38, right: 20, bottom: 28, left: 56 },
+    grid: { top: 38, right: 20, bottom: 28, left: 68 },
     xAxis: { type: "category", data: labels, ...commonAxis },
     yAxis: { type: "value", ...commonAxis },
     series: [
@@ -635,15 +684,19 @@ function renderRevenueExpenseChart() {
     vals[2] >= 0 ? makeBarGradient("#3b82f6", "#2563eb") : makeBarGradient("#f87171", "#ef4444")
   ]
   revenueExpenseChartInstance.setOption({
-    tooltip: { trigger: "axis", axisPointer: { type: "shadow" }, ...chartTooltip },
-    grid: { top: 28, right: 20, bottom: 28, left: 56 },
+    tooltip: { trigger: "axis", axisPointer: { type: "shadow" }, valueFormatter: v => formatMoney(v), ...chartTooltip },
+    grid: { top: 36, right: 20, bottom: 32, left: 72 },
     xAxis: { type: "category", data: ["现金流入", "现金流出", "现金净额"], ...commonAxis },
     yAxis: { type: "value", ...commonAxis },
     series: [{
       type: "bar",
       barMaxWidth: 46,
-      label: { show: true, position: "top", color: "#475569", formatter: p => `￥${Number(p.value).toFixed(0)}` },
-      data: vals.map((v, i) => ({ value: v, itemStyle: { color: palette[i], borderRadius: v >= 0 ? [8, 8, 0, 0] : [0, 0, 8, 8] } }))
+      label: { show: true, color: "#475569", formatter: p => formatMoney(p.value) },
+      data: vals.map((v, i) => ({
+        value: v,
+        label: { position: v >= 0 ? "top" : "bottom" },
+        itemStyle: { color: palette[i], borderRadius: v >= 0 ? [8, 8, 0, 0] : [0, 0, 8, 8] }
+      }))
     }]
   })
 }
@@ -653,25 +706,36 @@ function renderCostStructureChart() {
   costStructureChartInstance = ensureChartInstance(costStructureChartInstance, costStructureChartRef.value)
   const data = displayCostStructureList.value
     .filter(item => Number(item.costAmount || 0) > 0)
-    .map(item => ({ name: item.displayCostType, value: Number(item.costAmount || 0) }))
+    .map(item => ({ name: item.displayCostType, value: Number(item.costAmount || 0), ratio: item.ratio }))
+  const ratioMap = Object.fromEntries(data.map(d => [d.name, d.ratio]))
   costStructureChartInstance.setOption({
     color: ["#2563eb", "#0d9488", "#f59e0b", "#ef4444", "#8b5cf6", "#06b6d4"],
-    tooltip: { trigger: "item", formatter: "{b}<br/>￥{c} ({d}%)", ...chartTooltip },
-    legend: { bottom: 0, icon: "roundRect", itemWidth: 10, itemHeight: 10 },
+    tooltip: { trigger: "item", formatter: p => `${p.name}<br/>${formatMoney(p.value)} (${p.percent}%)`, ...chartTooltip },
+    legend: {
+      bottom: 4,
+      icon: "roundRect",
+      itemWidth: 10,
+      itemHeight: 10,
+      textStyle: { fontSize: 12, color: "#475569" },
+      formatter: name => `${name} ${ratioMap[name] ?? "0.00"}%`
+    },
     title: {
-      text: `￥${costSummary.value.total.toFixed(0)}`,
+      text: formatMoney(costSummary.value.total),
       subtext: "成本费用总额",
       left: "center",
-      top: "38%",
-      textStyle: { fontSize: 19, fontWeight: 700, color: "#0f172a" },
-      subtextStyle: { fontSize: 12, color: "#64748b" }
+      top: "37%",
+      textStyle: { fontSize: 16, fontWeight: 700, color: "#0f172a" },
+      subtextStyle: { fontSize: 11.5, color: "#64748b" }
     },
     series: [{
       type: "pie",
-      radius: ["50%", "74%"],
-      center: ["50%", "44%"],
-      itemStyle: { borderRadius: 6, borderColor: "#ffffff", borderWidth: 3 },
-      label: { show: true, formatter: "{b} {d}%", fontSize: 12 },
+      radius: ["45%", "64%"],
+      center: ["50%", "43%"],
+      avoidLabelOverlap: true,
+      minShowLabelAngle: 0,
+      itemStyle: { borderRadius: 5, borderColor: "#ffffff", borderWidth: 2 },
+      label: { show: true, formatter: "{b}\n{d}%", fontSize: 11.5, lineHeight: 15, color: "#334155" },
+      labelLine: { length: 10, length2: 12 },
       data
     }]
   })

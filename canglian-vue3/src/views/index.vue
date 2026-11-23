@@ -87,7 +87,7 @@
             </div>
           </div>
           <div class="kpi-value" :class="{ negative: Number(item.value || 0) < 0 }">
-            <span class="currency">￥</span>{{ formatAmount(item.value) }}
+            <span v-if="Number(item.value || 0) < 0" class="minus-sign">-</span><span class="currency">￥</span>{{ formatAmount(Math.abs(Number(item.value || 0))) }}
           </div>
           <div class="kpi-footer">
             <span class="kpi-meta">{{ item.meta }}</span>
@@ -507,6 +507,11 @@ function clearChartInstances() {
   payableAgingChartInstance = null
 }
 
+function formatShortMoney(v) {
+  const n = Number(v || 0)
+  return n < 0 ? `-￥${Math.abs(n).toFixed(0)}` : `￥${n.toFixed(0)}`
+}
+
 function renderProfitLossChart() {
   if (!profitLossChartRef.value || !profitLossData.value) return
   profitLossChartInstance = ensureChartInstance(profitLossChartInstance, profitLossChartRef.value)
@@ -522,15 +527,16 @@ function renderProfitLossChart() {
   ]
   profitLossChartInstance.setOption({
     tooltip: { trigger: "axis", axisPointer: { type: "shadow" }, ...tooltipStyle.value },
-    grid: { top: 28, right: 20, bottom: 28, left: 56 },
+    grid: { top: 32, right: 20, bottom: 28, left: 60 },
     xAxis: { type: "category", data: ["营业净收入", "销售成本", "销售毛利", "期间费用", "坏账损失", "营业净利润"], ...getChartAxisStyle() },
     yAxis: { type: "value", ...getChartAxisStyle() },
     series: [{
       type: "bar",
       barMaxWidth: 32,
-      label: { show: true, position: "top", color: chartTextColor.value, fontSize: 11.5, formatter: p => `￥${Number(p.value).toFixed(0)}` },
+      label: { show: true, color: chartTextColor.value, fontSize: 11.5, formatter: p => formatShortMoney(p.value) },
       data: rawVals.map((v, i) => ({
         value: v,
+        label: { position: v >= 0 ? "top" : "bottom" },
         itemStyle: {
           color: colors[i],
           borderRadius: v >= 0 ? [6, 6, 0, 0] : [0, 0, 6, 6]
@@ -552,15 +558,16 @@ function renderRevenueExpenseChart() {
   const palette = ["#10b981", "#f59e0b", vals[2] >= 0 ? "#2563eb" : "#ef4444"]
   revenueExpenseChartInstance.setOption({
     tooltip: { trigger: "axis", axisPointer: { type: "shadow" }, ...tooltipStyle.value },
-    grid: { top: 28, right: 20, bottom: 28, left: 56 },
+    grid: { top: 32, right: 20, bottom: 32, left: 60 },
     xAxis: { type: "category", data: ["现金流入", "现金流出", "现金净流量"], ...getChartAxisStyle() },
     yAxis: { type: "value", ...getChartAxisStyle() },
     series: [{
       type: "bar",
       barMaxWidth: 38,
-      label: { show: true, position: "top", color: chartTextColor.value, fontSize: 12, formatter: p => `￥${Number(p.value).toFixed(0)}` },
+      label: { show: true, color: chartTextColor.value, fontSize: 12, formatter: p => formatShortMoney(p.value) },
       data: vals.map((v, i) => ({
         value: v,
+        label: { position: v >= 0 ? "top" : "bottom" },
         itemStyle: {
           color: palette[i],
           borderRadius: v >= 0 ? [6, 6, 0, 0] : [0, 0, 6, 6]
@@ -577,24 +584,42 @@ function renderCostStructureChart() {
     .filter(item => Number(item.costAmount || 0) > 0)
     .map(item => ({ name: formatCostTypeLabel(item.costType), value: Number(item.costAmount || 0) }))
   const totalCost = chartData.reduce((s, i) => s + i.value, 0)
+  const pctMap = {}
+  chartData.forEach(item => {
+    pctMap[item.name] = totalCost > 0 ? ((item.value / totalCost) * 100).toFixed(1) : "0.0"
+  })
   costStructureChartInstance.setOption({
     color: ["#2563eb", "#0d9488", "#f59e0b", "#ef4444", "#8b5cf6", "#64748b"],
     tooltip: { trigger: "item", formatter: "{b}<br/>￥{c} ({d}%)", ...tooltipStyle.value },
-    legend: { bottom: 0, ...getChartLegendStyle() },
+    legend: {
+      bottom: 0,
+      itemGap: 14,
+      formatter: name => `${name} ${pctMap[name] ?? "0.0"}%`,
+      ...getChartLegendStyle()
+    },
     title: {
-      text: `￥${totalCost.toFixed(0)}`,
+      text: `￥${formatAmount(totalCost)}`,
       subtext: "成本费用总额",
       left: "center",
-      top: "38%",
-      textStyle: { fontSize: 19, fontWeight: 700, color: isDark.value ? "#f8fafc" : "#111827" },
+      top: "35%",
+      textStyle: { fontSize: 16, fontWeight: 700, color: isDark.value ? "#f8fafc" : "#111827" },
       subtextStyle: { fontSize: 12, color: chartTextColor.value }
     },
     series: [{
       type: "pie",
-      radius: ["54%", "74%"],
-      center: ["50%", "44%"],
+      radius: ["45%", "63%"],
+      center: ["50%", "41%"],
+      avoidLabelOverlap: true,
+      minShowLabelAngle: 0,
       itemStyle: { borderRadius: 5, borderColor: isDark.value ? "#111827" : "#ffffff", borderWidth: 3 },
-      label: { show: true, formatter: "{b} {d}%", color: chartTextColor.value, fontSize: 12 },
+      label: {
+        show: true,
+        formatter: "{b}\n{d}%",
+        color: chartTextColor.value,
+        fontSize: 11.5,
+        lineHeight: 15
+      },
+      labelLine: { length: 10, length2: 10, smooth: true },
       data: chartData
     }]
   })

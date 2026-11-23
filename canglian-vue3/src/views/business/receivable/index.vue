@@ -6,17 +6,17 @@
           v-model="queryParams.receivableNo"
           placeholder="请输入应收单号"
           clearable
-          style="width: 200px"
+          style="width: 170px"
           @keyup.enter="handleQuery"
         />
       </el-form-item>
       <el-form-item label="客户" prop="customerId">
-        <el-select v-model="queryParams.customerId" placeholder="请选择客户" clearable filterable style="width: 220px">
-          <el-option v-for="c in customerOptions" :key="c.customerId" :label="`${c.customerCode || ''} - ${c.customerName}`" :value="c.customerId" />
+        <el-select v-model="queryParams.customerId" placeholder="请选择客户" clearable filterable style="width: 185px">
+          <el-option v-for="c in customerOptions" :key="c.customerId" :label="c.customerName" :value="c.customerId" />
         </el-select>
       </el-form-item>
       <el-form-item label="状态" prop="status">
-        <el-select v-model="queryParams.status" placeholder="收款状态" clearable style="width: 200px">
+        <el-select v-model="queryParams.status" placeholder="收款状态" clearable style="width: 135px">
           <el-option
             v-for="dict in arStatusOptions"
             :key="dict.value"
@@ -65,67 +65,77 @@
     </el-row>
 
     <el-table v-loading="loading" :data="receivableList" @selection-change="handleSelectionChange">
-      <el-table-column type="selection" width="55" align="center" />
-      <el-table-column label="应收编号" align="center" prop="receivableId" />
-      <el-table-column label="应收单号" align="center" prop="receivableNo" min-width="140" />
-      <el-table-column label="客户" align="center" min-width="130" show-overflow-tooltip>
+      <el-table-column type="selection" width="46" align="center" />
+      <el-table-column label="应收单号" align="center" prop="receivableNo" min-width="156" show-overflow-tooltip />
+      <el-table-column label="客户" align="center" min-width="145" show-overflow-tooltip>
         <template #default="scope">
           <span>{{ getCustomerName(scope.row.customerId) }}</span>
         </template>
       </el-table-column>
-      <el-table-column label="单据类型" align="center" prop="billType" width="115">
+      <el-table-column label="来源单据" align="center" min-width="152" show-overflow-tooltip>
         <template #default="scope">
-          <el-tag effect="plain">{{ getBillTypeLabel(scope.row.billType) }}</el-tag>
+          <el-tag size="small" effect="plain" style="margin-right: 4px">{{ getBillTypeLabel(scope.row.billType) }}</el-tag>
+          <span>{{ scope.row.sourceBillNo || (scope.row.billId ? `#${scope.row.billId}` : '-') }}</span>
         </template>
       </el-table-column>
-      <el-table-column label="单据编号" align="center" prop="billId" />
-      <el-table-column label="方向" align="center" width="95">
+      <el-table-column label="方向" align="center" width="84">
         <template #default="scope">
           <el-tag :type="isRedRow(scope.row) ? 'danger' : 'primary'" size="small">
-            {{ isRedRow(scope.row) ? '红字冲减' : '正向应收' }}
+            {{ isRedRow(scope.row) ? '红字' : '正向' }}
           </el-tag>
         </template>
       </el-table-column>
-      <el-table-column label="应收金额" align="right" prop="amount" width="100">
+      <el-table-column label="应收金额" align="right" header-align="right" prop="amount" width="96">
         <template #default="scope">
-          <span :style="isRedRow(scope.row) ? 'color:#f56c6c;font-weight:600' : ''">{{ scope.row.amount }}</span>
+          <span :style="isRedRow(scope.row) ? 'color:#f56c6c;font-weight:600' : ''">{{ Number(scope.row.amount || 0).toFixed(2) }}</span>
         </template>
       </el-table-column>
-      <el-table-column label="已收/已冲" align="right" prop="receivedAmount" width="95" />
-      <el-table-column label="坏账核销" align="right" width="90">
+      <el-table-column label="已收/冲" align="right" header-align="right" prop="receivedAmount" width="88">
+        <template #default="scope">{{ Number(scope.row.receivedAmount || 0).toFixed(2) }}</template>
+      </el-table-column>
+      <el-table-column label="坏账核销" align="right" header-align="right" width="88">
         <template #default="scope">{{ Number(scope.row.badDebtAmount || 0).toFixed(2) }}</template>
       </el-table-column>
-      <el-table-column label="剩余未收" align="right" width="100">
+      <el-table-column label="剩余未收" align="right" header-align="right" width="96">
         <template #default="scope">
-          <strong :style="calcUnsettled(scope.row) > 0 ? 'color:#e6a23c' : 'color:#67c23a'">{{ calcUnsettled(scope.row).toFixed(2) }}</strong>
+          <strong :style="calcUnsettled(scope.row) > 0 ? 'color:#d97706' : 'color:#10b981'">{{ calcUnsettled(scope.row).toFixed(2) }}</strong>
         </template>
       </el-table-column>
-      <el-table-column label="收款状态" align="center" prop="status" width="90">
+      <el-table-column label="收款状态" align="center" prop="status" width="88">
         <template #default="scope">
-          <el-tag :type="getStatusTagType(scope.row.status)">{{ getStatusLabel(scope.row.status) }}</el-tag>
+          <el-tag size="small" :type="getStatusTagType(scope.row.status)">{{ getStatusLabel(scope.row.status) }}</el-tag>
         </template>
       </el-table-column>
-      <el-table-column label="审核状态" align="center" prop="bizStatus" width="85">
+      <el-table-column label="审核状态" align="center" prop="bizStatus" width="80">
         <template #default="scope">
-          <el-tag :type="scope.row.bizStatus === 'confirmed' ? 'success' : 'info'">
+          <el-tag size="small" :type="scope.row.bizStatus === 'confirmed' ? 'success' : 'info'">
             {{ scope.row.bizStatus === 'confirmed' ? '已确认' : '草稿' }}
           </el-tag>
         </template>
       </el-table-column>
-      <el-table-column label="到期日期" align="center" prop="dueDate" width="110">
+      <el-table-column label="到期日期" align="center" prop="dueDate" width="104">
         <template #default="scope">
           <span>{{ parseTime(scope.row.dueDate, '{y}-{m}-{d}') }}</span>
         </template>
       </el-table-column>
-      <el-table-column label="操作" width="360" align="center" class-name="small-padding fixed-width">
+      <el-table-column label="操作" width="210" fixed="right" align="center" class-name="small-padding fixed-width">
         <template #default="scope">
-          <el-button link type="primary" icon="Edit" :disabled="!canEditRow(scope.row)" @click="handleUpdate(scope.row)" v-hasPermi="['business:receivable:edit']">修改</el-button>
-          <el-button link type="danger" icon="Delete" :disabled="!canDeleteRow(scope.row)" @click="handleDelete(scope.row)" v-hasPermi="['business:receivable:remove']">删除</el-button>
-          <el-button link type="success" icon="CircleCheck" v-if="canAuditRow(scope.row)" @click="handleAudit(scope.row)" v-hasPermi="['business:receivable:audit']">审核</el-button>
-          <el-button link type="warning" icon="RefreshLeft" v-if="canUnconfirmRow(scope.row)" @click="handleUnconfirm(scope.row)" v-hasPermi="['business:receivable:audit']">反确认</el-button>
-          <el-button v-if="canOffsetRow(scope.row)" link type="danger" icon="Switch" @click="openOffsetDialog(scope.row)" v-hasPermi="['business:receivable:edit']">红蓝对冲</el-button>
-          <el-button link type="info" icon="List" @click="openOffsetLogDrawer(scope.row)">对冲流水</el-button>
-          <el-button link type="primary" icon="Printer" @click="handlePrint(scope.row)">打印</el-button>
+          <div class="table-action-cell">
+            <el-button v-if="canAuditRow(scope.row)" link type="success" icon="CircleCheck" @click="handleAudit(scope.row)" v-hasPermi="['business:receivable:audit']">审核</el-button>
+            <el-button v-if="canOffsetRow(scope.row)" link type="danger" icon="Switch" @click="openOffsetDialog(scope.row)" v-hasPermi="['business:receivable:edit']">对冲</el-button>
+            <el-button link type="info" icon="List" @click="openOffsetLogDrawer(scope.row)">流水</el-button>
+            <el-button link type="primary" icon="Printer" @click="handlePrint(scope.row)">打印</el-button>
+            <el-dropdown v-if="canEditRow(scope.row) || canUnconfirmRow(scope.row)" trigger="click" @command="cmd => handleRowCommand(cmd, scope.row)">
+              <el-button link type="primary">更多<el-icon class="el-icon--right"><ArrowDown /></el-icon></el-button>
+              <template #dropdown>
+                <el-dropdown-menu>
+                  <el-dropdown-item v-if="canEditRow(scope.row)" command="edit">修改单据</el-dropdown-item>
+                  <el-dropdown-item v-if="canUnconfirmRow(scope.row)" command="unconfirm">反确认</el-dropdown-item>
+                  <el-dropdown-item v-if="canDeleteRow(scope.row)" command="delete" divided>删除单据</el-dropdown-item>
+                </el-dropdown-menu>
+              </template>
+            </el-dropdown>
+          </div>
         </template>
       </el-table-column>
     </el-table>
@@ -541,6 +551,12 @@ function submitForm() {
       }
     }
   })
+}
+
+function handleRowCommand(cmd, row) {
+  if (cmd === "edit") handleUpdate(row)
+  else if (cmd === "unconfirm") handleUnconfirm(row)
+  else if (cmd === "delete") handleDelete(row)
 }
 
 function handleDelete(currentRow) {

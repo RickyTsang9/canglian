@@ -34,35 +34,48 @@
     </el-row>
 
     <el-table v-loading="loading" :data="badDebtList" @selection-change="handleSelectionChange">
-      <el-table-column type="selection" width="50" align="center" />
-      <el-table-column label="坏账单号" align="center" prop="badDebtNo" min-width="145" />
-      <el-table-column label="客户" align="center" min-width="130" show-overflow-tooltip>
+      <el-table-column type="selection" width="46" align="center" />
+      <el-table-column label="坏账单号" align="center" prop="badDebtNo" min-width="136" show-overflow-tooltip />
+      <el-table-column label="客户" align="center" min-width="115" show-overflow-tooltip>
         <template #default="scope">{{ getCustomerName(scope.row.customerId) }}</template>
       </el-table-column>
-      <el-table-column label="应收单" align="center" width="105">
-        <template #default="scope">AR #{{ scope.row.receivableId }}</template>
+      <el-table-column label="应收单" align="center" min-width="136" show-overflow-tooltip>
+        <template #default="scope">{{ getReceivableNo(scope.row.receivableId) }}</template>
       </el-table-column>
-      <el-table-column label="核销坏账金额" align="right" prop="amount" width="115" />
-      <el-table-column label="已收回金额" align="right" width="105">
+      <el-table-column label="核销金额" align="right" header-align="right" prop="amount" width="96">
+        <template #default="scope">{{ Number(scope.row.amount || 0).toFixed(2) }}</template>
+      </el-table-column>
+      <el-table-column label="已收回" align="right" header-align="right" width="88">
         <template #default="scope">{{ Number(scope.row.recoveredAmount || 0).toFixed(2) }}</template>
       </el-table-column>
-      <el-table-column label="坏账日期" align="center" width="115">
+      <el-table-column label="坏账日期" align="center" width="104">
         <template #default="scope">{{ parseTime(scope.row.badDebtDate, '{y}-{m}-{d}') }}</template>
       </el-table-column>
-      <el-table-column label="原因" align="center" prop="reason" min-width="120" show-overflow-tooltip />
-      <el-table-column label="状态" align="center" width="95">
+      <el-table-column label="原因" align="center" prop="reason" min-width="110" show-overflow-tooltip>
+        <template #default="scope">{{ scope.row.reason || '-' }}</template>
+      </el-table-column>
+      <el-table-column label="状态" align="center" width="88">
         <template #default="scope">
-          <el-tag :type="getStatusTagType(scope.row.status)">{{ getStatusLabel(scope.row.status) }}</el-tag>
+          <el-tag size="small" :type="getStatusTagType(scope.row.status)">{{ getStatusLabel(scope.row.status) }}</el-tag>
         </template>
       </el-table-column>
-      <el-table-column label="操作" width="330" align="center">
+      <el-table-column label="操作" width="235" fixed="right" align="center">
         <template #default="scope">
-          <el-button link type="primary" icon="Edit" :disabled="!canEditRow(scope.row)" @click="handleUpdate(scope.row)" v-hasPermi="['business:badDebt:edit']">修改</el-button>
-          <el-button link type="success" icon="CircleCheck" v-if="canConfirmRow(scope.row)" @click="handleConfirm(scope.row)" v-hasPermi="['business:badDebt:confirm']">确认核销</el-button>
-          <el-button link type="warning" icon="RefreshLeft" v-if="canUnconfirmRow(scope.row)" @click="handleUnconfirm(scope.row)" v-hasPermi="['business:badDebt:confirm']">反确认</el-button>
-          <el-button link type="warning" icon="Money" v-if="canRecoverRow(scope.row)" @click="openRecoverDialog(scope.row)" v-hasPermi="['business:badDebt:recover']">坏账收回</el-button>
-          <el-button link type="danger" icon="Delete" :disabled="!canDeleteRow(scope.row)" @click="handleDelete(scope.row)" v-hasPermi="['business:badDebt:remove']">删除</el-button>
-          <el-button link type="primary" icon="Printer" @click="handlePrint(scope.row)">打印</el-button>
+          <div class="table-action-cell">
+            <el-button v-if="canEditRow(scope.row)" link type="primary" icon="Edit" @click="handleUpdate(scope.row)" v-hasPermi="['business:badDebt:edit']">修改</el-button>
+            <el-button v-if="canConfirmRow(scope.row)" link type="success" icon="CircleCheck" @click="handleConfirm(scope.row)" v-hasPermi="['business:badDebt:confirm']">确认</el-button>
+            <el-button v-if="canRecoverRow(scope.row)" link type="warning" icon="Money" @click="openRecoverDialog(scope.row)" v-hasPermi="['business:badDebt:recover']">收回</el-button>
+            <el-button link type="primary" icon="Printer" @click="handlePrint(scope.row)">打印</el-button>
+            <el-dropdown v-if="canUnconfirmRow(scope.row) || canDeleteRow(scope.row)" trigger="click" @command="cmd => handleRowCommand(cmd, scope.row)">
+              <el-button link type="primary">更多<el-icon class="el-icon--right"><ArrowDown /></el-icon></el-button>
+              <template #dropdown>
+                <el-dropdown-menu>
+                  <el-dropdown-item v-if="canUnconfirmRow(scope.row)" command="unconfirm">反确认</el-dropdown-item>
+                  <el-dropdown-item v-if="canDeleteRow(scope.row)" command="delete" divided>删除单据</el-dropdown-item>
+                </el-dropdown-menu>
+              </template>
+            </el-dropdown>
+          </div>
         </template>
       </el-table-column>
     </el-table>
@@ -71,8 +84,8 @@
 
     <!-- 新增/修改坏账单弹窗 -->
     <el-dialog :title="title" v-model="open" width="760px" append-to-body>
-      <el-form ref="badDebtRef" :model="form" :rules="rules" label-width="95px">
-        <el-row>
+      <el-form ref="badDebtRef" :model="form" :rules="rules" label-width="100px">
+        <el-row :gutter="12">
           <el-col :span="12">
             <el-form-item label="坏账单号" prop="badDebtNo">
               <el-input v-model="form.badDebtNo" placeholder="留空自动生成" />
@@ -81,12 +94,12 @@
           <el-col :span="12">
             <el-form-item label="客户" prop="customerId">
               <el-select v-model="form.customerId" placeholder="选客户自动过滤未收应收" clearable filterable style="width: 100%" @change="handleCustomerChange">
-                <el-option v-for="c in customerOptions" :key="c.customerId" :label="`${c.customerCode || ''} - ${c.customerName}`" :value="c.customerId" />
+                <el-option v-for="c in customerOptions" :key="c.customerId" :label="c.customerName" :value="c.customerId" />
               </el-select>
             </el-form-item>
           </el-col>
         </el-row>
-        <el-row>
+        <el-row :gutter="12">
           <el-col :span="12">
             <el-form-item label="关联应收单" prop="receivableId">
               <el-select v-model="form.receivableId" placeholder="请选择未结清应收单" filterable style="width: 100%" @change="handleArSelect">
@@ -105,10 +118,10 @@
             </el-form-item>
           </el-col>
         </el-row>
-        <el-row>
+        <el-row :gutter="12">
           <el-col :span="12">
             <el-form-item label="坏账日期" prop="badDebtDate">
-              <el-date-picker v-model="form.badDebtDate" type="date" value-format="YYYY-MM-DD" style="width: 100%" />
+              <el-date-picker v-model="form.badDebtDate" type="date" value-format="YYYY-MM-DD" placeholder="请选择坏账日期" style="width: 100%" />
             </el-form-item>
           </el-col>
           <el-col :span="12">
@@ -127,17 +140,17 @@
 
     <!-- 坏账收回弹窗 -->
     <el-dialog title="已核销坏账收回入账" v-model="recoverOpen" width="480px" append-to-body>
-      <el-form :model="recoverForm" label-width="100px">
+      <el-form :model="recoverForm" label-width="112px">
         <el-form-item label="坏账单号"><strong>{{ recoverForm.badDebtNo }}</strong></el-form-item>
         <el-form-item label="可收回余额">
-          <span style="color: #e6a23c; font-weight: 600">￥{{ recoverForm.maxRecoverable.toFixed(2) }}</span>
+          <span style="color: #d97706; font-weight: 600">￥{{ recoverForm.maxRecoverable.toFixed(2) }}</span>
         </el-form-item>
         <el-form-item label="本次收回金额" required>
           <el-input-number v-model="recoverForm.amount" :min="0.01" :max="recoverForm.maxRecoverable" :precision="2" controls-position="right" style="width: 100%" />
         </el-form-item>
         <el-form-item label="入账资金账户" required>
           <el-select v-model="recoverForm.accountId" placeholder="请选择入账资金账户" filterable style="width: 100%">
-            <el-option v-for="acc in fundAccountOptions" :key="acc.accountId" :label="`${acc.accountNo || ''} - ${acc.accountName}`" :value="acc.accountId" />
+            <el-option v-for="acc in fundAccountOptions" :key="acc.accountId" :label="acc.accountName" :value="acc.accountId" />
           </el-select>
         </el-form-item>
         <el-form-item label="收回说明">
@@ -154,6 +167,7 @@
 
 <script setup name="BadDebt">
 import { listBadDebt, addBadDebt, delBadDebt, getBadDebt, updateBadDebt, confirmBadDebt, unconfirmBadDebt, recoverBadDebt } from "@/api/business/badDebt"
+import { listReceivable } from "@/api/business/receivable"
 import { useBusinessOptions } from "@/utils/businessOptions"
 import { printFinancialDocument } from "@/utils/documentPrint"
 
@@ -162,6 +176,17 @@ const {
   customerOptions, fundAccountOptions,
   loadCustomers, loadFundAccounts, fetchOpenReceivables, getCustomerName
 } = useBusinessOptions()
+
+const receivableNoMap = reactive({})
+function loadReceivableNos() {
+  listReceivable({ pageNum: 1, pageSize: 500 }).then(r => {
+    ;(r.rows || []).forEach(it => { receivableNoMap[it.receivableId] = it.receivableNo })
+  }).catch(() => {})
+}
+function getReceivableNo(id) {
+  if (!id) return "-"
+  return receivableNoMap[id] || `AR #${id}`
+}
 
 const badDebtStatusOptions = [
   { label: "草稿", value: "0", tagType: "info" },
@@ -314,10 +339,15 @@ function submitForm() {
   })
 }
 
+function handleRowCommand(cmd, row) {
+  if (cmd === "unconfirm") handleUnconfirm(row)
+  else if (cmd === "delete") handleDelete(row)
+}
+
 function handleDelete(row) {
   const ids = row.badDebtId || selectedIds.value
   proxy.$modal.confirm("是否确认删除选中坏账单？").then(() => delBadDebt(ids)).then(() => { proxy.$modal.msgSuccess("删除成功"); getList() }).catch(() => {})
 }
 
-loadCustomers(); loadFundAccounts(); getList()
+loadCustomers(); loadFundAccounts(); loadReceivableNos(); getList()
 </script>

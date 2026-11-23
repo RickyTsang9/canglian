@@ -39,8 +39,8 @@
     </el-row>
 
     <el-table v-loading="loading" :data="outboundList" @selection-change="handleSelectionChange">
-      <el-table-column type="selection" width="50" align="center" />
-      <el-table-column label="出库单号" align="center" min-width="175">
+      <el-table-column type="selection" width="48" align="center" />
+      <el-table-column label="出库单号" align="center" min-width="160" show-overflow-tooltip>
         <template #default="scope">
           <span>{{ scope.row.outboundNo }}</span>
           <el-tag v-if="scope.row.isReversal === '1'" type="danger" size="small" style="margin-left: 4px">红冲单</el-tag>
@@ -48,42 +48,53 @@
           <el-tag v-if="scope.row.verifiedFlag === '1'" type="success" size="small" style="margin-left: 4px">已复核</el-tag>
         </template>
       </el-table-column>
-      <el-table-column label="出库类型" align="center" width="110">
+      <el-table-column label="出库类型" align="center" width="106">
         <template #default="scope">
           <el-tag size="small" type="info">{{ outboundTypeLabel(scope.row.outboundType) }}</el-tag>
         </template>
       </el-table-column>
-      <el-table-column label="客户" align="center" min-width="130" show-overflow-tooltip>
+      <el-table-column label="客户" align="center" min-width="136" show-overflow-tooltip>
         <template #default="scope">{{ getCustomerName(scope.row.customerId) }}</template>
       </el-table-column>
-      <el-table-column label="仓库" align="center" min-width="110" show-overflow-tooltip>
+      <el-table-column label="仓库" align="center" min-width="100" show-overflow-tooltip>
         <template #default="scope">{{ getWarehouseName(scope.row.warehouseId) }}</template>
       </el-table-column>
-      <el-table-column label="总数量" align="right" prop="totalQty" width="80" />
-      <el-table-column label="总金额" align="right" prop="totalAmount" width="100" />
-      <el-table-column label="配送状态" align="center" prop="deliveryStatus" width="90">
+      <el-table-column label="总数量" align="right" prop="totalQty" width="78" />
+      <el-table-column label="总金额" align="right" prop="totalAmount" width="100">
+        <template #default="scope">{{ Number(scope.row.totalAmount || 0).toFixed(2) }}</template>
+      </el-table-column>
+      <el-table-column label="配送状态" align="center" prop="deliveryStatus" width="88">
         <template #default="scope">
           <dict-tag :options="deliveryStatusOptions" :value="scope.row.deliveryStatus" />
         </template>
       </el-table-column>
-      <el-table-column label="状态" align="center" prop="status" width="80">
+      <el-table-column label="状态" align="center" prop="status" width="86">
         <template #default="scope">
-          <el-tag :type="getStatusTagType(scope.row.status)">{{ getStatusLabel(scope.row.status) }}</el-tag>
+          <el-tag size="small" :type="getStatusTagType(scope.row.status)">{{ getStatusLabel(scope.row.status) }}</el-tag>
         </template>
       </el-table-column>
-      <el-table-column label="操作" width="430" align="center">
+      <el-table-column label="操作" width="245" fixed="right" align="center">
         <template #default="scope">
-          <el-button link type="info" icon="View" @click="handleViewDetail(scope.row)">详情</el-button>
-          <el-button link type="primary" icon="Edit" :disabled="!canEditRow(scope.row)" @click="handleUpdate(scope.row)" v-hasPermi="['business:outbound:edit']">修改</el-button>
-          <el-button link type="danger" icon="Delete" :disabled="!canDeleteRow(scope.row)" @click="handleDelete(scope.row)" v-hasPermi="['business:outbound:remove']">删除</el-button>
-          <el-button link type="success" icon="CircleCheck" v-if="canAuditRow(scope.row)" @click="handleAudit(scope.row)" v-hasPermi="['business:outbound:audit']">审核</el-button>
-          <el-button link type="warning" icon="RefreshLeft" v-if="canUnauditRow(scope.row)" @click="handleUnaudit(scope.row)" v-hasPermi="['business:outbound:unaudit']">反审核</el-button>
-          <el-button link type="danger" icon="DocumentDelete" v-if="canReverseRow(scope.row)" @click="handleReverse(scope.row)" v-hasPermi="['business:outbound:reverse']">红冲</el-button>
-          <el-button link type="primary" icon="Position" v-if="canShipRow(scope.row)" @click="handleShip(scope.row)" v-hasPermi="['business:outbound:ship']">发货</el-button>
-          <el-button link type="success" icon="Check" v-if="canSignRow(scope.row)" @click="handleSign(scope.row)" v-hasPermi="['business:outbound:sign']">签收</el-button>
-          <el-button link type="warning" icon="Back" v-if="canReturnRow(scope.row)" @click="handleReturn(scope.row)" v-hasPermi="['business:outbound:return']">退货</el-button>
-          <el-button link type="primary" icon="Connection" @click="handleTrace(scope.row)" v-hasPermi="['business:trace:query']">链路</el-button>
-          <el-button link type="primary" icon="Printer" @click="handlePrint(scope.row)" v-hasPermi="['business:outbound:print']">打印</el-button>
+          <div class="table-action-cell">
+            <el-button link type="info" icon="View" @click="handleViewDetail(scope.row)">详情</el-button>
+            <el-button v-if="canEditRow(scope.row)" link type="primary" icon="Edit" @click="handleUpdate(scope.row)" v-hasPermi="['business:outbound:edit']">修改</el-button>
+            <el-button v-if="canAuditRow(scope.row)" link type="success" icon="CircleCheck" @click="handleAudit(scope.row)" v-hasPermi="['business:outbound:audit']">审核</el-button>
+            <el-button v-if="canShipRow(scope.row)" link type="primary" icon="Position" @click="handleShip(scope.row)" v-hasPermi="['business:outbound:ship']">发货</el-button>
+            <el-button v-if="canSignRow(scope.row)" link type="success" icon="Check" @click="handleSign(scope.row)" v-hasPermi="['business:outbound:sign']">签收</el-button>
+            <el-dropdown trigger="click" @command="cmd => handleRowCommand(cmd, scope.row)">
+              <el-button link type="primary">更多<el-icon class="el-icon--right"><ArrowDown /></el-icon></el-button>
+              <template #dropdown>
+                <el-dropdown-menu>
+                  <el-dropdown-item v-if="canUnauditRow(scope.row)" command="unaudit">反审核</el-dropdown-item>
+                  <el-dropdown-item v-if="canReverseRow(scope.row)" command="reverse">一键红冲</el-dropdown-item>
+                  <el-dropdown-item v-if="canReturnRow(scope.row)" command="return">退货处理</el-dropdown-item>
+                  <el-dropdown-item command="trace">单据链路</el-dropdown-item>
+                  <el-dropdown-item command="print">打印单据</el-dropdown-item>
+                  <el-dropdown-item v-if="canDeleteRow(scope.row)" command="delete" divided>删除单据</el-dropdown-item>
+                </el-dropdown-menu>
+              </template>
+            </el-dropdown>
+          </div>
         </template>
       </el-table-column>
     </el-table>
@@ -91,7 +102,7 @@
     <pagination v-show="total > 0" :total="total" v-model:page="queryParams.pageNum" v-model:limit="queryParams.pageSize" @pagination="getList" />
 
     <!-- 新增/修改出库单 -->
-    <el-dialog :title="title" v-model="open" width="1240px" append-to-body>
+    <el-dialog :title="title" v-model="open" width="min(1260px, 94vw)" append-to-body>
       <el-form ref="outboundRef" :model="form" :rules="rules" label-width="90px">
         <el-row>
           <el-col :span="8">
@@ -110,7 +121,7 @@
           </el-col>
           <el-col :span="8">
             <el-form-item label="业务日期" prop="businessDate">
-              <el-date-picker v-model="form.businessDate" type="date" value-format="YYYY-MM-DD" style="width: 100%" />
+              <el-date-picker v-model="form.businessDate" type="date" value-format="YYYY-MM-DD" placeholder="请选择业务日期" style="width: 100%" />
             </el-form-item>
           </el-col>
         </el-row>
@@ -176,18 +187,18 @@
               </el-select>
             </template>
           </el-table-column>
-          <el-table-column label="单位" width="100">
+          <el-table-column label="单位" min-width="125">
             <template #default="scope">
               <el-select v-model="scope.row.unitName" placeholder="选择单位" filterable style="width: 100%" @change="handleUnitChange(scope.row)">
                 <el-option v-for="u in getUnitOptions(scope.row.productId)" :key="u.unitName" :label="`${u.unitName}(×${u.convertRatio})`" :value="u.unitName" />
               </el-select>
             </template>
           </el-table-column>
-          <el-table-column label="批次号(FEFO建议)" width="170">
+          <el-table-column label="批次号(FEFO建议)" width="195">
             <template #default="scope">
               <el-select
                 v-model="scope.row.batchNo"
-                placeholder="选批次(先到期先出)"
+                placeholder="选择批次(FEFO)"
                 filterable
                 allow-create
                 clearable
@@ -288,7 +299,7 @@
     </el-dialog>
 
     <!-- 只读单据详情抽屉 -->
-    <el-drawer v-model="detailOpen" :title="`出库单详情 - ${detailDoc.outboundNo || ''}`" size="820px">
+    <el-drawer v-model="detailOpen" :title="`出库单详情 - ${detailDoc.outboundNo || ''}`" size="900px">
       <el-descriptions :column="2" border size="small" style="margin-bottom: 14px">
         <el-descriptions-item label="出库单号">{{ detailDoc.outboundNo }}</el-descriptions-item>
         <el-descriptions-item label="出库类型">{{ outboundTypeLabel(detailDoc.outboundType) }}</el-descriptions-item>
@@ -301,14 +312,14 @@
         <el-descriptions-item label="备注" :span="2">{{ detailDoc.remark || '-' }}</el-descriptions-item>
       </el-descriptions>
       <el-table :data="detailDoc.itemList || []" border size="small">
-        <el-table-column label="商品" min-width="150"><template #default="s">{{ getProductName(s.row.productId) }}</template></el-table-column>
-        <el-table-column label="库位" width="110"><template #default="s">{{ getLocationName(s.row.locationId) }}</template></el-table-column>
-        <el-table-column label="单位" prop="unitName" width="65" align="center" />
-        <el-table-column label="批次" prop="batchNo" width="90" align="center" />
+        <el-table-column label="商品" min-width="145" show-overflow-tooltip><template #default="s">{{ getProductName(s.row.productId) }}</template></el-table-column>
+        <el-table-column label="库位" min-width="120" show-overflow-tooltip><template #default="s">{{ getLocationName(s.row.locationId) }}</template></el-table-column>
+        <el-table-column label="单位" prop="unitName" width="66" align="center"><template #default="s">{{ s.row.unitName || '-' }}</template></el-table-column>
+        <el-table-column label="批次" prop="batchNo" width="128" align="center" show-overflow-tooltip><template #default="s">{{ s.row.batchNo || '-' }}</template></el-table-column>
         <el-table-column label="数量" prop="quantity" width="70" align="right" />
-        <el-table-column label="单价" prop="price" width="75" align="right" />
-        <el-table-column label="金额" prop="amount" width="85" align="right" />
-        <el-table-column label="SN码" prop="snCodes" min-width="120" show-overflow-tooltip />
+        <el-table-column label="单价" prop="price" width="80" align="right"><template #default="s">{{ Number(s.row.price || 0).toFixed(2) }}</template></el-table-column>
+        <el-table-column label="金额" prop="amount" width="88" align="right"><template #default="s">{{ Number(s.row.amount || 0).toFixed(2) }}</template></el-table-column>
+        <el-table-column label="SN码" prop="snCodes" min-width="125" show-overflow-tooltip><template #default="s">{{ s.row.snCodes || '-' }}</template></el-table-column>
       </el-table>
     </el-drawer>
 
@@ -626,6 +637,15 @@ function submitForm() {
       getList()
     })
   })
+}
+
+function handleRowCommand(cmd, row) {
+  if (cmd === "unaudit") handleUnaudit(row)
+  else if (cmd === "reverse") handleReverse(row)
+  else if (cmd === "return") handleReturn(row)
+  else if (cmd === "trace") handleTrace(row)
+  else if (cmd === "print") handlePrint(row)
+  else if (cmd === "delete") handleDelete(row)
 }
 
 function handleDelete(row) {

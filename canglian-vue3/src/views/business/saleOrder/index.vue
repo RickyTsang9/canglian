@@ -34,49 +34,64 @@
     </el-row>
 
     <el-table v-loading="loading" :data="saleOrderList" @selection-change="handleSelectionChange">
-      <el-table-column type="selection" width="50" align="center" />
-      <el-table-column label="单据号" align="center" prop="orderNo" min-width="145" />
-      <el-table-column label="单据类型" align="center" prop="orderType" width="85">
+      <el-table-column type="selection" width="48" align="center" />
+      <el-table-column label="单据号" align="center" prop="orderNo" min-width="145" show-overflow-tooltip />
+      <el-table-column label="单据类型" align="center" prop="orderType" width="88">
         <template #default="scope">
           <el-tag :type="scope.row.orderType === 'quote' ? 'info' : 'primary'">
-            {{ scope.row.orderType === "quote" ? "报价单" : "销货单" }}
+            {{ scope.row.orderType === "quote" ? "销售报价" : "销售订单" }}
           </el-tag>
         </template>
       </el-table-column>
-      <el-table-column label="客户" align="center" min-width="130" show-overflow-tooltip>
+      <el-table-column label="客户" align="center" min-width="125" show-overflow-tooltip>
         <template #default="scope">{{ getCustomerName(scope.row.customerId) }}</template>
       </el-table-column>
-      <el-table-column label="仓库" align="center" min-width="115" show-overflow-tooltip>
+      <el-table-column label="仓库" align="center" min-width="105" show-overflow-tooltip>
         <template #default="scope">{{ getWarehouseName(scope.row.warehouseId) }}</template>
       </el-table-column>
-      <el-table-column label="业务日期" align="center" prop="businessDate" width="110">
+      <el-table-column label="业务日期" align="center" prop="businessDate" width="108">
         <template #default="scope">{{ parseTime(scope.row.businessDate, '{y}-{m}-{d}') }}</template>
       </el-table-column>
-      <el-table-column v-if="!isQuotePage" label="发货进度" align="center" width="145">
+      <el-table-column v-if="!isQuotePage" label="发货进度" align="center" width="135">
         <template #default="scope">
-          <el-progress :percentage="calcProgress(scope.row)" :status="calcProgress(scope.row) >= 100 ? 'success' : ''" :stroke-width="14" />
+          <el-progress :percentage="calcProgress(scope.row)" :status="calcProgress(scope.row) >= 100 ? 'success' : ''" :stroke-width="12" />
         </template>
       </el-table-column>
-      <el-table-column label="税额" align="center" prop="taxTotalAmount" width="85" />
-      <el-table-column label="整单优惠" align="center" prop="discountAmount" width="85" />
-      <el-table-column label="订单总额" align="center" prop="totalAmount" width="110" />
-      <el-table-column label="业务状态" align="center" prop="bizStatus" width="95">
+      <el-table-column label="税额" align="right" prop="taxTotalAmount" width="88">
+        <template #default="scope">{{ Number(scope.row.taxTotalAmount || 0).toFixed(2) }}</template>
+      </el-table-column>
+      <el-table-column label="整单优惠" align="right" prop="discountAmount" width="90">
+        <template #default="scope">{{ Number(scope.row.discountAmount || 0).toFixed(2) }}</template>
+      </el-table-column>
+      <el-table-column label="订单总额" align="right" prop="totalAmount" width="105">
+        <template #default="scope">{{ Number(scope.row.totalAmount || 0).toFixed(2) }}</template>
+      </el-table-column>
+      <el-table-column label="业务状态" align="center" prop="bizStatus" width="88">
         <template #default="scope">
           <dict-tag :options="bizStatusOptions" :value="scope.row.bizStatus" />
         </template>
       </el-table-column>
-      <el-table-column label="操作" width="390" align="center">
+      <el-table-column label="操作" width="245" fixed="right" align="center">
         <template #default="scope">
-          <el-button link type="info" icon="View" @click="handleViewDetail(scope.row)">详情</el-button>
-          <el-button link type="primary" icon="Edit" :disabled="!canEditRow(scope.row)" @click="handleUpdate(scope.row)" v-hasPermi="['business:saleOrder:edit']">修改</el-button>
-          <el-button link type="danger" icon="Delete" :disabled="!canEditRow(scope.row)" @click="handleDelete(scope.row)" v-hasPermi="['business:saleOrder:remove']">删除</el-button>
-          <el-button link type="success" icon="CircleCheck" v-if="canApproveRow(scope.row)" @click="handleApprove(scope.row)" v-hasPermi="['business:saleOrder:approve']">审批</el-button>
-          <el-button link type="warning" icon="RefreshLeft" v-if="canUnapproveRow(scope.row)" @click="handleUnapprove(scope.row)" v-hasPermi="['business:saleOrder:close']">反审批</el-button>
-          <el-button v-if="isQuotePage && scope.row.bizStatus === 'approved'" link type="primary" icon="Right" @click="handlePushSale(scope.row)" v-hasPermi="['business:saleOrder:pushSale']">下推销货</el-button>
-          <el-button v-if="!isQuotePage && canPushRow(scope.row)" link type="primary" icon="Right" @click="openPartialPush(scope.row)" v-hasPermi="['business:saleOrder:pushOutbound']">分批下推</el-button>
-          <el-button link type="danger" icon="CircleClose" v-if="canCloseRow(scope.row)" @click="handleClose(scope.row)" v-hasPermi="['business:saleOrder:close']">关闭</el-button>
-          <el-button link type="primary" icon="Connection" @click="handleTrace(scope.row)" v-hasPermi="['business:trace:query']">链路</el-button>
-          <el-button link type="primary" icon="Printer" @click="handlePrint(scope.row)" v-hasPermi="['business:saleOrder:print']">打印</el-button>
+          <div class="table-action-cell">
+            <el-button link type="info" icon="View" @click="handleViewDetail(scope.row)">详情</el-button>
+            <el-button v-if="canEditRow(scope.row)" link type="primary" icon="Edit" @click="handleUpdate(scope.row)" v-hasPermi="['business:saleOrder:edit']">修改</el-button>
+            <el-button v-if="canApproveRow(scope.row)" link type="success" icon="CircleCheck" @click="handleApprove(scope.row)" v-hasPermi="['business:saleOrder:approve']">审批</el-button>
+            <el-button v-if="isQuotePage && scope.row.bizStatus === 'approved'" link type="primary" icon="Right" @click="handlePushSale(scope.row)" v-hasPermi="['business:saleOrder:pushSale']">下推</el-button>
+            <el-button v-if="!isQuotePage && canPushRow(scope.row)" link type="primary" icon="Right" @click="openPartialPush(scope.row)" v-hasPermi="['business:saleOrder:pushOutbound']">下推</el-button>
+            <el-dropdown trigger="click" @command="cmd => handleRowCommand(cmd, scope.row)">
+              <el-button link type="primary">更多<el-icon class="el-icon--right"><ArrowDown /></el-icon></el-button>
+              <template #dropdown>
+                <el-dropdown-menu>
+                  <el-dropdown-item v-if="canUnapproveRow(scope.row)" command="unapprove">反审批</el-dropdown-item>
+                  <el-dropdown-item v-if="canCloseRow(scope.row)" command="close">强制关闭</el-dropdown-item>
+                  <el-dropdown-item command="trace">单据链路</el-dropdown-item>
+                  <el-dropdown-item command="print">打印单据</el-dropdown-item>
+                  <el-dropdown-item v-if="canEditRow(scope.row)" command="delete" divided>删除单据</el-dropdown-item>
+                </el-dropdown-menu>
+              </template>
+            </el-dropdown>
+          </div>
         </template>
       </el-table-column>
     </el-table>
@@ -84,7 +99,7 @@
     <pagination v-show="total > 0" :total="total" v-model:page="queryParams.pageNum" v-model:limit="queryParams.pageSize" @pagination="getList" />
 
     <!-- 新增/修改销售单据弹窗 -->
-    <el-dialog :title="title" v-model="open" width="1200px" append-to-body>
+    <el-dialog :title="title" v-model="open" width="min(1180px, 94vw)" append-to-body>
       <el-form ref="saleOrderRef" :model="form" :rules="rules" label-width="90px">
         <el-row>
           <el-col :span="8">
@@ -145,14 +160,14 @@
               </el-select>
             </template>
           </el-table-column>
-          <el-table-column label="单位" width="120">
+          <el-table-column label="单位" min-width="130">
             <template #default="scope">
               <el-select v-model="scope.row.unitName" placeholder="选择单位" filterable style="width: 100%" @change="handleUnitChange(scope.row)">
                 <el-option v-for="u in getUnitOptions(scope.row.productId)" :key="u.unitName" :label="`${u.unitName}(×${u.convertRatio})`" :value="u.unitName" />
               </el-select>
             </template>
           </el-table-column>
-          <el-table-column label="数量" width="105">
+          <el-table-column label="数量" width="110">
             <template #default="scope">
               <el-input-number v-model="scope.row.quantity" controls-position="right" :min="0.01" :step="1" style="width: 100%" @change="calculateItemAmount(scope.row)" />
             </template>
@@ -163,12 +178,12 @@
               <el-tag v-if="scope.row.priceSourceLabel" size="small" type="success" style="margin-top: 4px">{{ scope.row.priceSourceLabel }}</el-tag>
             </template>
           </el-table-column>
-          <el-table-column label="折扣%" width="90">
+          <el-table-column label="折扣%" width="124">
             <template #default="scope">
               <el-input-number v-model="scope.row.discountRate" controls-position="right" :min="0" :max="100" :precision="2" style="width: 100%" @change="calculateItemAmount(scope.row)" />
             </template>
           </el-table-column>
-          <el-table-column label="税率%" width="90">
+          <el-table-column label="税率%" width="124">
             <template #default="scope">
               <el-input-number v-model="scope.row.taxRate" controls-position="right" :min="0" :max="100" :precision="2" style="width: 100%" @change="calculateItemAmount(scope.row)" />
             </template>
@@ -259,7 +274,7 @@ import { printBusinessDocument } from "@/utils/documentPrint"
 const route = useRoute()
 const orderType = computed(() => route.query.orderType || (route.path.includes("saleQuote") ? "quote" : "sale"))
 const isQuotePage = computed(() => orderType.value === "quote")
-const pageTitle = computed(() => isQuotePage.value ? "报价单" : "销货订单")
+const pageTitle = computed(() => isQuotePage.value ? "销售报价单" : "销售订单")
 
 const { proxy } = getCurrentInstance()
 const {
@@ -655,6 +670,14 @@ function submitForm() {
       getList()
     })
   })
+}
+
+function handleRowCommand(cmd, row) {
+  if (cmd === "unapprove") handleUnapprove(row)
+  else if (cmd === "close") handleClose(row)
+  else if (cmd === "trace") handleTrace(row)
+  else if (cmd === "print") handlePrint(row)
+  else if (cmd === "delete") handleDelete(row)
 }
 
 function handleDelete(row) {

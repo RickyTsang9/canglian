@@ -19,22 +19,34 @@
     </el-form>
 
     <el-table v-loading="loading" :data="outboundItemList" border>
-      <el-table-column label="出库单号" align="center" min-width="150">
+      <el-table-column label="出库单号" align="center" min-width="145" show-overflow-tooltip>
         <template #default="scope">{{ getOutboundLabel(scope.row.outboundId) }}</template>
       </el-table-column>
-      <el-table-column label="商品" align="center" min-width="175" show-overflow-tooltip>
+      <el-table-column label="商品" align="center" min-width="145" show-overflow-tooltip>
         <template #default="scope">{{ getProductName(scope.row.productId) }}</template>
       </el-table-column>
-      <el-table-column label="库位" align="center" width="115" show-overflow-tooltip>
+      <el-table-column label="库位" align="center" min-width="120" show-overflow-tooltip>
         <template #default="scope">{{ getLocationName(scope.row.locationId) }}</template>
       </el-table-column>
-      <el-table-column label="单位" align="center" prop="unitName" width="75" />
-      <el-table-column label="批次号" align="center" prop="batchNo" width="105" />
-      <el-table-column label="数量" align="right" prop="quantity" width="85" />
-      <el-table-column label="基准数量" align="right" prop="baseQuantity" width="90" />
-      <el-table-column label="单价" align="right" prop="price" width="90" />
-      <el-table-column label="金额" align="right" prop="amount" width="100" />
-      <el-table-column label="序列号(SN)" prop="snCodes" min-width="130" show-overflow-tooltip />
+      <el-table-column label="单位" align="center" prop="unitName" width="66">
+        <template #default="scope">{{ scope.row.unitName || '-' }}</template>
+      </el-table-column>
+      <el-table-column label="批次号" align="center" prop="batchNo" width="128" show-overflow-tooltip>
+        <template #default="scope">{{ scope.row.batchNo || '-' }}</template>
+      </el-table-column>
+      <el-table-column label="数量" align="right" header-align="right" prop="quantity" width="80" />
+      <el-table-column label="基准数" align="right" header-align="right" prop="baseQuantity" width="82">
+        <template #default="scope">{{ scope.row.baseQuantity ?? scope.row.quantity ?? '-' }}</template>
+      </el-table-column>
+      <el-table-column label="单价" align="right" header-align="right" prop="price" width="88">
+        <template #default="scope">{{ Number(scope.row.price || 0).toFixed(2) }}</template>
+      </el-table-column>
+      <el-table-column label="金额" align="right" header-align="right" prop="amount" width="98">
+        <template #default="scope">{{ Number(scope.row.amount || 0).toFixed(2) }}</template>
+      </el-table-column>
+      <el-table-column label="序列号(SN)" align="center" prop="snCodes" min-width="110" show-overflow-tooltip>
+        <template #default="scope">{{ scope.row.snCodes || '-' }}</template>
+      </el-table-column>
     </el-table>
 
     <pagination v-show="total > 0" :total="total" v-model:page="queryParams.pageNum" v-model:limit="queryParams.pageSize" @pagination="getList" />

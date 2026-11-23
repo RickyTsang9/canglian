@@ -44,29 +44,40 @@
         <template #default="scope">{{ parseTime(scope.row.businessDate || scope.row.createTime, '{y}-{m}-{d}') }}</template>
       </el-table-column>
       <el-table-column label="差异数量合计" align="right" prop="totalDiffQty" width="115" />
-      <el-table-column label="差异金额合计" align="right" prop="totalDiffAmount" width="115" />
-      <el-table-column label="状态" align="center" prop="status" width="85">
+      <el-table-column label="差异金额合计" align="right" prop="totalDiffAmount" width="120">
+        <template #default="scope">{{ Number(scope.row.totalDiffAmount || 0).toFixed(2) }}</template>
+      </el-table-column>
+      <el-table-column label="状态" align="center" prop="status" width="82">
         <template #default="scope">
           <el-tag :type="getStatusTagType(scope.row.status)">{{ getStatusLabel(scope.row.status) }}</el-tag>
         </template>
       </el-table-column>
-      <el-table-column label="操作" width="370" align="center">
+      <el-table-column label="操作" width="235" fixed="right" align="center">
         <template #default="scope">
-          <el-button link type="info" icon="View" @click="handleViewDetail(scope.row)">详情</el-button>
-          <el-button link type="primary" icon="Edit" :disabled="!canEditRow(scope.row)" @click="handleUpdate(scope.row)" v-hasPermi="['business:inventoryCheck:edit']">修改</el-button>
-          <el-button link type="success" icon="CircleCheck" v-if="canAuditRow(scope.row)" @click="handleAudit(scope.row)" v-hasPermi="['business:inventoryCheck:audit']">审核</el-button>
-          <el-button link type="warning" icon="RefreshLeft" v-if="canUnauditRow(scope.row)" @click="handleUnaudit(scope.row)" v-hasPermi="['business:inventoryCheck:unaudit']">反审核</el-button>
-          <el-button link type="danger" icon="DocumentDelete" v-if="canReverseRow(scope.row)" @click="handleReverse(scope.row)" v-hasPermi="['business:inventoryCheck:unaudit']">红冲</el-button>
-          <el-button link type="danger" icon="Delete" :disabled="!canDeleteRow(scope.row)" @click="handleDelete(scope.row)" v-hasPermi="['business:inventoryCheck:remove']">删除</el-button>
-          <el-button link type="primary" icon="Connection" @click="handleTrace(scope.row)" v-hasPermi="['business:trace:query']">链路</el-button>
-          <el-button link type="primary" icon="Printer" @click="handlePrint(scope.row)">打印</el-button>
+          <div class="table-action-cell">
+            <el-button link type="info" icon="View" @click="handleViewDetail(scope.row)">详情</el-button>
+            <el-button v-if="canEditRow(scope.row)" link type="primary" icon="Edit" @click="handleUpdate(scope.row)" v-hasPermi="['business:inventoryCheck:edit']">修改</el-button>
+            <el-button v-if="canAuditRow(scope.row)" link type="success" icon="CircleCheck" @click="handleAudit(scope.row)" v-hasPermi="['business:inventoryCheck:audit']">审核</el-button>
+            <el-button v-if="canUnauditRow(scope.row)" link type="warning" icon="RefreshLeft" @click="handleUnaudit(scope.row)" v-hasPermi="['business:inventoryCheck:unaudit']">反审核</el-button>
+            <el-dropdown trigger="click" @command="cmd => handleRowCommand(cmd, scope.row)">
+              <el-button link type="primary">更多<el-icon class="el-icon--right"><ArrowDown /></el-icon></el-button>
+              <template #dropdown>
+                <el-dropdown-menu>
+                  <el-dropdown-item v-if="canReverseRow(scope.row)" command="reverse">一键红冲</el-dropdown-item>
+                  <el-dropdown-item command="trace">单据链路</el-dropdown-item>
+                  <el-dropdown-item command="print">打印单据</el-dropdown-item>
+                  <el-dropdown-item v-if="canDeleteRow(scope.row)" command="delete" divided>删除单据</el-dropdown-item>
+                </el-dropdown-menu>
+              </template>
+            </el-dropdown>
+          </div>
         </template>
       </el-table-column>
     </el-table>
 
     <pagination v-show="total > 0" :total="total" v-model:page="queryParams.pageNum" v-model:limit="queryParams.pageSize" @pagination="getList" />
 
-    <el-dialog :title="title" v-model="open" width="1060px" append-to-body>
+    <el-dialog :title="title" v-model="open" width="min(1080px, 94vw)" append-to-body>
       <el-form ref="inventoryCheckRef" :model="form" :rules="rules" label-width="95px">
         <el-row>
           <el-col :span="8">
@@ -76,7 +87,7 @@
           </el-col>
           <el-col :span="8">
             <el-form-item label="业务日期" prop="businessDate">
-              <el-date-picker v-model="form.businessDate" type="date" value-format="YYYY-MM-DD" style="width: 100%" />
+              <el-date-picker v-model="form.businessDate" type="date" value-format="YYYY-MM-DD" placeholder="请选择业务日期" style="width: 100%" />
             </el-form-item>
           </el-col>
           <el-col :span="8">
@@ -110,7 +121,7 @@
               </el-select>
             </template>
           </el-table-column>
-          <el-table-column label="单位" width="105">
+          <el-table-column label="单位" min-width="125">
             <template #default="scope">
               <el-select v-model="scope.row.unitName" placeholder="选择单位" filterable style="width: 100%" @change="handleUnitChange(scope.row)">
                 <el-option v-for="u in getUnitOptions(scope.row.productId)" :key="u.unitName" :label="`${u.unitName}(×${u.convertRatio})`" :value="u.unitName" />
@@ -348,6 +359,13 @@ function submitForm() {
       getList()
     })
   })
+}
+
+function handleRowCommand(cmd, row) {
+  if (cmd === "reverse") handleReverse(row)
+  else if (cmd === "trace") handleTrace(row)
+  else if (cmd === "print") handlePrint(row)
+  else if (cmd === "delete") handleDelete(row)
 }
 
 function handleDelete(row) {

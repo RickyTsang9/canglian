@@ -6,12 +6,12 @@
           v-model="queryParams.expenseNo"
           placeholder="请输入费用单号"
           clearable
-          style="width: 190px"
+          style="width: 155px"
           @keyup.enter="handleQuery"
         />
       </el-form-item>
       <el-form-item label="费用类别" prop="expenseType">
-        <el-select v-model="queryParams.expenseType" placeholder="请选择费用类别" clearable filterable style="width: 190px">
+        <el-select v-model="queryParams.expenseType" placeholder="请选择类别" clearable filterable style="width: 145px">
           <el-option
             v-for="cat in expenseCategoryOptions"
             :key="cat.value"
@@ -21,12 +21,12 @@
         </el-select>
       </el-form-item>
       <el-form-item label="资金账户" prop="fundAccountId">
-        <el-select v-model="queryParams.fundAccountId" placeholder="请选择资金账户" clearable filterable style="width: 210px">
-          <el-option v-for="acc in fundAccountOptions" :key="acc.accountId" :label="`${acc.accountNo || acc.accountId} - ${acc.accountName}`" :value="acc.accountId" />
+        <el-select v-model="queryParams.fundAccountId" placeholder="请选择账户" clearable filterable style="width: 150px">
+          <el-option v-for="acc in fundAccountOptions" :key="acc.accountId" :label="acc.accountName" :value="acc.accountId" />
         </el-select>
       </el-form-item>
       <el-form-item label="状态" prop="status">
-        <el-select v-model="queryParams.status" placeholder="费用状态" clearable style="width: 140px">
+        <el-select v-model="queryParams.status" placeholder="费用状态" clearable style="width: 115px">
           <el-option
             v-for="dict in expenseStatusOptions"
             :key="dict.value"
@@ -75,44 +75,45 @@
     </el-row>
 
     <el-table v-loading="loading" :data="expenseList" @selection-change="handleSelectionChange">
-      <el-table-column type="selection" width="50" align="center" />
-      <el-table-column label="费用编号" align="center" prop="expenseId" width="85" />
-      <el-table-column label="费用单号" align="center" prop="expenseNo" min-width="150" />
-      <el-table-column label="费用类别" align="center" min-width="120">
+      <el-table-column type="selection" width="46" align="center" />
+      <el-table-column label="费用单号" align="center" prop="expenseNo" min-width="142" show-overflow-tooltip />
+      <el-table-column label="费用类别" align="center" width="108">
         <template #default="scope">
-          <el-tag effect="plain">{{ getExpenseTypeLabel(scope.row.expenseType) }}</el-tag>
+          <el-tag size="small" effect="plain">{{ getExpenseTypeLabel(scope.row.expenseType) }}</el-tag>
         </template>
       </el-table-column>
-      <el-table-column label="费用金额" align="right" prop="amount" width="110">
+      <el-table-column label="费用金额" align="right" header-align="right" prop="amount" width="108">
         <template #default="scope">￥{{ Number(scope.row.amount || 0).toFixed(2) }}</template>
       </el-table-column>
-      <el-table-column label="费用日期" align="center" prop="expenseDate" width="120">
+      <el-table-column label="费用日期" align="center" prop="expenseDate" width="108">
         <template #default="scope">
           <span>{{ parseTime(scope.row.expenseDate, '{y}-{m}-{d}') }}</span>
         </template>
       </el-table-column>
-      <el-table-column label="资金账户" align="center" min-width="135" show-overflow-tooltip>
+      <el-table-column label="资金账户" align="center" min-width="105" show-overflow-tooltip>
         <template #default="scope">
           <span>{{ getFundAccountName(scope.row.fundAccountId) }}</span>
         </template>
       </el-table-column>
-      <el-table-column label="状态" align="center" prop="status" width="90">
+      <el-table-column label="状态" align="center" prop="status" width="78">
         <template #default="scope">
-          <el-tag :type="getStatusTagType(scope.row.status)">{{ getStatusLabel(scope.row.status) }}</el-tag>
+          <el-tag size="small" :type="getStatusTagType(scope.row.status)">{{ getStatusLabel(scope.row.status) }}</el-tag>
         </template>
       </el-table-column>
-      <el-table-column label="创建时间" align="center" prop="createTime" width="165">
+      <el-table-column label="创建时间" align="center" prop="createTime" width="158">
         <template #default="scope">
           <span>{{ parseTime(scope.row.createTime) }}</span>
         </template>
       </el-table-column>
-      <el-table-column label="操作" width="275" align="center" fixed="right" class-name="small-padding fixed-width">
+      <el-table-column label="操作" width="215" align="center" fixed="right" class-name="small-padding fixed-width">
         <template #default="scope">
-          <el-button link type="info" icon="Printer" @click="handlePrint(scope.row)">打印</el-button>
-          <el-button link type="primary" icon="Edit" :disabled="!canEditRow(scope.row)" @click="handleUpdate(scope.row)" v-hasPermi="['business:expense:edit']">修改</el-button>
-          <el-button link type="success" icon="CircleCheck" v-if="canConfirmRow(scope.row)" @click="handleConfirm(scope.row)" v-hasPermi="['business:expense:confirm']">确认</el-button>
-          <el-button link type="warning" icon="RefreshLeft" v-if="scope.row.status === '1'" @click="handleUnconfirm(scope.row)" v-hasPermi="['business:expense:confirm']">反确认</el-button>
-          <el-button link type="danger" icon="Delete" :disabled="!canDeleteRow(scope.row)" @click="handleDelete(scope.row)" v-hasPermi="['business:expense:remove']">删除</el-button>
+          <div class="table-action-cell">
+            <el-button link type="info" icon="Printer" @click="handlePrint(scope.row)">打印</el-button>
+            <el-button v-if="canEditRow(scope.row)" link type="primary" icon="Edit" @click="handleUpdate(scope.row)" v-hasPermi="['business:expense:edit']">修改</el-button>
+            <el-button v-if="canConfirmRow(scope.row)" link type="success" icon="CircleCheck" @click="handleConfirm(scope.row)" v-hasPermi="['business:expense:confirm']">确认</el-button>
+            <el-button v-if="scope.row.status === '1'" link type="warning" icon="RefreshLeft" @click="handleUnconfirm(scope.row)" v-hasPermi="['business:expense:confirm']">反确认</el-button>
+            <el-button v-if="canDeleteRow(scope.row)" link type="danger" icon="Delete" @click="handleDelete(scope.row)" v-hasPermi="['business:expense:remove']">删除</el-button>
+          </div>
         </template>
       </el-table-column>
     </el-table>
@@ -173,7 +174,7 @@
           <el-col :span="12">
             <el-form-item label="资金账户" prop="fundAccountId">
               <el-select v-model="form.fundAccountId" placeholder="请选择资金账户" filterable style="width: 100%">
-                <el-option v-for="acc in activeFundAccountOptions" :key="acc.accountId" :label="`${acc.accountNo || acc.accountId} - ${acc.accountName}`" :value="acc.accountId" />
+                <el-option v-for="acc in activeFundAccountOptions" :key="acc.accountId" :label="acc.accountName" :value="acc.accountId" />
               </el-select>
             </el-form-item>
           </el-col>

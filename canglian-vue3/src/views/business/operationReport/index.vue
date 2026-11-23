@@ -26,24 +26,22 @@
         <el-table v-loading="loading.grossProfit" :data="grossProfitList" border>
           <el-table-column label="商品编码" align="center" prop="productCode" min-width="115" />
           <el-table-column label="商品名称" align="center" prop="productName" min-width="150" show-overflow-tooltip />
-          <el-table-column label="签收销量(基础)" align="right" prop="saleQty" min-width="115" />
-          <el-table-column label="退货数量(基础)" align="right" prop="returnQty" min-width="115" />
-          <el-table-column label="净销量(基础)" align="right" prop="netSaleQty" min-width="110" />
-          <el-table-column label="净销售额" align="right" prop="netSaleAmount" min-width="115">
-            <template #default="scope">￥{{ Number(scope.row.netSaleAmount || 0).toFixed(2) }}</template>
+          <el-table-column label="签收销量(基础)" align="right" header-align="right" prop="saleQty" min-width="115" />
+          <el-table-column label="退货数量(基础)" align="right" header-align="right" prop="returnQty" min-width="115" />
+          <el-table-column label="净销量(基础)" align="right" header-align="right" prop="netSaleQty" min-width="110" />
+          <el-table-column label="净销售额" align="right" header-align="right" prop="netSaleAmount" min-width="115">
+            <template #default="scope">{{ formatMoney(scope.row.netSaleAmount) }}</template>
           </el-table-column>
-          <el-table-column label="真实成本" align="right" prop="costAmount" min-width="115">
-            <template #default="scope">￥{{ Number(scope.row.costAmount || 0).toFixed(2) }}</template>
+          <el-table-column label="真实成本" align="right" header-align="right" prop="costAmount" min-width="115">
+            <template #default="scope">{{ formatMoney(scope.row.costAmount) }}</template>
           </el-table-column>
-          <el-table-column label="销售毛利" align="right" prop="grossProfit" min-width="115">
+          <el-table-column label="销售毛利" align="right" header-align="right" prop="grossProfit" min-width="115">
             <template #default="scope">
-              <span :style="Number(scope.row.grossProfit || 0) >= 0 ? 'color:#67c23a;font-weight:600' : 'color:#f56c6c;font-weight:600'">
-                ￥{{ Number(scope.row.grossProfit || 0).toFixed(2) }}
-              </span>
+              <span :style="Number(scope.row.grossProfit || 0) >= 0 ? 'color:#67c23a;font-weight:600' : 'color:#f56c6c;font-weight:600'">{{ formatMoney(scope.row.grossProfit) }}</span>
             </template>
           </el-table-column>
           <el-table-column label="毛利率" align="center" width="95">
-            <template #default="scope">{{ scope.row.grossMarginRate ?? 0 }}%</template>
+            <template #default="scope">{{ Number(scope.row.grossMarginRate || 0).toFixed(2) }}%</template>
           </el-table-column>
         </el-table>
       </el-tab-pane>
@@ -53,14 +51,14 @@
           <el-table-column label="客户编码" align="center" prop="customerCode" min-width="115" />
           <el-table-column label="客户名称" align="center" prop="customerName" min-width="150" show-overflow-tooltip />
           <el-table-column label="签收单数" align="center" prop="orderCount" width="100" />
-          <el-table-column label="净销售金额" align="right" min-width="125">
-            <template #default="scope">￥{{ Number(scope.row.saleAmount || 0).toFixed(2) }}</template>
+          <el-table-column label="净销售金额" align="right" header-align="right" min-width="125">
+            <template #default="scope">{{ formatMoney(scope.row.saleAmount) }}</template>
           </el-table-column>
-          <el-table-column label="已收贡献" align="right" min-width="125">
-            <template #default="scope">￥{{ Number(scope.row.receivedContribution || 0).toFixed(2) }}</template>
+          <el-table-column label="已收贡献" align="right" header-align="right" min-width="125">
+            <template #default="scope">{{ formatMoney(scope.row.receivedContribution) }}</template>
           </el-table-column>
-          <el-table-column label="剩余未收" align="right" min-width="125">
-            <template #default="scope">￥{{ Number(scope.row.unpaidAmount || 0).toFixed(2) }}</template>
+          <el-table-column label="剩余未收" align="right" header-align="right" min-width="125">
+            <template #default="scope">{{ formatMoney(scope.row.unpaidAmount) }}</template>
           </el-table-column>
         </el-table>
       </el-tab-pane>
@@ -69,10 +67,12 @@
         <el-table v-loading="loading.turnover" :data="turnoverList" border>
           <el-table-column label="商品编码" align="center" prop="productCode" min-width="115" />
           <el-table-column label="商品名称" align="center" prop="productName" min-width="150" show-overflow-tooltip />
-          <el-table-column label="商业入库数" align="right" prop="inboundQty" min-width="115" />
-          <el-table-column label="商业出库数" align="right" prop="outboundQty" min-width="115" />
-          <el-table-column label="当前库存数" align="right" prop="stockQty" min-width="115" />
-          <el-table-column label="周转率" align="center" prop="turnoverRate" width="110" />
+          <el-table-column label="商业入库数" align="right" header-align="right" prop="inboundQty" min-width="115" />
+          <el-table-column label="商业出库数" align="right" header-align="right" prop="outboundQty" min-width="115" />
+          <el-table-column label="当前库存数" align="right" header-align="right" prop="stockQty" min-width="115" />
+          <el-table-column label="周转率" align="center" prop="turnoverRate" width="110">
+            <template #default="scope">{{ Number(scope.row.turnoverRate || 0).toFixed(2) }}</template>
+          </el-table-column>
         </el-table>
       </el-tab-pane>
 
@@ -84,11 +84,13 @@
           </el-table-column>
           <el-table-column label="商品编码" align="center" prop="productCode" min-width="110" />
           <el-table-column label="商品名称" align="center" prop="productName" min-width="145" show-overflow-tooltip />
-          <el-table-column label="批次号" align="center" prop="batchNo" min-width="120" />
-          <el-table-column label="库存数量" align="right" prop="stockQty" width="100" />
-          <el-table-column label="可用数量" align="right" prop="availableQty" width="100" />
-          <el-table-column label="库存金额" align="right" width="120">
-            <template #default="scope">￥{{ Number(scope.row.stockAmount || 0).toFixed(2) }}</template>
+          <el-table-column label="批次号" align="center" prop="batchNo" min-width="120">
+            <template #default="scope">{{ scope.row.batchNo || '-' }}</template>
+          </el-table-column>
+          <el-table-column label="库存数量" align="right" header-align="right" prop="stockQty" width="100" />
+          <el-table-column label="可用数量" align="right" header-align="right" prop="availableQty" width="100" />
+          <el-table-column label="库存金额" align="right" header-align="right" width="120">
+            <template #default="scope">{{ formatMoney(scope.row.stockAmount) }}</template>
           </el-table-column>
         </el-table>
       </el-tab-pane>
@@ -100,8 +102,8 @@
               <span>{{ scope.row.fundTypeName || fundTypeLabelMap[scope.row.fundType] || scope.row.fundType }}</span>
             </template>
           </el-table-column>
-          <el-table-column label="金额" align="right" min-width="160">
-            <template #default="scope">￥{{ Number(scope.row.amount || 0).toFixed(2) }}</template>
+          <el-table-column label="金额" align="right" header-align="right" min-width="160">
+            <template #default="scope">{{ formatMoney(scope.row.amount) }}</template>
           </el-table-column>
         </el-table>
       </el-tab-pane>
@@ -113,6 +115,11 @@
 import { salesGrossProfit, customerContribution, productTurnover, stockBalance, fundAnalysis, exportReport } from "@/api/business/report"
 
 const { proxy } = getCurrentInstance()
+
+function formatMoney(v) {
+  const n = Number(v || 0)
+  return n < 0 ? `-￥${Math.abs(n).toFixed(2)}` : `￥${n.toFixed(2)}`
+}
 
 const activeTab = ref("grossProfit")
 const loading = reactive({

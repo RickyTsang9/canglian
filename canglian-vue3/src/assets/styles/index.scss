@@ -254,6 +254,7 @@ aside {
     font-weight: 500;
     padding: 4px 6px;
     border-radius: 6px;
+    white-space: nowrap;
 
     &:hover:not(.is-disabled) {
       background: var(--primary-soft-bg, #eff6ff);
@@ -323,11 +324,71 @@ aside {
     font-weight: 600;
     font-size: 12.5px;
     letter-spacing: 0.02em;
+
+    .cell {
+      white-space: nowrap;
+    }
   }
 
   td.el-table__cell {
     padding: 10px 0;
     color: var(--panel-text, #334155);
+
+    .cell:has(.table-action-cell),
+    .cell:has(> .el-tag) {
+      padding-left: 8px;
+      padding-right: 8px;
+      text-overflow: clip;
+    }
+
+    .el-tag {
+      white-space: nowrap;
+    }
+  }
+
+  .el-table-fixed-column--right {
+    background: var(--panel-bg, #ffffff);
+  }
+}
+
+// 个人中心信息列表使用弹性布局，避免右侧文本与分割线重叠
+.list-group-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border-bottom: 1px solid var(--panel-border, #e5e7eb);
+  border-top: 1px solid var(--panel-border, #e5e7eb);
+  color: var(--panel-muted, #6b7280);
+
+  .pull-right {
+    float: none !important;
+    flex: 1;
+    min-width: 0;
+    text-align: right;
+    color: var(--panel-heading, #111827);
+    font-weight: 500;
+    word-break: break-word;
+  }
+}
+
+// 操作列内联单行容器与下拉菜单
+.table-action-cell {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: nowrap;
+  gap: 2px;
+  white-space: nowrap;
+
+  .el-button + .el-button {
+    margin-left: 2px;
+  }
+
+  .el-dropdown {
+    margin-left: 2px;
+    display: inline-flex;
+    align-items: center;
   }
 }
 
@@ -361,14 +422,20 @@ aside {
 
 // 弹窗与抽屉精修
 .el-overlay {
-  backdrop-filter: blur(3px);
+  background-color: rgba(15, 23, 42, 0.36);
 }
 
 .el-dialog {
+  --el-dialog-bg-color: var(--panel-bg, #ffffff);
+  background: var(--panel-bg, #ffffff) !important;
   border-radius: 14px !important;
   overflow: hidden;
   border: 1px solid var(--panel-border, #e2e8f0);
   box-shadow: 0 24px 60px rgba(15, 23, 42, 0.2) !important;
+
+  &:not(.is-fullscreen) {
+    max-width: 94vw !important;
+  }
 
   .el-dialog__header {
     padding: 18px 22px 14px;
@@ -385,6 +452,12 @@ aside {
 
   .el-dialog__body {
     padding: 20px 22px;
+    background: var(--panel-bg, #ffffff);
+  }
+
+  &:not(.is-fullscreen) .el-dialog__body {
+    max-height: 70vh;
+    overflow-y: auto;
   }
 
   .el-dialog__footer {
@@ -395,6 +468,9 @@ aside {
 }
 
 .el-drawer {
+  --el-drawer-bg-color: var(--panel-bg, #ffffff);
+  background: var(--panel-bg, #ffffff) !important;
+  max-width: 94vw !important;
   border-left: 1px solid var(--panel-border, #e2e8f0);
 
   .el-drawer__header {

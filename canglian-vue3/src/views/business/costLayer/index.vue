@@ -41,10 +41,14 @@
           <span>{{ getWarehouseName(scope.row.warehouseId) }}</span>
         </template>
       </el-table-column>
-      <el-table-column label="入库数量" align="center" prop="quantity" />
-      <el-table-column label="剩余数量" align="center" prop="remainingQty" />
-      <el-table-column label="层单价" align="center" prop="price" />
-      <el-table-column label="层金额" align="center" prop="amount" />
+      <el-table-column label="入库数量" align="right" header-align="right" prop="quantity" width="95" />
+      <el-table-column label="剩余数量" align="right" header-align="right" prop="remainingQty" width="95" />
+      <el-table-column label="层单价" align="right" header-align="right" prop="price" width="95">
+        <template #default="scope">{{ Number(scope.row.price || 0).toFixed(2) }}</template>
+      </el-table-column>
+      <el-table-column label="层金额" align="right" header-align="right" prop="amount" width="105">
+        <template #default="scope">{{ Number(scope.row.amount || 0).toFixed(2) }}</template>
+      </el-table-column>
       <el-table-column label="创建时间" align="center" prop="createTime" width="180">
         <template #default="scope">
           <span>{{ parseTime(scope.row.createTime) }}</span>

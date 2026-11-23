@@ -2,26 +2,26 @@
   <div class="app-container">
     <el-form :model="queryParams" ref="queryRef" :inline="true" v-show="showSearch">
       <el-form-item label="发票单号" prop="invoiceNo">
-        <el-input v-model="queryParams.invoiceNo" placeholder="请输入发票单号" clearable style="width: 190px" @keyup.enter="handleQuery" />
+        <el-input v-model="queryParams.invoiceNo" placeholder="请输入发票单号" clearable style="width: 155px" @keyup.enter="handleQuery" />
       </el-form-item>
       <el-form-item v-if="isSaleInvoice" label="客户" prop="customerId">
-        <el-select v-model="queryParams.customerId" placeholder="请选择客户" clearable filterable style="width: 200px">
-          <el-option v-for="c in customerOptions" :key="c.customerId" :label="`${c.customerCode || ''} - ${c.customerName}`" :value="c.customerId" />
+        <el-select v-model="queryParams.customerId" placeholder="请选择客户" clearable filterable style="width: 160px">
+          <el-option v-for="c in customerOptions" :key="c.customerId" :label="c.customerName" :value="c.customerId" />
         </el-select>
       </el-form-item>
       <el-form-item v-else label="供应商" prop="supplierId">
-        <el-select v-model="queryParams.supplierId" placeholder="请选择供应商" clearable filterable style="width: 200px">
-          <el-option v-for="s in supplierOptions" :key="s.supplierId" :label="`${s.supplierCode || ''} - ${s.supplierName}`" :value="s.supplierId" />
+        <el-select v-model="queryParams.supplierId" placeholder="请选择供应商" clearable filterable style="width: 160px">
+          <el-option v-for="s in supplierOptions" :key="s.supplierId" :label="s.supplierName" :value="s.supplierId" />
         </el-select>
       </el-form-item>
       <el-form-item label="红蓝属性" prop="invoiceKind">
-        <el-select v-model="queryParams.invoiceKind" placeholder="全部" clearable style="width: 120px">
+        <el-select v-model="queryParams.invoiceKind" placeholder="全部" clearable style="width: 110px">
           <el-option label="蓝字发票" value="blue" />
           <el-option label="红字冲销" value="red" />
         </el-select>
       </el-form-item>
       <el-form-item label="业务状态" prop="bizStatus">
-        <el-select v-model="queryParams.bizStatus" placeholder="业务状态" clearable style="width: 130px">
+        <el-select v-model="queryParams.bizStatus" placeholder="业务状态" clearable style="width: 112px">
           <el-option v-for="s in bizStatusOptions" :key="s.value" :label="s.label" :value="s.value" />
         </el-select>
       </el-form-item>
@@ -45,8 +45,8 @@
     </el-row>
 
     <el-table v-loading="loading" :data="invoiceList" @selection-change="handleSelectionChange">
-      <el-table-column type="selection" width="50" align="center" />
-      <el-table-column label="发票单号" align="center" min-width="180">
+      <el-table-column type="selection" width="46" align="center" />
+      <el-table-column label="发票单号" align="center" min-width="155" show-overflow-tooltip>
         <template #default="scope">
           <span>{{ scope.row.invoiceNo }}</span>
           <el-tag :type="scope.row.invoiceKind === 'red' ? 'danger' : 'primary'" size="small" style="margin-left: 4px">
@@ -54,38 +54,42 @@
           </el-tag>
         </template>
       </el-table-column>
-      <el-table-column v-if="isSaleInvoice" label="客户" align="center" min-width="130" show-overflow-tooltip>
+      <el-table-column v-if="isSaleInvoice" label="客户" align="center" min-width="115" show-overflow-tooltip>
         <template #default="scope">{{ getCustomerName(scope.row.customerId) }}</template>
       </el-table-column>
-      <el-table-column v-else label="供应商" align="center" min-width="130" show-overflow-tooltip>
+      <el-table-column v-else label="供应商" align="center" min-width="115" show-overflow-tooltip>
         <template #default="scope">{{ getSupplierName(scope.row.supplierId) }}</template>
       </el-table-column>
-      <el-table-column label="来源类型" align="center" width="105">
+      <el-table-column label="来源类型" align="center" width="96">
         <template #default="scope">{{ getSourceBillTypeLabel(scope.row.sourceBillType) }}</template>
       </el-table-column>
-      <el-table-column label="来源单号" align="center" prop="sourceBillNo" min-width="135" />
-      <el-table-column label="含税金额" align="right" width="110">
+      <el-table-column label="来源单号" align="center" prop="sourceBillNo" min-width="115" show-overflow-tooltip>
+        <template #default="scope">{{ scope.row.sourceBillNo || '-' }}</template>
+      </el-table-column>
+      <el-table-column label="含税金额" align="right" header-align="right" width="96">
         <template #default="scope">
           <span :style="scope.row.invoiceKind === 'red' ? 'color:#f56c6c;font-weight:600' : ''">{{ Number(scope.row.invoiceAmount || 0).toFixed(2) }}</span>
         </template>
       </el-table-column>
-      <el-table-column label="税率%" align="center" prop="taxRate" width="75" />
-      <el-table-column label="税额" align="right" prop="taxAmount" width="95">
+      <el-table-column label="税率%" align="right" header-align="right" prop="taxRate" width="68" />
+      <el-table-column label="税额" align="right" header-align="right" prop="taxAmount" width="84">
         <template #default="scope">{{ Number(scope.row.taxAmount || 0).toFixed(2) }}</template>
       </el-table-column>
-      <el-table-column label="不含税额" align="right" prop="untaxedAmount" width="105">
+      <el-table-column label="不含税额" align="right" header-align="right" prop="untaxedAmount" width="94">
         <template #default="scope">{{ Number(scope.row.untaxedAmount || 0).toFixed(2) }}</template>
       </el-table-column>
-      <el-table-column label="业务状态" align="center" width="90">
+      <el-table-column label="业务状态" align="center" width="78">
         <template #default="scope"><dict-tag :options="bizStatusOptions" :value="scope.row.bizStatus" /></template>
       </el-table-column>
-      <el-table-column label="操作" width="310" align="center" fixed="right">
+      <el-table-column label="操作" width="220" align="center" fixed="right">
         <template #default="scope">
-          <el-button link type="info" icon="Printer" @click="handlePrint(scope.row)">打印</el-button>
-          <el-button link type="primary" icon="Edit" :disabled="!canEditRow(scope.row)" @click="handleUpdate(scope.row)" v-hasPermi="['business:invoice:edit']">修改</el-button>
-          <el-button link type="success" icon="CircleCheck" v-if="canConfirmRow(scope.row)" @click="handleConfirm(scope.row)" v-hasPermi="['business:invoice:confirm']">确认</el-button>
-          <el-button link type="danger" icon="DocumentDelete" v-if="canRedRow(scope.row)" @click="openRedDialog(scope.row)" v-hasPermi="['business:invoice:red']">红字冲销</el-button>
-          <el-button link type="danger" icon="Delete" :disabled="!canEditRow(scope.row)" @click="handleDelete(scope.row)" v-hasPermi="['business:invoice:remove']">删除</el-button>
+          <div class="table-action-cell">
+            <el-button link type="info" icon="Printer" @click="handlePrint(scope.row)">打印</el-button>
+            <el-button v-if="canEditRow(scope.row)" link type="primary" icon="Edit" @click="handleUpdate(scope.row)" v-hasPermi="['business:invoice:edit']">修改</el-button>
+            <el-button v-if="canConfirmRow(scope.row)" link type="success" icon="CircleCheck" @click="handleConfirm(scope.row)" v-hasPermi="['business:invoice:confirm']">确认</el-button>
+            <el-button v-if="canRedRow(scope.row)" link type="danger" icon="DocumentDelete" @click="openRedDialog(scope.row)" v-hasPermi="['business:invoice:red']">红冲</el-button>
+            <el-button v-if="canEditRow(scope.row)" link type="danger" icon="Delete" @click="handleDelete(scope.row)" v-hasPermi="['business:invoice:remove']">删除</el-button>
+          </div>
         </template>
       </el-table-column>
     </el-table>
@@ -93,34 +97,34 @@
     <pagination v-show="total > 0" :total="total" v-model:page="queryParams.pageNum" v-model:limit="queryParams.pageSize" @pagination="getList" />
 
     <!-- 新增/修改蓝字发票 -->
-    <el-dialog :title="title" v-model="open" width="760px" append-to-body>
-      <el-form ref="invoiceRef" :model="form" :rules="rules" label-width="100px">
-        <el-row>
+    <el-dialog :title="title" v-model="open" width="780px" append-to-body>
+      <el-form ref="invoiceRef" :model="form" :rules="rules" label-width="110px">
+        <el-row :gutter="12">
           <el-col :span="12">
             <el-form-item label="发票单号" prop="invoiceNo"><el-input v-model="form.invoiceNo" placeholder="留空自动生成" /></el-form-item>
           </el-col>
           <el-col :span="12">
             <el-form-item label="业务日期" prop="businessDate">
-              <el-date-picker v-model="form.businessDate" type="date" value-format="YYYY-MM-DD" style="width: 100%" />
+              <el-date-picker v-model="form.businessDate" type="date" value-format="YYYY-MM-DD" placeholder="请选择业务日期" style="width: 100%" />
             </el-form-item>
           </el-col>
         </el-row>
-        <el-row>
+        <el-row :gutter="12">
           <el-col :span="12">
             <el-form-item v-if="isSaleInvoice" label="客户" prop="customerId">
               <el-select v-model="form.customerId" placeholder="请选择客户" filterable style="width: 100%" @change="handleCounterpartyChange">
-                <el-option v-for="c in activeCustomerOptions" :key="c.customerId" :label="`${c.customerCode || ''} - ${c.customerName}`" :value="c.customerId" />
+                <el-option v-for="c in activeCustomerOptions" :key="c.customerId" :label="c.customerName" :value="c.customerId" />
               </el-select>
             </el-form-item>
             <el-form-item v-else label="供应商" prop="supplierId">
               <el-select v-model="form.supplierId" placeholder="请选择供应商" filterable style="width: 100%" @change="handleCounterpartyChange">
-                <el-option v-for="s in activeSupplierOptions" :key="s.supplierId" :label="`${s.supplierCode || ''} - ${s.supplierName}`" :value="s.supplierId" />
+                <el-option v-for="s in activeSupplierOptions" :key="s.supplierId" :label="s.supplierName" :value="s.supplierId" />
               </el-select>
             </el-form-item>
           </el-col>
           <el-col :span="12">
             <el-form-item label="开票日期" prop="invoiceDate">
-              <el-date-picker v-model="form.invoiceDate" type="date" value-format="YYYY-MM-DD" style="width: 100%" />
+              <el-date-picker v-model="form.invoiceDate" type="date" value-format="YYYY-MM-DD" placeholder="请选择开票日期" style="width: 100%" />
             </el-form-item>
           </el-col>
         </el-row>
@@ -420,7 +424,7 @@ function reset() {
     sourceBillNo: undefined,
     businessDate: today,
     invoiceDate: today,
-    invoiceAmount: 0,
+    invoiceAmount: undefined,
     taxRate: 13,
     bizStatus: "draft",
     remark: undefined

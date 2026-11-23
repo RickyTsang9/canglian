@@ -38,19 +38,23 @@
       <el-table-column label="商品" align="center" min-width="180" show-overflow-tooltip>
         <template #default="scope">{{ getProductName(scope.row.productId) }}</template>
       </el-table-column>
-      <el-table-column label="最近成交价(基础单位)" align="right" prop="salePrice" width="160" />
+      <el-table-column label="最近成交价(基础单位)" align="right" prop="salePrice" width="165">
+        <template #default="scope">{{ Number(scope.row.salePrice || 0).toFixed(2) }}</template>
+      </el-table-column>
       <el-table-column label="来源类型" align="center" prop="sourceBillType" width="130">
         <template #default="scope">
           <el-tag size="small" :type="scope.row.sourceBillType === 'outbound' ? 'success' : 'info'">{{ sourceTypeLabel(scope.row.sourceBillType) }}</el-tag>
         </template>
       </el-table-column>
-      <el-table-column label="业务日期" align="center" width="150">
+      <el-table-column label="业务日期" align="center" width="125">
         <template #default="scope">{{ parseTime(scope.row.businessDate, '{y}-{m}-{d}') }}</template>
       </el-table-column>
-      <el-table-column label="操作" width="160" align="center">
+      <el-table-column label="操作" width="145" fixed="right" align="center">
         <template #default="scope">
-          <el-button link type="primary" icon="Edit" @click="handleUpdate(scope.row)" v-hasPermi="['business:recentTransactionPrice:edit']">修改</el-button>
-          <el-button link type="danger" icon="Delete" @click="handleDelete(scope.row)" v-hasPermi="['business:recentTransactionPrice:remove']">删除</el-button>
+          <div class="table-action-cell">
+            <el-button link type="primary" icon="Edit" @click="handleUpdate(scope.row)" v-hasPermi="['business:recentTransactionPrice:edit']">修改</el-button>
+            <el-button link type="danger" icon="Delete" @click="handleDelete(scope.row)" v-hasPermi="['business:recentTransactionPrice:remove']">删除</el-button>
+          </div>
         </template>
       </el-table-column>
     </el-table>

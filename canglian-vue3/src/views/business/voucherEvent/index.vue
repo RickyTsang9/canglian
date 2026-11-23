@@ -53,8 +53,8 @@
     <el-table v-loading="loading" :data="voucherEventList" row-key="voucherEventId" @expand-change="handleExpandChange">
       <el-table-column type="expand">
         <template #default="scope">
-          <div style="padding: 8px 24px">
-            <div style="margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center">
+          <div style="padding: 8px 16px; max-width: 100%; box-sizing: border-box">
+            <div style="margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap">
               <strong>复式借贷分录明细（凭证号：{{ scope.row.voucherNo || '未生成' }}）</strong>
               <el-tag v-if="(entryMap[scope.row.voucherEventId] || []).length" type="success" size="small">
                 借方合计：￥{{ sumEntries(scope.row.voucherEventId, 'debitAmount') }} &nbsp;|&nbsp;
@@ -62,53 +62,74 @@
               </el-tag>
             </div>
             <el-table :data="entryMap[scope.row.voucherEventId] || []" border size="small">
-              <el-table-column label="凭证号" prop="voucherNo" width="145" align="center" />
-              <el-table-column label="行号" prop="entrySeq" width="60" align="center" />
-              <el-table-column label="借贷" width="70" align="center">
+              <el-table-column label="凭证号" prop="voucherNo" width="132" align="center" />
+              <el-table-column label="行号" prop="entrySeq" width="52" align="center" />
+              <el-table-column label="借贷" width="58" align="center">
                 <template #default="s">
                   <el-tag :type="s.row.direction === 'debit' ? 'primary' : 'warning'" size="small">
                     {{ s.row.direction === 'debit' ? '借' : '贷' }}
                   </el-tag>
                 </template>
               </el-table-column>
-              <el-table-column label="科目编码" prop="subjectCode" width="95" align="center" />
-              <el-table-column label="科目名称" prop="subjectName" min-width="120" />
-              <el-table-column label="辅助核算" prop="auxiliaryName" min-width="140" />
-              <el-table-column label="借方金额" prop="debitAmount" width="110" align="right" />
-              <el-table-column label="贷方金额" prop="creditAmount" width="110" align="right" />
-              <el-table-column label="摘要" prop="summary" min-width="180" />
+              <el-table-column label="科目编码" prop="subjectCode" width="84" align="center" />
+              <el-table-column label="科目名称" prop="subjectName" min-width="105" show-overflow-tooltip />
+              <el-table-column label="辅助核算" prop="auxiliaryName" min-width="100" show-overflow-tooltip>
+                <template #default="s">{{ s.row.auxiliaryName || '-' }}</template>
+              </el-table-column>
+              <el-table-column label="借方金额" prop="debitAmount" width="96" align="right" header-align="right">
+                <template #default="s">{{ Number(s.row.debitAmount || 0).toFixed(2) }}</template>
+              </el-table-column>
+              <el-table-column label="贷方金额" prop="creditAmount" width="96" align="right" header-align="right">
+                <template #default="s">{{ Number(s.row.creditAmount || 0).toFixed(2) }}</template>
+              </el-table-column>
+              <el-table-column label="摘要" prop="summary" min-width="140" show-overflow-tooltip>
+                <template #default="s">{{ s.row.summary || '-' }}</template>
+              </el-table-column>
             </el-table>
           </div>
         </template>
       </el-table-column>
-      <el-table-column label="单据类型" align="center" width="115">
+      <el-table-column label="单据类型" align="center" width="96">
         <template #default="scope">
-          <el-tag effect="plain">{{ billTypeMap[scope.row.billType] || scope.row.billType || '-' }}</el-tag>
+          <el-tag effect="plain" size="small">{{ billTypeMap[scope.row.billType] || scope.row.billType || '-' }}</el-tag>
         </template>
       </el-table-column>
-      <el-table-column label="单据号" align="center" prop="billNo" min-width="150" />
-      <el-table-column label="事件类型" align="center" min-width="145">
+      <el-table-column label="单据号" align="center" prop="billNo" min-width="148" show-overflow-tooltip />
+      <el-table-column label="事件类型" align="center" min-width="130" show-overflow-tooltip>
         <template #default="scope">{{ eventTypeMap[scope.row.eventType] || scope.row.eventType || '-' }}</template>
       </el-table-column>
-      <el-table-column label="事件金额" align="right" prop="eventAmount" width="110">
+      <el-table-column label="事件金额" align="right" header-align="right" prop="eventAmount" width="102">
         <template #default="scope">￥{{ Number(scope.row.eventAmount || 0).toFixed(2) }}</template>
       </el-table-column>
-      <el-table-column label="凭证号" align="center" prop="voucherNo" width="145" />
-      <el-table-column label="冲销凭证号" align="center" prop="reverseVoucherNo" width="145" />
-      <el-table-column label="事件日期" align="center" width="115">
+      <el-table-column label="凭证号" align="center" prop="voucherNo" width="132" show-overflow-tooltip>
+        <template #default="scope">{{ scope.row.voucherNo || '-' }}</template>
+      </el-table-column>
+      <el-table-column label="冲销凭证号" align="center" prop="reverseVoucherNo" width="112" show-overflow-tooltip>
+        <template #default="scope">{{ scope.row.reverseVoucherNo || '-' }}</template>
+      </el-table-column>
+      <el-table-column label="事件日期" align="center" width="102">
         <template #default="scope">{{ parseTime(scope.row.eventDate, '{y}-{m}-{d}') }}</template>
       </el-table-column>
-      <el-table-column label="状态" align="center" width="90">
+      <el-table-column label="状态" align="center" width="78">
         <template #default="scope">
-          <el-tag :type="getStatusTagType(scope.row.status)">{{ getStatusLabel(scope.row.status) }}</el-tag>
+          <el-tag :type="getStatusTagType(scope.row.status)" size="small">{{ getStatusLabel(scope.row.status) }}</el-tag>
         </template>
       </el-table-column>
-      <el-table-column label="操作" align="center" width="285" fixed="right">
+      <el-table-column label="操作" align="center" width="215" fixed="right">
         <template #default="scope">
-          <el-button link type="info" icon="Printer" @click="handlePrint(scope.row)">打印</el-button>
-          <el-button link type="primary" icon="DocumentAdd" :disabled="scope.row.status !== '0'" @click="handleGenerate(scope.row)" v-hasPermi="['business:voucherEvent:generate']">生成凭证</el-button>
-          <el-button link type="success" icon="Finished" :disabled="scope.row.status !== '1'" @click="handleWriteback(scope.row)" v-hasPermi="['business:voucherEvent:writeback']">回写</el-button>
-          <el-button link type="danger" icon="RefreshLeft" :disabled="!['1', '2'].includes(scope.row.status)" @click="handleReverse(scope.row)" v-hasPermi="['business:voucherEvent:reverse']">冲销</el-button>
+          <div class="table-action-cell">
+            <el-button link type="info" icon="Printer" @click="handlePrint(scope.row)">打印</el-button>
+            <el-button link type="primary" icon="DocumentAdd" :disabled="scope.row.status !== '0'" @click="handleGenerate(scope.row)" v-hasPermi="['business:voucherEvent:generate']">生成凭证</el-button>
+            <el-dropdown trigger="click" @command="cmd => handleRowCommand(cmd, scope.row)">
+              <el-button link type="primary">更多<el-icon class="el-icon--right"><ArrowDown /></el-icon></el-button>
+              <template #dropdown>
+                <el-dropdown-menu>
+                  <el-dropdown-item command="writeback" :disabled="scope.row.status !== '1'" v-hasPermi="['business:voucherEvent:writeback']">回写凭证</el-dropdown-item>
+                  <el-dropdown-item command="reverse" :disabled="!['1', '2'].includes(scope.row.status)" v-hasPermi="['business:voucherEvent:reverse']">红字冲销</el-dropdown-item>
+                </el-dropdown-menu>
+              </template>
+            </el-dropdown>
+          </div>
         </template>
       </el-table-column>
     </el-table>
@@ -252,6 +273,11 @@ function handleWriteback(row) {
   writebackVoucher(row.voucherEventId).then(() => {
     proxy.$modal.msgSuccess("凭证回写成功"); getList()
   })
+}
+
+function handleRowCommand(cmd, row) {
+  if (cmd === "writeback") handleWriteback(row)
+  else if (cmd === "reverse") handleReverse(row)
 }
 
 function handleReverse(row) {

@@ -35,34 +35,40 @@
     </el-row>
 
     <el-table v-loading="loading" :data="paymentList" @selection-change="handleSelectionChange">
-      <el-table-column type="selection" width="50" align="center" />
-      <el-table-column label="付款单号" align="center" prop="paymentNo" min-width="150" />
-      <el-table-column label="供应商" align="center" min-width="130" show-overflow-tooltip>
+      <el-table-column type="selection" width="46" align="center" />
+      <el-table-column label="付款单号" align="center" prop="paymentNo" min-width="142" show-overflow-tooltip />
+      <el-table-column label="供应商" align="center" min-width="125" show-overflow-tooltip>
         <template #default="scope">{{ getSupplierName(scope.row.supplierId) }}</template>
       </el-table-column>
-      <el-table-column label="关联应付" align="center" width="110">
-        <template #default="scope">{{ scope.row.payableId ? `AP #${scope.row.payableId}` : '-' }}</template>
+      <el-table-column label="关联应付" align="center" min-width="136" show-overflow-tooltip>
+        <template #default="scope">{{ getPayableNo(scope.row.payableId) }}</template>
       </el-table-column>
-      <el-table-column label="资金账户" align="center" min-width="125" show-overflow-tooltip>
+      <el-table-column label="资金账户" align="center" min-width="105" show-overflow-tooltip>
         <template #default="scope">{{ getFundAccountName(scope.row.fundAccountId) }}</template>
       </el-table-column>
-      <el-table-column label="付款金额" align="right" prop="amount" width="110" />
-      <el-table-column label="付款日期" align="center" width="115">
+      <el-table-column label="付款金额" align="right" header-align="right" prop="amount" width="102">
+        <template #default="scope">{{ Number(scope.row.amount || 0).toFixed(2) }}</template>
+      </el-table-column>
+      <el-table-column label="付款日期" align="center" width="106">
         <template #default="scope">{{ parseTime(scope.row.paymentDate, '{y}-{m}-{d}') }}</template>
       </el-table-column>
-      <el-table-column label="状态" align="center" width="90">
+      <el-table-column label="状态" align="center" width="80">
         <template #default="scope">
-          <el-tag :type="scope.row.status === '1' ? 'success' : 'info'">{{ scope.row.status === '1' ? '已确认' : '草稿' }}</el-tag>
+          <el-tag size="small" :type="scope.row.status === '1' ? 'success' : 'info'">{{ scope.row.status === '1' ? '已确认' : '草稿' }}</el-tag>
         </template>
       </el-table-column>
-      <el-table-column label="审核人" align="center" prop="auditBy" width="90" />
-      <el-table-column label="操作" width="290" align="center">
+      <el-table-column label="审核人" align="center" prop="auditBy" width="80">
+        <template #default="scope">{{ scope.row.auditBy || '-' }}</template>
+      </el-table-column>
+      <el-table-column label="操作" width="225" fixed="right" align="center">
         <template #default="scope">
-          <el-button link type="primary" icon="Edit" :disabled="scope.row.status === '1'" @click="handleUpdate(scope.row)" v-hasPermi="['business:payment:edit']">修改</el-button>
-          <el-button link type="success" icon="CircleCheck" v-if="scope.row.status !== '1'" @click="handleConfirm(scope.row)" v-hasPermi="['business:payment:confirm']">确认出账</el-button>
-          <el-button link type="warning" icon="RefreshLeft" v-if="scope.row.status === '1'" @click="handleUnconfirm(scope.row)" v-hasPermi="['business:payment:confirm']">反确认</el-button>
-          <el-button link type="danger" icon="Delete" :disabled="scope.row.status === '1'" @click="handleDelete(scope.row)" v-hasPermi="['business:payment:remove']">删除</el-button>
-          <el-button link type="primary" icon="Printer" @click="handlePrint(scope.row)">打印</el-button>
+          <div class="table-action-cell">
+            <el-button v-if="scope.row.status !== '1'" link type="primary" icon="Edit" @click="handleUpdate(scope.row)" v-hasPermi="['business:payment:edit']">修改</el-button>
+            <el-button v-if="scope.row.status !== '1'" link type="success" icon="CircleCheck" @click="handleConfirm(scope.row)" v-hasPermi="['business:payment:confirm']">确认</el-button>
+            <el-button v-if="scope.row.status === '1'" link type="warning" icon="RefreshLeft" @click="handleUnconfirm(scope.row)" v-hasPermi="['business:payment:confirm']">反确认</el-button>
+            <el-button link type="primary" icon="Printer" @click="handlePrint(scope.row)">打印</el-button>
+            <el-button v-if="scope.row.status !== '1'" link type="danger" icon="Delete" @click="handleDelete(scope.row)" v-hasPermi="['business:payment:remove']">删除</el-button>
+          </div>
         </template>
       </el-table-column>
     </el-table>
@@ -70,8 +76,8 @@
     <pagination v-show="total > 0" :total="total" v-model:page="queryParams.pageNum" v-model:limit="queryParams.pageSize" @pagination="getList" />
 
     <el-dialog :title="title" v-model="open" width="760px" append-to-body>
-      <el-form ref="paymentRef" :model="form" :rules="rules" label-width="95px">
-        <el-row>
+      <el-form ref="paymentRef" :model="form" :rules="rules" label-width="110px">
+        <el-row :gutter="12">
           <el-col :span="12">
             <el-form-item label="付款单号" prop="paymentNo">
               <el-input v-model="form.paymentNo" placeholder="留空自动生成" />
@@ -80,15 +86,15 @@
           <el-col :span="12">
             <el-form-item label="供应商" prop="supplierId">
               <el-select v-model="form.supplierId" placeholder="请选择供应商" filterable style="width: 100%" @change="handleSupplierChange">
-                <el-option v-for="s in supplierOptions" :key="s.supplierId" :label="`${s.supplierCode || ''} - ${s.supplierName}`" :value="s.supplierId" />
+                <el-option v-for="s in supplierOptions" :key="s.supplierId" :label="s.supplierName" :value="s.supplierId" />
               </el-select>
             </el-form-item>
           </el-col>
         </el-row>
-        <el-row>
+        <el-row :gutter="12">
           <el-col :span="12">
             <el-form-item label="关联应付单" prop="payableId">
-              <el-select v-model="form.payableId" placeholder="按供应商自动过滤未付应付（可选）" clearable filterable style="width: 100%" @change="handleApSelect">
+              <el-select v-model="form.payableId" placeholder="按供应商过滤（可选）" clearable filterable style="width: 100%" @change="handleApSelect">
                 <el-option
                   v-for="p in openPayables"
                   :key="p.payableId"
@@ -104,10 +110,10 @@
             </el-form-item>
           </el-col>
         </el-row>
-        <el-row>
+        <el-row :gutter="12">
           <el-col :span="12">
             <el-form-item label="付款日期" prop="paymentDate">
-              <el-date-picker v-model="form.paymentDate" type="date" value-format="YYYY-MM-DD" style="width: 100%" />
+              <el-date-picker v-model="form.paymentDate" type="date" value-format="YYYY-MM-DD" placeholder="请选择付款日期" style="width: 100%" />
             </el-form-item>
           </el-col>
           <el-col :span="12">
@@ -121,11 +127,11 @@
             </el-form-item>
           </el-col>
         </el-row>
-        <el-row>
+        <el-row :gutter="12">
           <el-col :span="12">
             <el-form-item label="出账资金账户" prop="fundAccountId">
-              <el-select v-model="form.fundAccountId" placeholder="请选择出账资金账户（必填）" filterable style="width: 100%">
-                <el-option v-for="acc in activeFundAccountOptions" :key="acc.accountId" :label="`${acc.accountNo || ''} - ${acc.accountName}`" :value="acc.accountId" />
+              <el-select v-model="form.fundAccountId" placeholder="请选择出账资金账户" filterable style="width: 100%">
+                <el-option v-for="acc in activeFundAccountOptions" :key="acc.accountId" :label="acc.accountName" :value="acc.accountId" />
               </el-select>
             </el-form-item>
           </el-col>
@@ -142,6 +148,7 @@
 
 <script setup name="Payment">
 import { listPayment, addPayment, delPayment, getPayment, updatePayment, confirmPayment, unconfirmPayment } from "@/api/business/payment"
+import { listPayable } from "@/api/business/payable"
 import { useBusinessOptions } from "@/utils/businessOptions"
 import { printFinancialDocument } from "@/utils/documentPrint"
 
@@ -151,6 +158,17 @@ const {
   loadSuppliers, loadFundAccounts, fetchOpenPayables,
   getSupplierName, getFundAccountName
 } = useBusinessOptions()
+
+const payableNoMap = reactive({})
+function loadPayableNos() {
+  listPayable({ pageNum: 1, pageSize: 500 }).then(r => {
+    ;(r.rows || []).forEach(it => { payableNoMap[it.payableId] = it.payableNo })
+  }).catch(() => {})
+}
+function getPayableNo(id) {
+  if (!id) return "-"
+  return payableNoMap[id] || `AP #${id}`
+}
 
 function handlePrint(row) {
   printFinancialDocument({
@@ -270,5 +288,5 @@ function handleDelete(row) {
   }).catch(() => {})
 }
 
-loadFundAccounts(); loadSuppliers(); getList()
+loadFundAccounts(); loadSuppliers(); loadPayableNos(); getList()
 </script>
