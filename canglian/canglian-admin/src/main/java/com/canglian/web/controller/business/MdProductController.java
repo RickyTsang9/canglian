@@ -123,5 +123,18 @@ public class MdProductController extends BaseController
     {
         return toAjax(mdProductService.deleteMdProductByIds(productIds));
     }
+
+    /**
+     * 导出商品档案
+     */
+    @Log(title = "商品档案", businessType = BusinessType.EXPORT)
+    @PreAuthorize("@ss.hasPermi('business:product:export') or @ss.hasPermi('business:product:list')")
+    @PostMapping("/export")
+    public void export(HttpServletResponse response, MdProduct mdProduct)
+    {
+        List<MdProduct> list = mdProductService.selectMdProductList(mdProduct);
+        ExcelUtil<MdProduct> util = new ExcelUtil<MdProduct>(MdProduct.class);
+        util.exportExcel(response, list, "商品档案");
+    }
 }
 

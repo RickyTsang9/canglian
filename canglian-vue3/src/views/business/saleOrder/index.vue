@@ -30,6 +30,9 @@
       <el-col :span="1.5">
         <el-button type="danger" plain icon="Delete" :disabled="isMultipleDisabled" @click="handleDelete" v-hasPermi="['business:saleOrder:remove']">删除</el-button>
       </el-col>
+      <el-col :span="1.5">
+        <el-button type="warning" plain icon="Download" @click="handleExport" v-hasPermi="['business:saleOrder:export', 'business:saleOrder:list']">导出</el-button>
+      </el-col>
       <right-toolbar v-model:showSearch="showSearch" @queryTable="getList" />
     </el-row>
 
@@ -394,10 +397,12 @@ async function handleCustomerChanged() {
 }
 
 async function handleProductSelect(row) {
+  const prod = productOptions.value.find(p => Number(p.productId) === Number(row.productId))
   const units = await ensureUnitsLoaded(row.productId)
   if (units.length) {
-    row.unitName = units[0].unitName
-    row.convertRatio = Number(units[0].convertRatio || 1)
+    const preferred = (prod && prod.saleUnit && units.find(u => u.unitName === prod.saleUnit)) || units[0]
+    row.unitName = preferred.unitName
+    row.convertRatio = Number(preferred.convertRatio || 1)
   } else {
     row.convertRatio = 1
   }
@@ -417,11 +422,11 @@ function calculateItemAmount(row) {
   const ratio = Number(row.convertRatio || 1)
   const discountRate = row.discountRate !== undefined && row.discountRate !== null ? Number(row.discountRate) : 100
   const taxRate = Number(row.taxRate || 0)
-  const discounted = qty * price * (discountRate / 100)
-  const tax = discounted * (taxRate / 100)
+  const net = Number((qty * price * (discountRate / 100)).toFixed(2))
+  const tax = Number((net * (taxRate / 100)).toFixed(2))
   row.baseQuantity = Number((qty * ratio).toFixed(4))
-  row.taxAmount = Number(tax.toFixed(2))
-  row.amount = Number((discounted + tax).toFixed(2))
+  row.taxAmount = tax
+  row.amount = Number((net + tax).toFixed(2))
 }
 
 function getList() {
@@ -694,4 +699,8 @@ watch(orderType, () => {
 })
 
 getList()
+
+function handleExport() {
+  proxy.download("business/saleOrder/export", { ...queryParams.value }, `销售订单_${new Date().getTime()}.xlsx`)
+}
 </script>

@@ -4,6 +4,7 @@ import java.util.Date;
 import com.fasterxml.jackson.annotation.JsonFormat;
 import org.apache.commons.lang3.builder.ToStringBuilder;
 import org.apache.commons.lang3.builder.ToStringStyle;
+import com.canglian.common.annotation.Excel;
 import com.canglian.common.core.domain.BaseEntity;
 
 /**
@@ -17,17 +18,23 @@ public class WmsSerialNo extends BaseEntity
 
     private Long serialId;
 
+    @Excel(name = "序列号(SN)")
     private String snCode;
 
+    @Excel(name = "商品ID")
     private Long productId;
 
+    @Excel(name = "仓库ID")
     private Long warehouseId;
 
+    @Excel(name = "库位ID")
     private Long locationId;
 
+    @Excel(name = "批次号")
     private String batchNo;
 
     /** 状态：in_stock在库 / out_stock已出库 / returned退货回库 / scrapped报废 */
+    @Excel(name = "状态", readConverterExp = "in_stock=在库,sold=已售,returned=已退货,loss=盘亏核销")
     private String status;
 
     private Long inboundId;
@@ -37,6 +44,7 @@ public class WmsSerialNo extends BaseEntity
     private Long customerId;
 
     @JsonFormat(pattern = "yyyy-MM-dd")
+    @Excel(name = "保修截止日", dateFormat = "yyyy-MM-dd")
     private Date warrantyEndDate;
 
     public Long getSerialId() { return serialId; }

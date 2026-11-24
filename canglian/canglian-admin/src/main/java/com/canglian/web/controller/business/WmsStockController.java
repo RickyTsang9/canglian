@@ -51,6 +51,19 @@ public class WmsStockController extends BaseController
     }
 
     /**
+     * 导出实时库存列表
+     */
+    @Log(title = "实时库存", businessType = BusinessType.EXPORT)
+    @PreAuthorize("@ss.hasPermi('business:stock:export') or @ss.hasPermi('business:stock:list')")
+    @PostMapping("/export")
+    public void export(HttpServletResponse response, WmsStock wmsStock)
+    {
+        List<WmsStock> list = wmsStockService.selectWmsStockList(wmsStock);
+        ExcelUtil<WmsStock> util = new ExcelUtil<WmsStock>(WmsStock.class);
+        util.exportExcel(response, list, "实时库存台账");
+    }
+
+    /**
      * 导入期初库存
      *
      * @param file 导入文件

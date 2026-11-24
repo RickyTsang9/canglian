@@ -4,6 +4,7 @@ import java.math.BigDecimal;
 import java.util.Date;
 import org.apache.commons.lang3.builder.ToStringBuilder;
 import org.apache.commons.lang3.builder.ToStringStyle;
+import com.canglian.common.annotation.Excel;
 import com.canglian.common.core.domain.BaseEntity;
 
 public class FinPayable extends BaseEntity
@@ -12,10 +13,13 @@ public class FinPayable extends BaseEntity
 
     private Long payableId;
 
+    @Excel(name = "应付单号")
     private String payableNo;
 
+    @Excel(name = "供应商ID")
     private Long supplierId;
 
+    @Excel(name = "业务来源")
     private String billType;
 
     private Long billId;
@@ -24,22 +28,36 @@ public class FinPayable extends BaseEntity
 
     private Long sourceBillId;
 
+    @Excel(name = "来源单号")
     private String sourceBillNo;
 
+    @Excel(name = "业务日期", dateFormat = "yyyy-MM-dd")
     private Date businessDate;
 
+    @Excel(name = "应付金额")
     private BigDecimal amount;
 
     /** 单据方向(1正向应付 2红字退货冲减) */
+    @Excel(name = "方向", readConverterExp = "1=正向应付,2=红字冲减")
     private String billDirection;
 
+    @Excel(name = "已付/已冲金额")
     private BigDecimal paidAmount;
 
+    @Excel(name = "结算状态", readConverterExp = "0=未付,1=部分付款,2=已结清")
     private String status;
 
+    @Excel(name = "审核状态", readConverterExp = "draft=草稿,confirmed=已确认")
     private String bizStatus;
 
+    @Excel(name = "到期日", dateFormat = "yyyy-MM-dd")
     private Date dueDate;
+
+    /** 所属部门ID */
+    private Long deptId;
+
+    /** 责任人用户ID */
+    private Long ownerUserId;
 
     public Long getPayableId()
     {
@@ -189,6 +207,26 @@ public class FinPayable extends BaseEntity
     public void setDueDate(Date dueDate)
     {
         this.dueDate = dueDate;
+    }
+
+    public Long getDeptId()
+    {
+        return deptId;
+    }
+
+    public void setDeptId(Long deptId)
+    {
+        this.deptId = deptId;
+    }
+
+    public Long getOwnerUserId()
+    {
+        return ownerUserId;
+    }
+
+    public void setOwnerUserId(Long ownerUserId)
+    {
+        this.ownerUserId = ownerUserId;
     }
 
     @Override

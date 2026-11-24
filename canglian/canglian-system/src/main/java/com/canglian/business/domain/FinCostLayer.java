@@ -3,6 +3,7 @@ package com.canglian.business.domain;
 import java.math.BigDecimal;
 import org.apache.commons.lang3.builder.ToStringBuilder;
 import org.apache.commons.lang3.builder.ToStringStyle;
+import com.canglian.common.annotation.Excel;
 import com.canglian.common.core.domain.BaseEntity;
 
 /**
@@ -21,21 +22,27 @@ public class FinCostLayer extends BaseEntity
     private Long costAccountId;
 
     /** 商品id */
+    @Excel(name = "商品ID")
     private Long productId;
 
     /** 仓库id */
+    @Excel(name = "仓库ID")
     private Long warehouseId;
 
     /** 入库数量 */
+    @Excel(name = "初始数量")
     private BigDecimal quantity;
 
     /** 剩余数量 */
+    @Excel(name = "剩余数量")
     private BigDecimal remainingQty;
 
     /** 单价 */
+    @Excel(name = "成本单价")
     private BigDecimal price;
 
     /** 金额 */
+    @Excel(name = "层金额")
     private BigDecimal amount;
 
     /**

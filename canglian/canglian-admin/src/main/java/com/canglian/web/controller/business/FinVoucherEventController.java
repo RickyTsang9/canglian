@@ -94,7 +94,7 @@ public class FinVoucherEventController extends BaseController
         util.exportExcel(response, list, sheetName);
     }
 
-    @PreAuthorize("@ss.hasPermi('business:voucherEvent:generate')")
+    @PreAuthorize("@ss.hasPermi('business:voucherEvent:regenerate')")
     @Log(title = "补生成缺失凭证事件", businessType = BusinessType.INSERT)
     @PostMapping("/regenerate")
     public AjaxResult regenerate()

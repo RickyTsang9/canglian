@@ -5,6 +5,7 @@ import java.util.Date;
 import java.util.List;
 import org.apache.commons.lang3.builder.ToStringBuilder;
 import org.apache.commons.lang3.builder.ToStringStyle;
+import com.canglian.common.annotation.Excel;
 import com.canglian.common.core.domain.BaseEntity;
 
 public class WmsOutbound extends BaseEntity
@@ -13,12 +14,16 @@ public class WmsOutbound extends BaseEntity
 
     private Long outboundId;
 
+    @Excel(name = "出库单号")
     private String outboundNo;
 
+    @Excel(name = "出库类型", readConverterExp = "sale=销售出库,return=退货出库,other=其他出库")
     private String outboundType;
 
+    @Excel(name = "客户ID")
     private Long customerId;
 
+    @Excel(name = "仓库ID")
     private Long warehouseId;
 
     private Long deptId;
@@ -29,16 +34,21 @@ public class WmsOutbound extends BaseEntity
 
     private Long sourceBillId;
 
+    @Excel(name = "来源单号")
     private String sourceBillNo;
 
+    @Excel(name = "业务日期", dateFormat = "yyyy-MM-dd")
     private Date businessDate;
 
+    @Excel(name = "出库总数")
     private BigDecimal totalQty;
 
+    @Excel(name = "出库总额")
     private BigDecimal totalAmount;
 
     private BigDecimal discountAmount;
 
+    @Excel(name = "税额")
     private BigDecimal taxTotalAmount;
 
     private String verifiedFlag;
@@ -47,6 +57,7 @@ public class WmsOutbound extends BaseEntity
 
     private Date verifiedTime;
 
+    @Excel(name = "审核状态", readConverterExp = "0=草稿,1=已审核")
     private String status;
 
     public BigDecimal getDiscountAmount() { return discountAmount; }
@@ -62,6 +73,7 @@ public class WmsOutbound extends BaseEntity
 
     private String bizStatus;
 
+    @Excel(name = "审核人")
     private String auditBy;
 
     private Date auditTime;
@@ -82,12 +94,15 @@ public class WmsOutbound extends BaseEntity
 
     private String sourceOrderNo;
 
+    @Excel(name = "物流承运商")
     private String carrier;
 
+    @Excel(name = "运单号")
     private String waybillNo;
 
     private BigDecimal freightCost;
 
+    @Excel(name = "物流状态", readConverterExp = "0=待发货,1=已发货,2=已签收,3=已整单退货")
     private String deliveryStatus;
 
     private List<WmsOutboundItem> itemList;

@@ -22,6 +22,9 @@ public class FinReportServiceImpl implements IFinReportService
     @Autowired
     private FinReportMapper finReportMapper;
 
+    @Autowired(required = false)
+    private BizScopeHelper bizScopeHelper;
+
     @Override
     public List<FinAgingReport> selectReceivableAgingReport(Long customerId)
     {
@@ -116,13 +119,38 @@ public class FinReportServiceImpl implements IFinReportService
     @Override
     public List<Map<String, Object>> selectProductTurnoverReport(String startDate, String endDate)
     {
-        return finReportMapper.selectProductTurnoverReport(startDate, endDate);
+        return filterByWarehouseScope(finReportMapper.selectProductTurnoverReport(startDate, endDate));
     }
 
     @Override
     public List<Map<String, Object>> selectStockBalanceReport()
     {
-        return finReportMapper.selectStockBalanceReport();
+        return filterByWarehouseScope(finReportMapper.selectStockBalanceReport());
+    }
+
+    private List<Map<String, Object>> filterByWarehouseScope(List<Map<String, Object>> rows)
+    {
+        java.util.Set<Long> allowed = bizScopeHelper == null ? null : bizScopeHelper.getRestrictedWarehouseIds();
+        if (allowed == null || rows == null || rows.isEmpty()) return rows;
+        java.util.List<Map<String, Object>> filtered = new java.util.ArrayList<Map<String, Object>>();
+        for (Map<String, Object> row : rows)
+        {
+            Object whObj = row.containsKey("warehouseId") ? row.get("warehouseId") : row.get("warehouse_id");
+            if (whObj == null)
+            {
+                filtered.add(row);
+                continue;
+            }
+            try
+            {
+                if (allowed.contains(Long.valueOf(String.valueOf(whObj)))) filtered.add(row);
+            }
+            catch (Exception ignored)
+            {
+                filtered.add(row);
+            }
+        }
+        return filtered;
     }
 
     @Override

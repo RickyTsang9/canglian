@@ -115,7 +115,14 @@
         </el-form>
       </el-tab-pane>
 
-      <el-tab-pane label="单笔成本核算" name="single">
+      <el-tab-pane label="成本模拟测算" name="single">
+        <el-alert
+          title="只读沙箱测算：仅基于当前成本台账与 FIFO 批次层在内存中预览模拟结转结果，不写入生产成本账、不生成审计流水，也不会锁定全局成本算法切换。"
+          type="info"
+          show-icon
+          :closable="false"
+          style="margin-bottom: 14px; max-width: 760px"
+        />
         <el-form ref="calcRef" :model="form" :rules="rules" label-width="90px" style="max-width: 760px">
           <el-row>
             <el-col :span="12">
@@ -135,41 +142,23 @@
           </el-row>
           <el-row>
             <el-col :span="12">
-              <el-form-item label="单据类型" prop="billType">
-                <el-select v-model="form.billType" placeholder="请选择单据类型" allow-create filterable style="width: 100%">
-                  <el-option label="采购入库" value="inbound" />
-                  <el-option label="销售出库" value="outbound" />
-                  <el-option label="手工模拟" value="manual" />
-                </el-select>
-              </el-form-item>
-            </el-col>
-            <el-col :span="12">
-              <el-form-item label="来源单据" prop="billId">
-                <el-select v-model="form.billId" placeholder="可选，自动关联单据" clearable filterable allow-create style="width: 100%">
-                  <el-option label="手工模拟测算(0)" :value="0" />
-                </el-select>
-              </el-form-item>
-            </el-col>
-          </el-row>
-          <el-row>
-            <el-col :span="12">
               <el-form-item label="出入库" prop="inOut">
                 <el-select v-model="form.inOut" placeholder="请选择" style="width: 100%">
-                  <el-option label="入库" value="1" />
-                  <el-option label="出库" value="2" />
+                  <el-option label="模拟入库" value="1" />
+                  <el-option label="模拟出库" value="2" />
                 </el-select>
               </el-form-item>
             </el-col>
             <el-col :span="12">
               <el-form-item label="数量" prop="quantity">
-                <el-input v-model="form.quantity" placeholder="请输入数量" />
+                <el-input v-model="form.quantity" placeholder="请输入测算数量" />
               </el-form-item>
             </el-col>
           </el-row>
           <el-row>
             <el-col :span="12">
               <el-form-item label="单价" prop="price">
-                <el-input v-model="form.price" placeholder="请输入单价" />
+                <el-input v-model="form.price" placeholder="入库必填单价，出库可留空取库存均价" />
               </el-form-item>
             </el-col>
             <el-col :span="12">
@@ -182,20 +171,22 @@
             </el-col>
           </el-row>
           <div style="margin-top: 10px">
-            <el-button type="primary" @click="submitForm">核算</el-button>
+            <el-button type="primary" @click="submitForm">开始沙箱测算</el-button>
             <el-button @click="reset">重置</el-button>
           </div>
         </el-form>
 
         <el-card v-if="result" style="margin-top: 16px; max-width: 760px">
-          <template #header><span>核算结果</span></template>
+          <template #header><span>模拟测算结果（未落库）</span></template>
           <el-descriptions :column="2" border>
-            <el-descriptions-item label="成本账户">{{ result.costAccountId }}</el-descriptions-item>
-            <el-descriptions-item label="出入库">{{ result.inOut === '1' ? '入库' : '出库' }}</el-descriptions-item>
-            <el-descriptions-item label="数量">{{ result.quantity }}</el-descriptions-item>
-            <el-descriptions-item label="单价">{{ result.price }}</el-descriptions-item>
-            <el-descriptions-item label="金额">{{ result.amount }}</el-descriptions-item>
-            <el-descriptions-item label="算法">{{ result.costMethod === 'fifo' ? '先进先出' : '移动加权' }}</el-descriptions-item>
+            <el-descriptions-item label="测算方向">{{ result.inOut === '1' ? '模拟入库' : '模拟出库' }}</el-descriptions-item>
+            <el-descriptions-item label="测算算法">{{ result.costMethod === 'fifo' ? '先进先出' : '移动加权' }}</el-descriptions-item>
+            <el-descriptions-item label="测算数量">{{ result.quantity }}</el-descriptions-item>
+            <el-descriptions-item label="结转单价">￥{{ Number(result.price || 0).toFixed(4) }}</el-descriptions-item>
+            <el-descriptions-item label="结转金额">￥{{ Number(result.amount || 0).toFixed(2) }}</el-descriptions-item>
+            <el-descriptions-item label="测算前均价">￥{{ Number(result.beforeAvgCost || 0).toFixed(4) }}（数量 {{ result.beforeQty }}）</el-descriptions-item>
+            <el-descriptions-item label="测算后均价">￥{{ Number(result.afterAvgCost || 0).toFixed(4) }}（数量 {{ result.afterQty }}）</el-descriptions-item>
+            <el-descriptions-item label="测算后总成本">￥{{ Number(result.afterTotalAmount || 0).toFixed(2) }}</el-descriptions-item>
           </el-descriptions>
         </el-card>
       </el-tab-pane>
@@ -204,7 +195,7 @@
 </template>
 
 <script setup name="CostCalculate">
-import { getCostConfig, updateCostConfig, calculateCost, recalculateCost, adjustCost } from "@/api/business/costCalculate"
+import { getCostConfig, updateCostConfig, simulateCost, recalculateCost, adjustCost } from "@/api/business/costCalculate"
 import { useBusinessOptions } from "@/utils/businessOptions"
 
 const { proxy } = getCurrentInstance()
@@ -300,10 +291,9 @@ function submitAdjust() {
 function submitForm() {
   proxy.$refs["calcRef"].validate(valid => {
     if (valid) {
-      calculateCost(form.value).then(response => {
+      simulateCost(form.value).then(response => {
         result.value = response.data
-        proxy.$modal.msgSuccess("核算成功")
-        loadCostConfig()
+        proxy.$modal.msgSuccess("模拟测算完成（未影响生产成本台账）")
       })
     }
   })

@@ -1,6 +1,8 @@
 package com.canglian.web.controller.business;
 
 import java.util.List;
+import com.canglian.common.utils.poi.ExcelUtil;
+import javax.servlet.http.HttpServletResponse;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
@@ -89,7 +91,7 @@ public class FinWriteOffController extends BaseController
         return toAjax(finWriteOffService.confirmFinWriteOff(writeOffId, getUsername()));
     }
 
-    @PreAuthorize("@ss.hasPermi('business:writeOff:confirm')")
+    @PreAuthorize("@ss.hasPermi('business:writeOff:unconfirm')")
     @Log(title = "核销反确认", businessType = BusinessType.UPDATE)
     @PostMapping("/unconfirm/{writeOffId}")
     public AjaxResult unconfirm(@PathVariable Long writeOffId)
@@ -106,6 +108,19 @@ public class FinWriteOffController extends BaseController
     public AjaxResult remove(@PathVariable Long[] writeOffIds)
     {
         return toAjax(finWriteOffService.deleteFinWriteOffByIds(writeOffIds));
+    }
+
+    /**
+     * 导出核销单
+     */
+    @Log(title = "核销单", businessType = BusinessType.EXPORT)
+    @PreAuthorize("@ss.hasPermi('business:writeOff:export') or @ss.hasPermi('business:writeOff:list')")
+    @PostMapping("/export")
+    public void export(HttpServletResponse response, FinWriteOff finWriteOff)
+    {
+        List<FinWriteOff> list = finWriteOffService.selectFinWriteOffList(finWriteOff);
+        ExcelUtil<FinWriteOff> util = new ExcelUtil<FinWriteOff>(FinWriteOff.class);
+        util.exportExcel(response, list, "核销单");
     }
 }
 

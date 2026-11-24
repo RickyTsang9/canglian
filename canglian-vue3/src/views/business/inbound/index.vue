@@ -32,6 +32,9 @@
       <el-col :span="1.5">
         <el-button type="danger" plain icon="Delete" :disabled="isMultipleDisabled" @click="handleDelete" v-hasPermi="['business:inbound:remove']">删除</el-button>
       </el-col>
+      <el-col :span="1.5">
+        <el-button type="warning" plain icon="Download" @click="handleExport" v-hasPermi="['business:inbound:export', 'business:inbound:list']">导出</el-button>
+      </el-col>
       <right-toolbar v-model:showSearch="showSearch" @queryTable="getList" />
     </el-row>
 
@@ -360,12 +363,22 @@ async function handleProductChange(row) {
   const prod = productOptions.value.find(p => Number(p.productId) === Number(row.productId))
   const units = await ensureUnitsLoaded(row.productId)
   if (units.length) {
-    row.unitName = units[0].unitName
-    row.convertRatio = Number(units[0].convertRatio || 1)
-    if (units[0].purchasePrice > 0) row.price = Number(units[0].purchasePrice)
-    else if (prod && (!row.price || Number(row.price) === 0)) row.price = Number(prod.costPrice || 0)
-  } else if (prod && (!row.price || Number(row.price) === 0)) {
+    const preferred = (prod && prod.purchaseUnit && units.find(u => u.unitName === prod.purchaseUnit)) || units[0]
+    row.unitName = preferred.unitName
+    row.convertRatio = Number(preferred.convertRatio || 1)
+    if (preferred.purchasePrice != null && Number(preferred.purchasePrice) > 0) {
+      row.price = Number(preferred.purchasePrice)
+    } else if (prod) {
+      row.price = Number((Number(prod.costPrice || 0) * row.convertRatio).toFixed(2))
+    } else {
+      row.price = 0
+    }
+  } else if (prod) {
+    row.unitName = prod.unitName || "件"
+    row.convertRatio = 1
     row.price = Number(prod.costPrice || 0)
+  } else {
+    row.price = 0
   }
   recalcRow(row)
 }
@@ -532,4 +545,8 @@ loadSuppliers()
 loadProducts()
 loadLocations()
 getList()
+
+function handleExport() {
+  proxy.download("business/inbound/export", { ...queryParams.value }, `采购入库单_${new Date().getTime()}.xlsx`)
+}
 </script>

@@ -1,5 +1,7 @@
 package com.canglian.business.service.impl;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.YearMonth;
 import java.time.ZoneId;
@@ -218,10 +220,13 @@ public class FinGeneralLedgerServiceImpl implements IFinGeneralLedgerService
         addCheckItem(items, "earlier_open_periods", "更早未结账会计期间", earlierOpen, true);
         addCheckItem(items, "draft_inbound", "草稿入库单", finGeneralLedgerMapper.countDraftInboundInPeriod(startDate, endDate), true);
         addCheckItem(items, "draft_outbound", "草稿出库单", finGeneralLedgerMapper.countDraftOutboundInPeriod(startDate, endDate), true);
+        addCheckItem(items, "unsigned_outbound", "已审核未签收在途出库单", finGeneralLedgerMapper.countUnsignedOutboundInPeriod(startDate, endDate), true);
         addCheckItem(items, "draft_transfer", "草稿调拨单", finGeneralLedgerMapper.countDraftTransferInPeriod(startDate, endDate), true);
         addCheckItem(items, "draft_inventory_check", "草稿盘点单", finGeneralLedgerMapper.countDraftInventoryCheckInPeriod(startDate, endDate), true);
         addCheckItem(items, "draft_purchase_return", "草稿采购退货单", finGeneralLedgerMapper.countDraftPurchaseReturnInPeriod(startDate, endDate), true);
         addCheckItem(items, "draft_sale_return", "草稿销售退货单", finGeneralLedgerMapper.countDraftSaleReturnInPeriod(startDate, endDate), true);
+        addCheckItem(items, "draft_receivable", "草稿应收单", finGeneralLedgerMapper.countDraftReceivableInPeriod(startDate, endDate), true);
+        addCheckItem(items, "draft_payable", "草稿应付单", finGeneralLedgerMapper.countDraftPayableInPeriod(startDate, endDate), true);
         addCheckItem(items, "draft_receipt", "未确认收款单", finGeneralLedgerMapper.countDraftReceiptInPeriod(startDate, endDate), true);
         addCheckItem(items, "draft_payment", "未确认付款单", finGeneralLedgerMapper.countDraftPaymentInPeriod(startDate, endDate), true);
         addCheckItem(items, "draft_expense", "未确认费用单", finGeneralLedgerMapper.countDraftExpenseInPeriod(startDate, endDate), true);
@@ -378,6 +383,125 @@ public class FinGeneralLedgerServiceImpl implements IFinGeneralLedgerService
             throw new ServiceException("凭证模板不存在");
         }
         return finVoucherEntryMapper.deleteTemplateById(templateId);
+    }
+
+    @Override
+    public Map<String, Object> selectTrialBalance(String startDate, String endDate)
+    {
+        List<Map<String, Object>> raw = finGeneralLedgerMapper.selectTrialBalance(startDate, endDate);
+        List<Map<String, Object>> rows = new ArrayList<>();
+        BigDecimal totalPeriodDebit = BigDecimal.ZERO;
+        BigDecimal totalPeriodCredit = BigDecimal.ZERO;
+        BigDecimal totalEndingDebit = BigDecimal.ZERO;
+        BigDecimal totalEndingCredit = BigDecimal.ZERO;
+        if (raw != null)
+        {
+            for (Map<String, Object> row : raw)
+            {
+                BigDecimal pd = toDecimal(row.get("periodDebit"));
+                BigDecimal pc = toDecimal(row.get("periodCredit"));
+                BigDecimal cd = toDecimal(row.get("cumDebit"));
+                BigDecimal cc = toDecimal(row.get("cumCredit"));
+                BigDecimal net = cd.subtract(cc);
+                BigDecimal endDebit = net.compareTo(BigDecimal.ZERO) > 0 ? net : BigDecimal.ZERO;
+                BigDecimal endCredit = net.compareTo(BigDecimal.ZERO) < 0 ? net.abs() : BigDecimal.ZERO;
+
+                Map<String, Object> item = new LinkedHashMap<>();
+                item.put("subjectId", row.get("subjectId"));
+                item.put("subjectCode", row.get("subjectCode"));
+                item.put("subjectName", row.get("subjectName"));
+                item.put("subjectType", row.get("subjectType"));
+                item.put("balanceDirection", row.get("balanceDirection"));
+                item.put("periodDebit", pd.setScale(2, RoundingMode.HALF_UP));
+                item.put("periodCredit", pc.setScale(2, RoundingMode.HALF_UP));
+                item.put("endingDebit", endDebit.setScale(2, RoundingMode.HALF_UP));
+                item.put("endingCredit", endCredit.setScale(2, RoundingMode.HALF_UP));
+                rows.add(item);
+
+                totalPeriodDebit = totalPeriodDebit.add(pd);
+                totalPeriodCredit = totalPeriodCredit.add(pc);
+                totalEndingDebit = totalEndingDebit.add(endDebit);
+                totalEndingCredit = totalEndingCredit.add(endCredit);
+            }
+        }
+        Map<String, Object> res = new LinkedHashMap<>();
+        res.put("rows", rows);
+        res.put("totalPeriodDebit", totalPeriodDebit.setScale(2, RoundingMode.HALF_UP));
+        res.put("totalPeriodCredit", totalPeriodCredit.setScale(2, RoundingMode.HALF_UP));
+        res.put("totalEndingDebit", totalEndingDebit.setScale(2, RoundingMode.HALF_UP));
+        res.put("totalEndingCredit", totalEndingCredit.setScale(2, RoundingMode.HALF_UP));
+        res.put("periodBalanced", totalPeriodDebit.setScale(2, RoundingMode.HALF_UP).compareTo(totalPeriodCredit.setScale(2, RoundingMode.HALF_UP)) == 0);
+        res.put("endingBalanced", totalEndingDebit.setScale(2, RoundingMode.HALF_UP).compareTo(totalEndingCredit.setScale(2, RoundingMode.HALF_UP)) == 0);
+        return res;
+    }
+
+    @Override
+    public Map<String, Object> selectSubjectLedger(String subjectCode, String startDate, String endDate)
+    {
+        if (StringUtils.isEmpty(subjectCode))
+        {
+            throw new ServiceException("请选择要查询的会计科目");
+        }
+        String code = subjectCode.trim();
+        String balanceDir = "debit";
+        String subjectName = code;
+        List<Map<String, Object>> subjects = finGeneralLedgerMapper.selectAccountSubjectList(null);
+        if (subjects != null)
+        {
+            for (Map<String, Object> s : subjects)
+            {
+                if (code.equals(String.valueOf(s.get("subjectCode"))))
+                {
+                    subjectName = String.valueOf(s.get("subjectName"));
+                    if (s.get("balanceDirection") != null)
+                    {
+                        balanceDir = String.valueOf(s.get("balanceDirection"));
+                    }
+                    break;
+                }
+            }
+        }
+        List<Map<String, Object>> raw = finGeneralLedgerMapper.selectSubjectLedger(code, startDate, endDate);
+        List<Map<String, Object>> rows = new ArrayList<>();
+        BigDecimal running = BigDecimal.ZERO;
+        BigDecimal totalDebit = BigDecimal.ZERO;
+        BigDecimal totalCredit = BigDecimal.ZERO;
+        if (raw != null)
+        {
+            for (Map<String, Object> r : raw)
+            {
+                BigDecimal d = toDecimal(r.get("debitAmount"));
+                BigDecimal c = toDecimal(r.get("creditAmount"));
+                totalDebit = totalDebit.add(d);
+                totalCredit = totalCredit.add(c);
+                running = "credit".equals(balanceDir) ? running.add(c).subtract(d) : running.add(d).subtract(c);
+
+                Map<String, Object> item = new LinkedHashMap<>(r);
+                item.put("debitAmount", d.setScale(2, RoundingMode.HALF_UP));
+                item.put("creditAmount", c.setScale(2, RoundingMode.HALF_UP));
+                item.put("balanceDirection", running.compareTo(BigDecimal.ZERO) == 0 ? "平"
+                    : ("credit".equals(balanceDir) ? (running.compareTo(BigDecimal.ZERO) > 0 ? "贷" : "借")
+                        : (running.compareTo(BigDecimal.ZERO) > 0 ? "借" : "贷")));
+                item.put("runningBalance", running.abs().setScale(2, RoundingMode.HALF_UP));
+                rows.add(item);
+            }
+        }
+        Map<String, Object> res = new LinkedHashMap<>();
+        res.put("subjectCode", code);
+        res.put("subjectName", subjectName);
+        res.put("balanceDirection", balanceDir);
+        res.put("totalDebit", totalDebit.setScale(2, RoundingMode.HALF_UP));
+        res.put("totalCredit", totalCredit.setScale(2, RoundingMode.HALF_UP));
+        res.put("endingBalance", running.abs().setScale(2, RoundingMode.HALF_UP));
+        res.put("rows", rows);
+        return res;
+    }
+
+    private BigDecimal toDecimal(Object value)
+    {
+        if (value == null) return BigDecimal.ZERO;
+        if (value instanceof BigDecimal) return (BigDecimal) value;
+        return new BigDecimal(String.valueOf(value));
     }
 
     private void validateVoucherTemplate(FinVoucherTemplate template, Long excludeId)

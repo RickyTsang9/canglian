@@ -65,6 +65,9 @@
           v-hasPermi="['business:warehouse:remove']"
         >删除</el-button>
       </el-col>
+      <el-col :span="1.5">
+        <el-button type="warning" plain icon="Download" @click="handleExport" v-hasPermi="['business:warehouse:export', 'business:warehouse:list']">导出</el-button>
+      </el-col>
       <right-toolbar v-model:showSearch="showSearch" @queryTable="getList"></right-toolbar>
     </el-row>
 
@@ -288,4 +291,8 @@ function handleDelete(row) {
 }
 
 getList()
+
+function handleExport() {
+  proxy.download("business/warehouse/export", { ...queryParams.value }, `仓库档案_${new Date().getTime()}.xlsx`)
+}
 </script>

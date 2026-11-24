@@ -1,6 +1,10 @@
 package com.canglian.web.controller.business;
 
 import java.util.List;
+import com.canglian.common.utils.poi.ExcelUtil;
+import com.canglian.common.enums.BusinessType;
+import com.canglian.common.annotation.Log;
+import javax.servlet.http.HttpServletResponse;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -67,5 +71,18 @@ public class FinCostAccountController extends BaseController
     public AjaxResult remove(@PathVariable Long[] costAccountIds)
     {
         throw new ServiceException(READONLY_MSG);
+    }
+
+    /**
+     * 导出成本总账
+     */
+    @Log(title = "成本总账", businessType = BusinessType.EXPORT)
+    @PreAuthorize("@ss.hasPermi('business:costAccount:export') or @ss.hasPermi('business:costAccount:list')")
+    @PostMapping("/export")
+    public void export(HttpServletResponse response, FinCostAccount finCostAccount)
+    {
+        List<FinCostAccount> list = finCostAccountService.selectFinCostAccountList(finCostAccount);
+        ExcelUtil<FinCostAccount> util = new ExcelUtil<FinCostAccount>(FinCostAccount.class);
+        util.exportExcel(response, list, "成本总账");
     }
 }

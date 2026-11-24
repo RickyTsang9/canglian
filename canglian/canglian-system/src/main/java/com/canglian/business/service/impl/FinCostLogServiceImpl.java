@@ -18,6 +18,9 @@ public class FinCostLogServiceImpl implements IFinCostLogService
     @Autowired
     private FinCostLogMapper finCostLogMapper;
 
+    @Autowired(required = false)
+    private BizScopeHelper bizScopeHelper;
+
     /**
      * 查询成本流水信息
      * 
@@ -27,7 +30,9 @@ public class FinCostLogServiceImpl implements IFinCostLogService
     @Override
     public FinCostLog selectFinCostLogById(Long costLogId)
     {
-        return finCostLogMapper.selectFinCostLogById(costLogId);
+        FinCostLog log = finCostLogMapper.selectFinCostLogById(costLogId);
+        if (log != null && bizScopeHelper != null) bizScopeHelper.assertWarehouseAccess(log.getWarehouseId());
+        return log;
     }
 
     /**
@@ -39,7 +44,15 @@ public class FinCostLogServiceImpl implements IFinCostLogService
     @Override
     public List<FinCostLog> selectFinCostLogList(FinCostLog finCostLog)
     {
-        return finCostLogMapper.selectFinCostLogList(finCostLog);
+        List<FinCostLog> list = finCostLogMapper.selectFinCostLogList(finCostLog);
+        java.util.Set<Long> allowed = bizScopeHelper == null ? null : bizScopeHelper.getRestrictedWarehouseIds();
+        if (allowed == null || list == null) return list;
+        java.util.List<FinCostLog> filtered = new java.util.ArrayList<FinCostLog>();
+        for (FinCostLog l : list)
+        {
+            if (allowed.contains(l.getWarehouseId())) filtered.add(l);
+        }
+        return filtered;
     }
 
     /**
@@ -51,6 +64,7 @@ public class FinCostLogServiceImpl implements IFinCostLogService
     @Override
     public int insertFinCostLog(FinCostLog finCostLog)
     {
+        if (bizScopeHelper != null && finCostLog != null) bizScopeHelper.assertWarehouseAccess(finCostLog.getWarehouseId());
         return finCostLogMapper.insertFinCostLog(finCostLog);
     }
 
@@ -63,6 +77,7 @@ public class FinCostLogServiceImpl implements IFinCostLogService
     @Override
     public int updateFinCostLog(FinCostLog finCostLog)
     {
+        if (bizScopeHelper != null && finCostLog != null) bizScopeHelper.assertWarehouseAccess(finCostLog.getWarehouseId());
         return finCostLogMapper.updateFinCostLog(finCostLog);
     }
 
@@ -75,6 +90,11 @@ public class FinCostLogServiceImpl implements IFinCostLogService
     @Override
     public int deleteFinCostLogById(Long costLogId)
     {
+        if (bizScopeHelper != null && costLogId != null)
+        {
+            FinCostLog log = finCostLogMapper.selectFinCostLogById(costLogId);
+            if (log != null) bizScopeHelper.assertWarehouseAccess(log.getWarehouseId());
+        }
         return finCostLogMapper.deleteFinCostLogById(costLogId);
     }
 
@@ -87,6 +107,14 @@ public class FinCostLogServiceImpl implements IFinCostLogService
     @Override
     public int deleteFinCostLogByIds(Long[] costLogIds)
     {
+        if (bizScopeHelper != null && costLogIds != null)
+        {
+            for (Long id : costLogIds)
+            {
+                FinCostLog log = finCostLogMapper.selectFinCostLogById(id);
+                if (log != null) bizScopeHelper.assertWarehouseAccess(log.getWarehouseId());
+            }
+        }
         return finCostLogMapper.deleteFinCostLogByIds(costLogIds);
     }
 }

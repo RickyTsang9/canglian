@@ -4,6 +4,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.Calendar;
 import java.util.Date;
 import java.util.List;
 import java.util.Objects;
@@ -15,11 +16,13 @@ import com.canglian.business.domain.FinOffsetLog;
 import com.canglian.business.domain.FinReceipt;
 import com.canglian.business.domain.FinReceivable;
 import com.canglian.business.domain.FinWriteOff;
+import com.canglian.business.domain.MdCustomer;
 import com.canglian.business.mapper.FinBadDebtMapper;
 import com.canglian.business.mapper.FinOffsetLogMapper;
 import com.canglian.business.mapper.FinReceiptMapper;
 import com.canglian.business.mapper.FinReceivableMapper;
 import com.canglian.business.mapper.FinWriteOffMapper;
+import com.canglian.business.mapper.MdCustomerMapper;
 import com.canglian.business.service.IFinGeneralLedgerService;
 import com.canglian.business.service.IFinReceivableService;
 import com.canglian.business.service.IFinVoucherEventService;
@@ -57,24 +60,48 @@ public class FinReceivableServiceImpl implements IFinReceivableService
     @Autowired(required = false)
     private FinBadDebtMapper finBadDebtMapper;
 
+    @Autowired(required = false)
+    private MdCustomerMapper mdCustomerMapper;
+
+    @Autowired(required = false)
+    private BizScopeHelper bizScopeHelper;
+
     @Override
     public FinReceivable selectFinReceivableById(Long receivableId)
     {
-        return finReceivableMapper.selectFinReceivableById(receivableId);
+        FinReceivable ar = finReceivableMapper.selectFinReceivableById(receivableId);
+        if (ar != null && bizScopeHelper != null)
+        {
+            bizScopeHelper.assertRecordAccess(ar.getDeptId(), ar.getOwnerUserId());
+        }
+        return ar;
     }
 
     @Override
     public List<FinReceivable> selectFinReceivableList(FinReceivable finReceivable)
     {
+        if (bizScopeHelper != null)
+        {
+            bizScopeHelper.applyScopeFilter(finReceivable, "", true, false);
+        }
         return finReceivableMapper.selectFinReceivableList(finReceivable);
     }
 
     @Override
     public int insertFinReceivable(FinReceivable finReceivable)
     {
+        if (bizScopeHelper != null)
+        {
+            if (finReceivable.getDeptId() == null) finReceivable.setDeptId(bizScopeHelper.getCurrentDeptId());
+            if (finReceivable.getOwnerUserId() == null) finReceivable.setOwnerUserId(bizScopeHelper.getCurrentUserId());
+        }
         if (finReceivable.getBusinessDate() == null)
         {
             finReceivable.setBusinessDate(new Date());
+        }
+        if (finReceivable.getDueDate() == null)
+        {
+            finReceivable.setDueDate(resolveCustomerDueDate(finReceivable.getCustomerId(), finReceivable.getBusinessDate(), null));
         }
         if (finGeneralLedgerService != null)
         {
@@ -157,10 +184,11 @@ public class FinReceivableServiceImpl implements IFinReceivableService
         finReceivable.setUpdateBy(operator);
         int rows = finReceivableMapper.updateFinReceivable(finReceivable);
         if (rows > 0 && finVoucherEventService != null
-            && (StringUtils.isEmpty(finReceivable.getBillType()) || "manual".equals(finReceivable.getBillType())))
+            && (StringUtils.isEmpty(finReceivable.getBillType()) || "manual".equals(finReceivable.getBillType()) || "invoice".equals(finReceivable.getBillType())))
         {
             finVoucherEventService.recordVoucherEvent("receivable", finReceivable.getReceivableId(), finReceivable.getReceivableNo(),
-                "manual_receivable", finReceivable.getBusinessDate(), finReceivable.getAmount(), operator, "手工应收单审核待生成凭证");
+                "manual_receivable", finReceivable.getBusinessDate(), finReceivable.getAmount(), operator,
+                "invoice".equals(finReceivable.getBillType()) ? "独立销售发票自动应收待生成凭证" : "手工应收单审核待生成凭证");
         }
         return rows;
     }
@@ -178,9 +206,9 @@ public class FinReceivableServiceImpl implements IFinReceivableService
         {
             throw new ServiceException("退货自动生成的红字应收冲减单不允许直接反确认，请操作原退货单");
         }
-        if ("outbound".equals(finReceivable.getBillType()) || "invoice".equals(finReceivable.getBillType()))
+        if ("outbound".equals(finReceivable.getBillType()) || "invoice".equals(finReceivable.getBillType()) || "opening".equals(finReceivable.getBillType()))
         {
-            throw new ServiceException("由业务单据自动生成的应收单不允许直接反确认，请先反审核来源单据");
+            throw new ServiceException("由业务单据或客户期初自动生成的应收单不允许直接反确认，请操作来源单据或客户档案");
         }
         finGeneralLedgerService.assertPeriodOpen(finReceivable.getBusinessDate());
         if (defaultAmount(finReceivable.getReceivedAmount()).compareTo(BigDecimal.ZERO) != 0
@@ -218,6 +246,10 @@ public class FinReceivableServiceImpl implements IFinReceivableService
             return existing;
         }
         Date bizDate = businessDate == null ? new Date() : businessDate;
+        if (finGeneralLedgerService != null)
+        {
+            finGeneralLedgerService.assertPeriodOpen(bizDate);
+        }
         FinReceivable redAr = new FinReceivable();
         redAr.setReceivableNo(generateReceivableNo());
         redAr.setCustomerId(customerId);
@@ -234,6 +266,11 @@ public class FinReceivableServiceImpl implements IFinReceivableService
         redAr.setStatus("0");
         redAr.setBizStatus("confirmed");
         redAr.setCreateBy(operator);
+        if (bizScopeHelper != null)
+        {
+            redAr.setDeptId(bizScopeHelper.getCurrentDeptId());
+            redAr.setOwnerUserId(bizScopeHelper.getCurrentUserId());
+        }
         redAr.setRemark(StringUtils.isEmpty(remark) ? "退货自动生成红字应收冲减单" : remark);
         finReceivableMapper.insertFinReceivable(redAr);
         return redAr;
@@ -259,6 +296,8 @@ public class FinReceivableServiceImpl implements IFinReceivableService
 
         FinReceivable redAr = getExistingFinReceivable(redReceivableId);
         FinReceivable blueAr = getExistingFinReceivable(targetReceivableId);
+        finGeneralLedgerService.assertPeriodOpen(redAr.getBusinessDate());
+        finGeneralLedgerService.assertPeriodOpen(blueAr.getBusinessDate());
         if (!"2".equals(redAr.getBillDirection()) || defaultAmount(redAr.getAmount()).compareTo(BigDecimal.ZERO) >= 0)
         {
             throw new ServiceException("来源单据不是有效的红字应收冲减单");
@@ -347,6 +386,8 @@ public class FinReceivableServiceImpl implements IFinReceivableService
 
         FinReceivable blueAr = getExistingFinReceivable(log.getPositiveBillId());
         FinReceivable redAr = getExistingFinReceivable(log.getRedBillId());
+        finGeneralLedgerService.assertPeriodOpen(redAr.getBusinessDate());
+        finGeneralLedgerService.assertPeriodOpen(blueAr.getBusinessDate());
         BigDecimal amt = defaultAmount(log.getOffsetAmount());
 
         BigDecimal nextBlueReceived = defaultAmount(blueAr.getReceivedAmount()).subtract(amt);
@@ -367,6 +408,100 @@ public class FinReceivableServiceImpl implements IFinReceivableService
         log.setReverseBy(operator);
         log.setReverseTime(new Date());
         return finOffsetLogMapper.updateFinOffsetLog(log);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public FinReceivable syncOpeningReceivable(Long customerId, String customerCode, BigDecimal openingAmount, Integer receivableDays, String operator)
+    {
+        if (customerId == null)
+        {
+            return null;
+        }
+        BigDecimal amt = defaultAmount(openingAmount);
+        if (amt.compareTo(BigDecimal.ZERO) < 0)
+        {
+            throw new ServiceException("期初应收余额不能小于0");
+        }
+        FinReceivable existing = finReceivableMapper.selectFinReceivableBySource("customer_opening", customerId);
+        if (existing == null)
+        {
+            if (amt.compareTo(BigDecimal.ZERO) == 0)
+            {
+                return null;
+            }
+            Date now = new Date();
+            if (finGeneralLedgerService != null)
+            {
+                finGeneralLedgerService.assertPeriodOpen(now);
+            }
+            FinReceivable openAr = new FinReceivable();
+            openAr.setReceivableNo(generateReceivableNo());
+            openAr.setCustomerId(customerId);
+            openAr.setBillType("opening");
+            openAr.setBillId(customerId);
+            openAr.setSourceBillType("customer_opening");
+            openAr.setSourceBillId(customerId);
+            openAr.setSourceBillNo(StringUtils.isNotEmpty(customerCode) ? customerCode : ("CUST-" + customerId));
+            openAr.setBusinessDate(now);
+            openAr.setDueDate(resolveCustomerDueDate(customerId, now, receivableDays));
+            openAr.setAmount(amt);
+            openAr.setBillDirection("1");
+            openAr.setReceivedAmount(BigDecimal.ZERO);
+            openAr.setBadDebtAmount(BigDecimal.ZERO);
+            openAr.setStatus("0");
+            openAr.setBizStatus("confirmed");
+            openAr.setCreateBy(StringUtils.isEmpty(operator) ? "admin" : operator);
+            openAr.setRemark("客户档案期初应收余额建账");
+            finReceivableMapper.insertFinReceivable(openAr);
+            return openAr;
+        }
+        if (defaultAmount(existing.getAmount()).compareTo(amt) == 0)
+        {
+            return existing;
+        }
+        if (defaultAmount(existing.getReceivedAmount()).compareTo(BigDecimal.ZERO) != 0
+            || defaultAmount(existing.getBadDebtAmount()).compareTo(BigDecimal.ZERO) != 0)
+        {
+            throw new ServiceException("客户期初应收单(" + existing.getReceivableNo() + ")已产生收款、核销或坏账记录，禁止直接修改期初应收余额");
+        }
+        assertNoDraftDependentsOnReceivable(existing.getReceivableId());
+        if (finGeneralLedgerService != null)
+        {
+            finGeneralLedgerService.assertPeriodOpen(existing.getBusinessDate());
+        }
+        if (amt.compareTo(BigDecimal.ZERO) == 0)
+        {
+            finReceivableMapper.deleteFinReceivableById(existing.getReceivableId());
+            return null;
+        }
+        existing.setAmount(amt);
+        existing.setDueDate(resolveCustomerDueDate(customerId, existing.getBusinessDate(), receivableDays));
+        existing.setUpdateBy(StringUtils.isEmpty(operator) ? "admin" : operator);
+        finReceivableMapper.updateFinReceivable(existing);
+        return existing;
+    }
+
+    private Date resolveCustomerDueDate(Long customerId, Date businessDate, Integer overrideDays)
+    {
+        Date base = businessDate == null ? new Date() : businessDate;
+        int days = 30;
+        if (overrideDays != null && overrideDays >= 0)
+        {
+            days = overrideDays;
+        }
+        else if (customerId != null && mdCustomerMapper != null)
+        {
+            MdCustomer c = mdCustomerMapper.selectMdCustomerById(customerId);
+            if (c != null && c.getReceivableDays() != null && c.getReceivableDays() >= 0)
+            {
+                days = c.getReceivableDays();
+            }
+        }
+        Calendar cal = Calendar.getInstance();
+        cal.setTime(base);
+        cal.add(Calendar.DAY_OF_MONTH, days);
+        return cal.getTime();
     }
 
     private void assertNoDraftDependentsOnReceivable(Long receivableId)
@@ -420,6 +555,10 @@ public class FinReceivableServiceImpl implements IFinReceivableService
         if (finReceivable == null)
         {
             throw new ServiceException("应收单不存在");
+        }
+        if (bizScopeHelper != null)
+        {
+            bizScopeHelper.assertRecordAccess(finReceivable.getDeptId(), finReceivable.getOwnerUserId());
         }
         return finReceivable;
     }

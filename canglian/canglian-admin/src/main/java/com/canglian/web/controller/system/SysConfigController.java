@@ -21,6 +21,7 @@ import com.canglian.common.core.controller.BaseController;
 import com.canglian.common.core.domain.AjaxResult;
 import com.canglian.common.core.page.TableDataInfo;
 import com.canglian.common.enums.BusinessType;
+import com.canglian.common.utils.SecurityUtils;
 import com.canglian.common.utils.poi.ExcelUtil;
 import com.canglian.system.domain.SysConfig;
 import com.canglian.system.service.ISysConfigService;
@@ -93,6 +94,12 @@ public class SysConfigController extends BaseController
     @GetMapping(value = "/configKey/{configKey}")
     public AjaxResult getConfigKey(@PathVariable String configKey)
     {
+        String lower = configKey == null ? "" : configKey.toLowerCase();
+        if ((lower.contains("password") || lower.contains("secret") || lower.contains("private") || lower.contains("token"))
+            && !SecurityUtils.isAdmin())
+        {
+            return error("无权读取敏感系统参数");
+        }
         return success(configService.selectConfigByKey(configKey));
     }
 

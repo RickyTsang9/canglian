@@ -13,6 +13,8 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         <result property="payChannel"   column="pay_channel"   />
         <result property="fundAccountId" column="fund_account_id" />
         <result property="status"       column="status"        />
+        <result property="deptId"       column="dept_id"       />
+        <result property="ownerUserId"  column="owner_user_id" />
         <result property="createBy"     column="create_by"     />
         <result property="createTime"   column="create_time"   />
         <result property="updateBy"     column="update_by"     />
@@ -22,7 +24,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
 
     <sql id="selectFinExpenseVo">
         select expense_id, expense_no, expense_type, amount, expense_date, pay_channel, fund_account_id,
-               status, create_by, create_time, update_by, update_time, remark
+               status, dept_id, owner_user_id, create_by, create_time, update_by, update_time, remark
         from fin_expense
     </sql>
 
@@ -35,7 +37,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         <include refid="selectFinExpenseVo"/>
         <where>
             <if test="expenseNo != null and expenseNo != ''">
-                and expense_no = #{expenseNo}
+                and expense_no like concat('%', #{expenseNo}, '%')
             </if>
             <if test="expenseType != null and expenseType != ''">
                 and expense_type = #{expenseType}
@@ -46,6 +48,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             <if test="fundAccountId != null">
                 and fund_account_id = #{fundAccountId}
             </if>
+            ${params.dataScope}
         </where>
     </select>
 
@@ -59,6 +62,8 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             <if test="payChannel != null and payChannel != ''">pay_channel,</if>
             <if test="fundAccountId != null">fund_account_id,</if>
             <if test="status != null and status != ''">status,</if>
+            <if test="deptId != null">dept_id,</if>
+            <if test="ownerUserId != null">owner_user_id,</if>
             <if test="createBy != null and createBy != ''">create_by,</if>
             create_time,
             <if test="updateBy != null and updateBy != ''">update_by,</if>
@@ -72,6 +77,8 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             <if test="payChannel != null and payChannel != ''">#{payChannel},</if>
             <if test="fundAccountId != null">#{fundAccountId},</if>
             <if test="status != null and status != ''">#{status},</if>
+            <if test="deptId != null">#{deptId},</if>
+            <if test="ownerUserId != null">#{ownerUserId},</if>
             <if test="createBy != null and createBy != ''">#{createBy},</if>
             sysdate(),
             <if test="updateBy != null and updateBy != ''">#{updateBy},</if>

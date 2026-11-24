@@ -35,54 +35,56 @@ export function useBusinessOptions() {
   const activeFundAccountOptions = computed(() => fundAccountOptions.value.filter(a => String(a.status ?? "0") === "0"))
 
   function loadWarehouses() {
-    return listWarehouse(LARGE_PAGE).then(res => {
-      warehouseOptions.value = res.rows || []
+    return request({ url: "/business/options/warehouses", method: "get", headers: { hideError: true } }).then(res => {
+      warehouseOptions.value = res.data || []
       return warehouseOptions.value
     }).catch(() => [])
   }
 
   function loadProducts() {
-    return listProduct(LARGE_PAGE).then(res => {
-      productOptions.value = res.rows || []
+    return request({ url: "/business/options/products", method: "get", headers: { hideError: true } }).then(res => {
+      productOptions.value = res.data || []
       return productOptions.value
     }).catch(() => [])
   }
 
   function loadCustomers() {
-    return listCustomer(LARGE_PAGE).then(res => {
-      customerOptions.value = res.rows || []
+    return request({ url: "/business/options/customers", method: "get", headers: { hideError: true } }).then(res => {
+      customerOptions.value = res.data || []
       return customerOptions.value
     }).catch(() => [])
   }
 
   function loadSuppliers() {
-    return listSupplier(LARGE_PAGE).then(res => {
-      supplierOptions.value = res.rows || []
+    return request({ url: "/business/options/suppliers", method: "get", headers: { hideError: true } }).then(res => {
+      supplierOptions.value = res.data || []
       return supplierOptions.value
     }).catch(() => [])
   }
 
   function loadFundAccounts() {
-    return listFundAccount(LARGE_PAGE).then(res => {
-      fundAccountOptions.value = res.rows || []
+    return request({ url: "/business/options/fundAccounts", method: "get", headers: { hideError: true } }).then(res => {
+      fundAccountOptions.value = res.data || []
       return fundAccountOptions.value
     }).catch(() => [])
   }
 
   function loadLocations(warehouseId) {
-    const query = warehouseId ? { ...LARGE_PAGE, warehouseId } : LARGE_PAGE
-    return listLocation(query).then(res => {
-      locationOptions.value = res.rows || []
+    const params = warehouseId ? { warehouseId } : {}
+    return request({ url: "/business/options/locations", method: "get", params, headers: { hideError: true } }).then(res => {
+      locationOptions.value = res.data || []
       return locationOptions.value
     }).catch(() => [])
   }
 
   function fetchLocationsByWarehouse(warehouseId) {
     if (!warehouseId) return Promise.resolve([])
-    return listLocation({ ...LARGE_PAGE, warehouseId }).then(res => (res.rows || []).filter(l => String(l.status ?? "0") === "0")).catch(() => [])
+    return request({ url: "/business/options/locations", method: "get", params: { warehouseId }, headers: { hideError: true } })
+      .then(res => (res.data || []).filter(l => String(l.status ?? "0") === "0"))
+      .catch(() => [])
   }
 
-  function fetchOpenReceivables(customerId) {
+  function fetchOpenReceivables(customerId, includePaid = false) {
     const query = { ...LARGE_PAGE }
     if (customerId) query.customerId = customerId
     return listReceivable(query).then(res => {
@@ -91,7 +93,7 @@ export function useBusinessOptions() {
           const unreceivedAmount = Number((Number(r.amount || 0) - Number(r.receivedAmount || 0) - Number(r.badDebtAmount || 0)).toFixed(2))
           return { ...r, unreceivedAmount }
         })
-        .filter(r => r.bizStatus === "confirmed" && String(r.billDirection || "1") !== "2" && r.unreceivedAmount > 0.005)
+        .filter(r => r.bizStatus === "confirmed" && String(r.billDirection || "1") !== "2" && (includePaid ? true : r.unreceivedAmount > 0.005))
     }).catch(() => [])
   }
 
@@ -108,23 +110,29 @@ export function useBusinessOptions() {
     }).catch(() => [])
   }
 
-  function fetchConfirmedReceipts(customerId) {
+  function fetchConfirmedReceipts(customerId, unlinkedOnly = true) {
     const query = { ...LARGE_PAGE, status: "1" }
     if (customerId) query.customerId = customerId
-    return listReceipt(query).then(res => (res.rows || []).filter(r => Number(r.amount || 0) > 0)).catch(() => [])
+    return listReceipt(query).then(res => (res.rows || []).filter(r => Number(r.amount || 0) > 0 && (!unlinkedOnly || !r.receivableId))).catch(() => [])
   }
 
-  function fetchConfirmedPayments(supplierId) {
+  function fetchConfirmedPayments(supplierId, unlinkedOnly = true) {
     const query = { ...LARGE_PAGE, status: "1" }
     if (supplierId) query.supplierId = supplierId
-    return listPayment(query).then(res => (res.rows || []).filter(p => Number(p.amount || 0) > 0)).catch(() => [])
+    return listPayment(query).then(res => (res.rows || []).filter(p => Number(p.amount || 0) > 0 && (!unlinkedOnly || !p.payableId))).catch(() => [])
   }
 
   function fetchExpenseCategoryOptions() {
-    return listExpenseCategory(LARGE_PAGE).then(res => {
+    return request({ url: "/business/options/expenseCategories", method: "get", headers: { hideError: true } }).then(res => {
       const list = Array.isArray(res.data) ? res.data : (res.rows || [])
       return list.filter(c => String(c.status ?? "0") === "0")
     }).catch(() => [])
+  }
+
+  function fetchBillNoMap() {
+    return request({ url: "/business/options/billNos", method: "get", headers: { hideError: true } })
+      .then(res => res.data || {})
+      .catch(() => ({}))
   }
 
   function fetchAuditedInboundOptions(supplierId) {
@@ -224,6 +232,7 @@ export function useBusinessOptions() {
     fetchConfirmedReceipts,
     fetchConfirmedPayments,
     fetchExpenseCategoryOptions,
+    fetchBillNoMap,
     fetchAuditedInboundOptions,
     fetchSignedOutboundOptions,
     fetchProductUnits,

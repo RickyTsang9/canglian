@@ -1,6 +1,8 @@
 package com.canglian.web.controller.business;
 
 import java.util.List;
+import com.canglian.common.utils.poi.ExcelUtil;
+import javax.servlet.http.HttpServletResponse;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
@@ -87,6 +89,19 @@ public class MdWarehouseController extends BaseController
     public AjaxResult remove(@PathVariable Long[] warehouseIds)
     {
         return toAjax(mdWarehouseService.deleteMdWarehouseByIds(warehouseIds));
+    }
+
+    /**
+     * 导出仓库档案
+     */
+    @Log(title = "仓库档案", businessType = BusinessType.EXPORT)
+    @PreAuthorize("@ss.hasPermi('business:warehouse:export') or @ss.hasPermi('business:warehouse:list')")
+    @PostMapping("/export")
+    public void export(HttpServletResponse response, MdWarehouse mdWarehouse)
+    {
+        List<MdWarehouse> list = mdWarehouseService.selectMdWarehouseList(mdWarehouse);
+        ExcelUtil<MdWarehouse> util = new ExcelUtil<MdWarehouse>(MdWarehouse.class);
+        util.exportExcel(response, list, "仓库档案");
     }
 }
 

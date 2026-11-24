@@ -105,13 +105,14 @@
           <el-table-column label="备注" prop="remark" min-width="115" show-overflow-tooltip>
             <template #default="scope">{{ scope.row.remark || '-' }}</template>
           </el-table-column>
-          <el-table-column label="操作" align="center" width="205" fixed="right">
+          <el-table-column label="操作" align="center" width="235" fixed="right">
             <template #default="scope">
               <div class="table-action-cell">
                 <el-button link type="info" icon="Printer" @click="handlePrintTransfer(scope.row)">打印</el-button>
                 <el-button v-if="scope.row.status === '0'" link type="success" icon="CircleCheck" @click="handleConfirmTransfer(scope.row)" v-hasPermi="['business:fundAccount:transfer']">确认</el-button>
                 <el-button v-if="scope.row.status === '0'" link type="danger" icon="Delete" @click="handleDeleteTransfer(scope.row)" v-hasPermi="['business:fundAccount:transfer']">删除</el-button>
-                <el-button v-if="scope.row.status === '1'" link type="warning" icon="RefreshLeft" @click="handleUnconfirmTransfer(scope.row)" v-hasPermi="['business:fundAccount:transfer']">反确认</el-button>
+                <el-button v-if="scope.row.status === '1' && Number(scope.row.amount || 0) > 0" link type="warning" icon="RefreshLeft" @click="handleUnconfirmTransfer(scope.row)" v-hasPermi="['business:fundAccount:transferUnconfirm']">反确认</el-button>
+                <el-button v-if="scope.row.status === '1' && Number(scope.row.amount || 0) > 0 && !(scope.row.remark || '').includes('[已红冲')" link type="danger" icon="RefreshLeft" @click="handleReverseTransfer(scope.row)" v-hasPermi="['business:fundAccount:transferUnconfirm']">红冲</el-button>
               </div>
             </template>
           </el-table-column>
@@ -254,7 +255,7 @@
 <script setup name="FundAccount">
 import {
   listFundAccount, addFundAccount, delFundAccount, getFundAccount, updateFundAccount,
-  listFundLogs, listFundTransfers, addFundTransfer, confirmFundTransfer, unconfirmFundTransfer, delFundTransfer
+  listFundLogs, listFundTransfers, addFundTransfer, confirmFundTransfer, unconfirmFundTransfer, reverseFundTransfer, delFundTransfer
 } from "@/api/business/fundAccount"
 import { printFinancialDocument } from "@/utils/documentPrint"
 
@@ -277,6 +278,7 @@ const fundBizTypeMap = {
   transfer_in: "内部转入",
   transfer_fee: "互转手续费",
   transfer_unconfirm: "互转反确认",
+  transfer_reverse: "互转红冲",
   unconfirm: "反确认冲回",
   outbound_return: "退货退款",
   bad_debt_recover: "坏账收回",
@@ -402,6 +404,15 @@ function handleConfirmTransfer(row) {
 function handleUnconfirmTransfer(row) {
   proxy.$modal.confirm(`确认反确认内部互转单"${row.transferNo}"？将反向恢复转出/转入账户余额（含手续费）并取消待生成手续费凭证。`).then(() => unconfirmFundTransfer(row.transferId)).then(() => {
     proxy.$modal.msgSuccess("资金互转反确认成功")
+    getTransferList()
+    getList()
+    loadAllAccounts()
+  }).catch(() => {})
+}
+
+function handleReverseTransfer(row) {
+  proxy.$modal.confirm(`确认红冲已确认的内部互转单"${row.transferNo}"（金额￥${row.amount}）？将生成负向红字互转单并反向冲回账户余额及凭证事件。`).then(() => reverseFundTransfer(row.transferId)).then(() => {
+    proxy.$modal.msgSuccess("资金互转红冲成功")
     getTransferList()
     getList()
     loadAllAccounts()

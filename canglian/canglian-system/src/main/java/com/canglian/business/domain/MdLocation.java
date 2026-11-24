@@ -2,6 +2,7 @@ package com.canglian.business.domain;
 
 import org.apache.commons.lang3.builder.ToStringBuilder;
 import org.apache.commons.lang3.builder.ToStringStyle;
+import com.canglian.common.annotation.Excel;
 import com.canglian.common.core.domain.BaseEntity;
 
 /**
@@ -17,15 +18,19 @@ public class MdLocation extends BaseEntity
     private Long locationId;
 
     /** 仓库id */
+    @Excel(name = "仓库ID")
     private Long warehouseId;
 
     /** 库位编码 */
+    @Excel(name = "库位编码")
     private String locationCode;
 
     /** 库位名称 */
+    @Excel(name = "库位名称")
     private String locationName;
 
     /** 状态（0正常 1停用） */
+    @Excel(name = "状态", readConverterExp = "0=启用,1=停用")
     private String status;
 
     /** 删除标志（0代表存在 2代表删除） */

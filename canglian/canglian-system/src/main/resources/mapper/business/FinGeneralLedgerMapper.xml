@@ -275,4 +275,86 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         where status = '1'
           and date(coalesce(event_date, create_time)) between date(#{startDate}) and date(#{endDate})
     </select>
+
+    <select id="countDraftReceivableInPeriod" resultType="int">
+        select count(1) from fin_receivable
+        where biz_status = 'draft'
+          and date(coalesce(business_date, create_time)) between date(#{startDate}) and date(#{endDate})
+    </select>
+
+    <select id="countDraftPayableInPeriod" resultType="int">
+        select count(1) from fin_payable
+        where biz_status = 'draft'
+          and date(coalesce(business_date, create_time)) between date(#{startDate}) and date(#{endDate})
+    </select>
+
+    <select id="countUnsignedOutboundInPeriod" resultType="int">
+        select count(1) from wms_outbound
+        where status = '1'
+          and coalesce(is_reversal, '0') = '0'
+          and coalesce(reversed_flag, '0') = '0'
+          and delivery_status in ('0', '1')
+          and date(coalesce(business_date, create_time)) between date(#{startDate}) and date(#{endDate})
+    </select>
+
+    <select id="selectTrialBalance" resultType="java.util.LinkedHashMap">
+        select
+            s.subject_id as subjectId,
+            s.subject_code as subjectCode,
+            s.subject_name as subjectName,
+            s.subject_type as subjectType,
+            s.balance_direction as balanceDirection,
+            ifnull(sum(case when ve.voucher_event_id is not null
+                and (#{startDate} is null or #{startDate} = '' or date(coalesce(ve.event_date, ve.create_time)) &gt;= date(#{startDate}))
+                and (#{endDate} is null or #{endDate} = '' or date(coalesce(ve.event_date, ve.create_time)) &lt;= date(#{endDate}))
+                then ifnull(e.debit_amount, 0) else 0 end), 0) as periodDebit,
+            ifnull(sum(case when ve.voucher_event_id is not null
+                and (#{startDate} is null or #{startDate} = '' or date(coalesce(ve.event_date, ve.create_time)) &gt;= date(#{startDate}))
+                and (#{endDate} is null or #{endDate} = '' or date(coalesce(ve.event_date, ve.create_time)) &lt;= date(#{endDate}))
+                then ifnull(e.credit_amount, 0) else 0 end), 0) as periodCredit,
+            ifnull(sum(case when ve.voucher_event_id is not null
+                and (#{endDate} is null or #{endDate} = '' or date(coalesce(ve.event_date, ve.create_time)) &lt;= date(#{endDate}))
+                then ifnull(e.debit_amount, 0) else 0 end), 0) as cumDebit,
+            ifnull(sum(case when ve.voucher_event_id is not null
+                and (#{endDate} is null or #{endDate} = '' or date(coalesce(ve.event_date, ve.create_time)) &lt;= date(#{endDate}))
+                then ifnull(e.credit_amount, 0) else 0 end), 0) as cumCredit
+        from fin_account_subject s
+        left join fin_voucher_entry e on e.subject_code = s.subject_code
+        left join fin_voucher_event ve on ve.voucher_event_id = e.voucher_event_id and ve.status in ('1', '2', '3')
+        where s.status = '0'
+        group by s.subject_id, s.subject_code, s.subject_name, s.subject_type, s.balance_direction
+        order by s.subject_code asc
+    </select>
+
+    <select id="selectSubjectLedger" resultType="java.util.LinkedHashMap">
+        select
+            e.entry_id as entryId,
+            e.voucher_event_id as voucherEventId,
+            e.voucher_no as voucherNo,
+            e.entry_seq as entrySeq,
+            e.subject_code as subjectCode,
+            e.subject_name as subjectName,
+            e.direction as direction,
+            e.auxiliary_type as auxiliaryType,
+            e.auxiliary_name as auxiliaryName,
+            ifnull(e.debit_amount, 0) as debitAmount,
+            ifnull(e.credit_amount, 0) as creditAmount,
+            e.summary as summary,
+            ve.bill_type as billType,
+            ve.bill_no as billNo,
+            ve.event_type as eventType,
+            date_format(coalesce(ve.event_date, ve.create_time), '%Y-%m-%d') as eventDate,
+            ve.status as voucherStatus
+        from fin_voucher_entry e
+        inner join fin_voucher_event ve on ve.voucher_event_id = e.voucher_event_id
+        where ve.status in ('1', '2', '3')
+          and e.subject_code = #{subjectCode}
+          <if test="startDate != null and startDate != ''">
+              and date(coalesce(ve.event_date, ve.create_time)) &gt;= date(#{startDate})
+          </if>
+          <if test="endDate != null and endDate != ''">
+              and date(coalesce(ve.event_date, ve.create_time)) &lt;= date(#{endDate})
+          </if>
+        order by coalesce(ve.event_date, ve.create_time) asc, e.voucher_event_id asc, e.entry_id asc
+    </select>
 </mapper>

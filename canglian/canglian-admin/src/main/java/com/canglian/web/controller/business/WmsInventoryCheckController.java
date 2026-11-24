@@ -1,6 +1,8 @@
 package com.canglian.web.controller.business;
 
 import java.util.List;
+import com.canglian.common.utils.poi.ExcelUtil;
+import javax.servlet.http.HttpServletResponse;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
@@ -94,6 +96,19 @@ public class WmsInventoryCheckController extends BaseController
     public AjaxResult remove(@PathVariable Long[] checkIds)
     {
         return toAjax(wmsInventoryCheckService.deleteWmsInventoryCheckByIds(checkIds));
+    }
+
+    /**
+     * 导出库存盘点单
+     */
+    @Log(title = "库存盘点单", businessType = BusinessType.EXPORT)
+    @PreAuthorize("@ss.hasPermi('business:inventoryCheck:export') or @ss.hasPermi('business:inventoryCheck:list')")
+    @PostMapping("/export")
+    public void export(HttpServletResponse response, WmsInventoryCheck wmsInventoryCheck)
+    {
+        List<WmsInventoryCheck> list = wmsInventoryCheckService.selectWmsInventoryCheckList(wmsInventoryCheck);
+        ExcelUtil<WmsInventoryCheck> util = new ExcelUtil<WmsInventoryCheck>(WmsInventoryCheck.class);
+        util.exportExcel(response, list, "库存盘点单");
     }
 }
 

@@ -30,6 +30,9 @@
       <el-col :span="1.5">
         <el-button type="danger" plain icon="Delete" :disabled="isMultipleDisabled" @click="handleDelete" v-hasPermi="['business:badDebt:remove']">删除</el-button>
       </el-col>
+      <el-col :span="1.5">
+        <el-button type="warning" plain icon="Download" @click="handleExport" v-hasPermi="['business:badDebt:export', 'business:badDebt:list']">导出</el-button>
+      </el-col>
       <right-toolbar v-model:showSearch="showSearch" @queryTable="getList" />
     </el-row>
 
@@ -70,8 +73,8 @@
               <el-button link type="primary">更多<el-icon class="el-icon--right"><ArrowDown /></el-icon></el-button>
               <template #dropdown>
                 <el-dropdown-menu>
-                  <el-dropdown-item v-if="canUnconfirmRow(scope.row)" command="unconfirm">反确认</el-dropdown-item>
-                  <el-dropdown-item v-if="canDeleteRow(scope.row)" command="delete" divided>删除单据</el-dropdown-item>
+                  <el-dropdown-item v-if="canUnconfirmRow(scope.row)" command="unconfirm" v-hasPermi="['business:badDebt:unconfirm']">反确认</el-dropdown-item>
+                  <el-dropdown-item v-if="canDeleteRow(scope.row)" command="delete" divided v-hasPermi="['business:badDebt:remove']">删除单据</el-dropdown-item>
                 </el-dropdown-menu>
               </template>
             </el-dropdown>
@@ -350,4 +353,8 @@ function handleDelete(row) {
 }
 
 loadCustomers(); loadFundAccounts(); loadReceivableNos(); getList()
+
+function handleExport() {
+  proxy.download("business/badDebt/export", { ...queryParams.value }, `坏账单_${new Date().getTime()}.xlsx`)
+}
 </script>

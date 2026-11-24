@@ -2,6 +2,8 @@ package com.canglian.web.controller.business;
 
 import java.math.BigDecimal;
 import java.util.List;
+import com.canglian.common.utils.poi.ExcelUtil;
+import javax.servlet.http.HttpServletResponse;
 import java.util.Map;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -94,5 +96,18 @@ public class FinInvoiceController extends BaseController
     public AjaxResult remove(@PathVariable Long[] invoiceIds)
     {
         return toAjax(finInvoiceService.deleteFinInvoiceByIds(invoiceIds));
+    }
+
+    /**
+     * 导出发票管理
+     */
+    @Log(title = "发票管理", businessType = BusinessType.EXPORT)
+    @PreAuthorize("@ss.hasPermi('business:invoice:export') or @ss.hasPermi('business:invoice:list')")
+    @PostMapping("/export")
+    public void export(HttpServletResponse response, FinInvoice finInvoice)
+    {
+        List<FinInvoice> list = finInvoiceService.selectFinInvoiceList(finInvoice);
+        ExcelUtil<FinInvoice> util = new ExcelUtil<FinInvoice>(FinInvoice.class);
+        util.exportExcel(response, list, "发票管理");
     }
 }

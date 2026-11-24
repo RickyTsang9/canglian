@@ -6,6 +6,7 @@ import org.springframework.stereotype.Service;
 import com.canglian.business.domain.PriceRecentTransaction;
 import com.canglian.business.mapper.PriceRecentTransactionMapper;
 import com.canglian.business.service.IPriceRecentTransactionService;
+import com.canglian.common.exception.ServiceException;
 
 /**
  * 最近成交价格服务实现
@@ -51,6 +52,7 @@ public class PriceRecentTransactionServiceImpl implements IPriceRecentTransactio
     @Override
     public int insertPriceRecentTransaction(PriceRecentTransaction priceRecentTransaction)
     {
+        validateUniqueCustomerProduct(priceRecentTransaction);
         return priceRecentTransactionMapper.insertPriceRecentTransaction(priceRecentTransaction);
     }
 
@@ -63,7 +65,27 @@ public class PriceRecentTransactionServiceImpl implements IPriceRecentTransactio
     @Override
     public int updatePriceRecentTransaction(PriceRecentTransaction priceRecentTransaction)
     {
+        validateUniqueCustomerProduct(priceRecentTransaction);
         return priceRecentTransactionMapper.updatePriceRecentTransaction(priceRecentTransaction);
+    }
+
+    private void validateUniqueCustomerProduct(PriceRecentTransaction record)
+    {
+        if (record == null || record.getCustomerId() == null || record.getProductId() == null) return;
+        PriceRecentTransaction q = new PriceRecentTransaction();
+        q.setCustomerId(record.getCustomerId());
+        q.setProductId(record.getProductId());
+        List<PriceRecentTransaction> existing = priceRecentTransactionMapper.selectPriceRecentTransactionList(q);
+        if (existing != null)
+        {
+            for (PriceRecentTransaction item : existing)
+            {
+                if (item != null && !item.getRecentPriceId().equals(record.getRecentPriceId()))
+                {
+                    throw new ServiceException("该客户与商品已存在最近成交价记录，请直接修改原记录而勿重复新增");
+                }
+            }
+        }
     }
 
     /**

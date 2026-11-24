@@ -4,6 +4,7 @@ import java.math.BigDecimal;
 import java.util.Date;
 import org.apache.commons.lang3.builder.ToStringBuilder;
 import org.apache.commons.lang3.builder.ToStringStyle;
+import com.canglian.common.annotation.Excel;
 import com.canglian.common.core.domain.BaseEntity;
 
 public class FinReceivable extends BaseEntity
@@ -12,10 +13,13 @@ public class FinReceivable extends BaseEntity
 
     private Long receivableId;
 
+    @Excel(name = "应收单号")
     private String receivableNo;
 
+    @Excel(name = "客户ID")
     private Long customerId;
 
+    @Excel(name = "业务来源")
     private String billType;
 
     private Long billId;
@@ -24,25 +28,40 @@ public class FinReceivable extends BaseEntity
 
     private Long sourceBillId;
 
+    @Excel(name = "来源单号")
     private String sourceBillNo;
 
+    @Excel(name = "业务日期", dateFormat = "yyyy-MM-dd")
     private Date businessDate;
 
+    @Excel(name = "应收金额")
     private BigDecimal amount;
 
     /** 单据方向(1正向应收 2红字退货冲减) */
+    @Excel(name = "方向", readConverterExp = "1=正向应收,2=红字冲减")
     private String billDirection;
 
+    @Excel(name = "已收/已冲金额")
     private BigDecimal receivedAmount;
 
     /** 已核销坏账金额（独立核算，避免与现金收款混淆） */
+    @Excel(name = "坏账核销额")
     private BigDecimal badDebtAmount;
 
+    @Excel(name = "结算状态", readConverterExp = "0=未收,1=部分收款,2=已结清")
     private String status;
 
+    @Excel(name = "审核状态", readConverterExp = "draft=草稿,confirmed=已确认")
     private String bizStatus;
 
+    @Excel(name = "到期日", dateFormat = "yyyy-MM-dd")
     private Date dueDate;
+
+    /** 所属部门ID */
+    private Long deptId;
+
+    /** 责任人用户ID */
+    private Long ownerUserId;
 
     public Long getReceivableId()
     {
@@ -202,6 +221,26 @@ public class FinReceivable extends BaseEntity
     public void setDueDate(Date dueDate)
     {
         this.dueDate = dueDate;
+    }
+
+    public Long getDeptId()
+    {
+        return deptId;
+    }
+
+    public void setDeptId(Long deptId)
+    {
+        this.deptId = deptId;
+    }
+
+    public Long getOwnerUserId()
+    {
+        return ownerUserId;
+    }
+
+    public void setOwnerUserId(Long ownerUserId)
+    {
+        this.ownerUserId = ownerUserId;
     }
 
     @Override

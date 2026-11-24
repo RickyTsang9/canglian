@@ -31,6 +31,9 @@
       <el-col :span="1.5">
         <el-button type="danger" plain icon="Delete" :disabled="isMultipleDisabled" @click="handleDelete" v-hasPermi="['business:receipt:remove']">删除</el-button>
       </el-col>
+      <el-col :span="1.5">
+        <el-button type="warning" plain icon="Download" @click="handleExport" v-hasPermi="['business:receipt:export', 'business:receipt:list']">导出</el-button>
+      </el-col>
       <right-toolbar v-model:showSearch="showSearch" @queryTable="getList" />
     </el-row>
 
@@ -289,4 +292,8 @@ function handleDelete(row) {
 }
 
 loadFundAccounts(); loadCustomers(); loadReceivableNos(); getList()
+
+function handleExport() {
+  proxy.download("business/receipt/export", { ...queryParams.value }, `收款单_${new Date().getTime()}.xlsx`)
+}
 </script>

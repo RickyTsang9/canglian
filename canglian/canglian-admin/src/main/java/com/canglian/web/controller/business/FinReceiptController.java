@@ -1,6 +1,8 @@
 package com.canglian.web.controller.business;
 
 import java.util.List;
+import com.canglian.common.utils.poi.ExcelUtil;
+import javax.servlet.http.HttpServletResponse;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
@@ -88,5 +90,18 @@ public class FinReceiptController extends BaseController
     public AjaxResult remove(@PathVariable Long[] receiptIds)
     {
         return toAjax(finReceiptService.deleteFinReceiptByIds(receiptIds));
+    }
+
+    /**
+     * 导出收款单
+     */
+    @Log(title = "收款单", businessType = BusinessType.EXPORT)
+    @PreAuthorize("@ss.hasPermi('business:receipt:export') or @ss.hasPermi('business:receipt:list')")
+    @PostMapping("/export")
+    public void export(HttpServletResponse response, FinReceipt finReceipt)
+    {
+        List<FinReceipt> list = finReceiptService.selectFinReceiptList(finReceipt);
+        ExcelUtil<FinReceipt> util = new ExcelUtil<FinReceipt>(FinReceipt.class);
+        util.exportExcel(response, list, "收款单");
     }
 }

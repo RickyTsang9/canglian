@@ -29,6 +29,7 @@ import com.canglian.business.domain.WmsInventoryCheck;
 import com.canglian.business.domain.WmsInventoryCheckItem;
 import com.canglian.business.domain.WmsOutbound;
 import com.canglian.business.domain.WmsOutboundItem;
+import com.canglian.business.domain.WmsSerialNo;
 import com.canglian.business.domain.WmsStock;
 import com.canglian.business.domain.WmsTransfer;
 import com.canglian.business.domain.WmsTransferItem;
@@ -36,6 +37,7 @@ import com.canglian.business.mapper.MdLocationMapper;
 import com.canglian.business.mapper.MdProductMapper;
 import com.canglian.business.mapper.MdProductUnitMapper;
 import com.canglian.business.mapper.WmsOutboundMapper;
+import com.canglian.business.mapper.WmsSerialNoMapper;
 import com.canglian.business.mapper.WmsStockMapper;
 import com.canglian.business.service.IBusinessScanService;
 import com.canglian.business.service.ISalOrderService;
@@ -91,6 +93,9 @@ public class BusinessScanServiceImpl implements IBusinessScanService
 
     @Autowired(required = false)
     private WmsOutboundMapper wmsOutboundMapper;
+
+    @Autowired(required = false)
+    private WmsSerialNoMapper wmsSerialNoMapper;
 
     @Autowired(required = false)
     private BizScopeHelper bizScopeHelper;
@@ -311,6 +316,11 @@ public class BusinessScanServiceImpl implements IBusinessScanService
         if (outboundId == null) throw new ServiceException("出库单ID不能为空");
         WmsOutbound outbound = wmsOutboundService.selectWmsOutboundById(outboundId);
         if (outbound == null) throw new ServiceException("出库单不存在");
+        if (!"1".equals(outbound.getStatus())) throw new ServiceException("仅已审核出库单允许执行扫码出库复核");
+        if ("1".equals(outbound.getIsReversal()) || "1".equals(outbound.getReversedFlag()))
+        {
+            throw new ServiceException("红冲单据或已红冲出库单禁止扫码复核");
+        }
         List<WmsOutboundItem> expectedItems = outbound.getItemList();
         if (expectedItems == null || expectedItems.isEmpty()) throw new ServiceException("该出库单暂无明细可核验");
 
@@ -381,6 +391,25 @@ public class BusinessScanServiceImpl implements IBusinessScanService
             line.put("matched", matched);
             details.add(line);
         }
+        // 检测错扫/多扫的清单外商品，避免“多塞货仍复核通过”漏检
+        for (Map.Entry<Long, BigDecimal> extra : scannedBaseQtyByProduct.entrySet())
+        {
+            if (expectedBaseQtyByProduct.containsKey(extra.getKey())) continue;
+            BigDecimal extraQty = defaultAmount(extra.getValue());
+            if (extraQty.compareTo(BigDecimal.ZERO) <= 0) continue;
+            allMatched = false;
+            MdProduct prod = mdProductMapper.selectMdProductById(extra.getKey());
+            Map<String, Object> line = new LinkedHashMap<String, Object>();
+            line.put("productId", extra.getKey());
+            line.put("productName", (prod == null ? ("商品#" + extra.getKey()) : prod.getProductName()) + "（错扫/非本单商品）");
+            line.put("barCode", prod == null ? "" : prod.getBarCode());
+            line.put("unitName", prod == null ? "" : prod.getUnitName());
+            line.put("expectedQty", BigDecimal.ZERO);
+            line.put("scannedQty", extraQty);
+            line.put("diffQty", extraQty);
+            line.put("matched", false);
+            details.add(line);
+        }
         // 扫码复核全部一致时落库复核标记与复核时间，形成出库复核闭环
         if (allMatched && wmsOutboundMapper != null)
         {
@@ -425,6 +454,15 @@ public class BusinessScanServiceImpl implements IBusinessScanService
             if (unit != null && unit.getProductId() != null)
             {
                 MdProduct prod = mdProductMapper.selectMdProductById(unit.getProductId());
+                if (prod != null && !"1".equals(prod.getStatus()) && !"2".equals(prod.getDelFlag())) return prod;
+            }
+        }
+        if (wmsSerialNoMapper != null)
+        {
+            WmsSerialNo serial = wmsSerialNoMapper.selectWmsSerialNoByCode(code);
+            if (serial != null && serial.getProductId() != null)
+            {
+                MdProduct prod = mdProductMapper.selectMdProductById(serial.getProductId());
                 if (prod != null && !"1".equals(prod.getStatus()) && !"2".equals(prod.getDelFlag())) return prod;
             }
         }
@@ -562,61 +600,93 @@ public class BusinessScanServiceImpl implements IBusinessScanService
 
     private void appendInventoryCheckItem(Map<String, WmsInventoryCheckItem> map, Long warehouseId, MdLocation mdLocation, ScanInventoryCheckItem scanItem)
     {
-        MdProduct mdProduct = resolveProduct(scanItem.getBarCode());
+        String code = scanItem.getBarCode() == null ? "" : scanItem.getBarCode().trim();
+        MdProductUnit matchedUnit = mdProductUnitMapper == null || code.isEmpty() ? null : mdProductUnitMapper.selectByBarCode(code);
+        MdProduct mdProduct = resolveProduct(code);
         String batchNo = scanItem.getBatchNo() == null ? "" : scanItem.getBatchNo().trim();
+        BigDecimal ratio = matchedUnit != null && matchedUnit.getConvertRatio() != null && matchedUnit.getConvertRatio().compareTo(BigDecimal.ZERO) > 0
+            ? matchedUnit.getConvertRatio() : BigDecimal.ONE;
+        BigDecimal actualBaseAdd = defaultAmount(scanItem.getActualQty()).multiply(ratio).setScale(4, RoundingMode.HALF_UP);
+        String baseUnitName = StringUtils.isNotEmpty(mdProduct.getBaseUnit()) ? mdProduct.getBaseUnit() : mdProduct.getUnitName();
         String key = mdProduct.getProductId() + "#" + batchNo;
         WmsInventoryCheckItem existing = map.get(key);
         if (existing == null)
         {
             WmsStock wmsStock = selectStockByKey(warehouseId, mdProduct.getProductId(), mdLocation.getLocationId(), batchNo);
             BigDecimal stockQty = wmsStock == null ? BigDecimal.ZERO : defaultAmount(wmsStock.getQuantity());
-            BigDecimal actualQty = defaultAmount(scanItem.getActualQty());
             BigDecimal itemPrice = defaultAmount(mdProduct.getCostPrice());
             existing = new WmsInventoryCheckItem();
             existing.setProductId(mdProduct.getProductId());
             existing.setLocationId(mdLocation.getLocationId());
             existing.setBatchNo(batchNo);
+            existing.setUnitName(baseUnitName);
+            existing.setConvertRatio(BigDecimal.ONE);
             existing.setStockQty(stockQty);
-            existing.setActualQty(actualQty);
-            existing.setDiffQty(actualQty.subtract(stockQty));
+            existing.setActualQty(actualBaseAdd);
+            existing.setDiffQty(actualBaseAdd.subtract(stockQty));
+            existing.setBaseDiffQty(actualBaseAdd.subtract(stockQty));
             existing.setPrice(itemPrice);
-            existing.setDiffAmount(itemPrice.multiply(actualQty.subtract(stockQty)));
+            existing.setDiffAmount(itemPrice.multiply(actualBaseAdd.subtract(stockQty)).setScale(2, RoundingMode.HALF_UP));
+            if (StringUtils.isNotEmpty(scanItem.getSnCodes())) existing.setSnCodes(scanItem.getSnCodes().trim());
             map.put(key, existing);
             return;
         }
-        existing.setActualQty(defaultAmount(existing.getActualQty()).add(defaultAmount(scanItem.getActualQty())));
+        existing.setActualQty(defaultAmount(existing.getActualQty()).add(actualBaseAdd));
         existing.setDiffQty(defaultAmount(existing.getActualQty()).subtract(defaultAmount(existing.getStockQty())));
-        existing.setDiffAmount(defaultAmount(existing.getPrice()).multiply(defaultAmount(existing.getDiffQty())));
+        existing.setBaseDiffQty(existing.getDiffQty());
+        existing.setDiffAmount(defaultAmount(existing.getPrice()).multiply(defaultAmount(existing.getDiffQty())).setScale(2, RoundingMode.HALF_UP));
+        if (StringUtils.isNotEmpty(scanItem.getSnCodes()))
+        {
+            existing.setSnCodes(StringUtils.isEmpty(existing.getSnCodes())
+                ? scanItem.getSnCodes().trim()
+                : existing.getSnCodes() + "," + scanItem.getSnCodes().trim());
+        }
     }
 
     private void appendTransferItem(Map<String, WmsTransferItem> map, Map<String, BigDecimal> availMap, Long warehouseId,
                                     MdLocation outLocation, MdLocation inLocation, ScanTransferItem scanItem)
     {
-        MdProduct mdProduct = resolveProduct(scanItem.getBarCode());
+        String code = scanItem.getBarCode() == null ? "" : scanItem.getBarCode().trim();
+        MdProductUnit matchedUnit = mdProductUnitMapper == null || code.isEmpty() ? null : mdProductUnitMapper.selectByBarCode(code);
+        MdProduct mdProduct = resolveProduct(code);
         String batchNo = scanItem.getBatchNo() == null ? "" : scanItem.getBatchNo().trim();
+        BigDecimal ratio = matchedUnit != null && matchedUnit.getConvertRatio() != null && matchedUnit.getConvertRatio().compareTo(BigDecimal.ZERO) > 0
+            ? matchedUnit.getConvertRatio() : BigDecimal.ONE;
+        BigDecimal transferBaseQty = defaultAmount(scanItem.getQuantity()).multiply(ratio).setScale(4, RoundingMode.HALF_UP);
+        String baseUnitName = StringUtils.isNotEmpty(mdProduct.getBaseUnit()) ? mdProduct.getBaseUnit() : mdProduct.getUnitName();
         String key = mdProduct.getProductId() + "#" + batchNo;
         BigDecimal availableQty = loadAvailableQty(availMap, key, warehouseId, mdProduct.getProductId(), outLocation.getLocationId(), batchNo);
         WmsTransferItem existing = map.get(key);
-        BigDecimal transferQty = defaultAmount(scanItem.getQuantity());
         if (existing == null)
         {
-            if (availableQty.compareTo(transferQty) < 0) throw new ServiceException("商品条码" + scanItem.getBarCode() + "可用库存不足");
+            if (availableQty.compareTo(transferBaseQty) < 0) throw new ServiceException("商品条码" + scanItem.getBarCode() + "可用库存不足");
             BigDecimal itemPrice = defaultAmount(mdProduct.getCostPrice());
             existing = new WmsTransferItem();
             existing.setProductId(mdProduct.getProductId());
             existing.setOutLocationId(outLocation.getLocationId());
             existing.setInLocationId(inLocation.getLocationId());
             existing.setBatchNo(batchNo);
-            existing.setQuantity(transferQty);
+            existing.setUnitName(baseUnitName);
+            existing.setConvertRatio(BigDecimal.ONE);
+            existing.setQuantity(transferBaseQty);
+            existing.setBaseQuantity(transferBaseQty);
             existing.setPrice(itemPrice);
-            existing.setAmount(itemPrice.multiply(transferQty));
+            existing.setAmount(itemPrice.multiply(transferBaseQty).setScale(2, RoundingMode.HALF_UP));
+            if (StringUtils.isNotEmpty(scanItem.getSnCodes())) existing.setSnCodes(scanItem.getSnCodes().trim());
             map.put(key, existing);
             return;
         }
-        BigDecimal mergedQty = defaultAmount(existing.getQuantity()).add(transferQty);
+        BigDecimal mergedQty = defaultAmount(existing.getQuantity()).add(transferBaseQty);
         if (availableQty.compareTo(mergedQty) < 0) throw new ServiceException("商品条码" + scanItem.getBarCode() + "可用库存不足");
         existing.setQuantity(mergedQty);
-        existing.setAmount(defaultAmount(existing.getPrice()).multiply(mergedQty));
+        existing.setBaseQuantity(mergedQty);
+        existing.setAmount(defaultAmount(existing.getPrice()).multiply(mergedQty).setScale(2, RoundingMode.HALF_UP));
+        if (StringUtils.isNotEmpty(scanItem.getSnCodes()))
+        {
+            existing.setSnCodes(StringUtils.isEmpty(existing.getSnCodes())
+                ? scanItem.getSnCodes().trim()
+                : existing.getSnCodes() + "," + scanItem.getSnCodes().trim());
+        }
     }
 
     private boolean hasQuickSaleItemList(ScanQuickSaleRequest req) { return req.getQuickSaleItemList() != null && !req.getQuickSaleItemList().isEmpty(); }

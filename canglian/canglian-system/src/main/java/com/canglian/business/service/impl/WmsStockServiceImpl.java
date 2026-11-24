@@ -9,12 +9,20 @@ import java.util.concurrent.TimeUnit;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import com.canglian.business.domain.FinCostCalculate;
+import com.canglian.business.domain.MdLocation;
+import com.canglian.business.domain.MdProduct;
+import com.canglian.business.domain.MdWarehouse;
 import com.canglian.business.domain.WmsStock;
 import com.canglian.business.domain.WmsStockLock;
 import com.canglian.business.domain.WmsStockLog;
+import com.canglian.business.mapper.MdLocationMapper;
+import com.canglian.business.mapper.MdProductMapper;
+import com.canglian.business.mapper.MdWarehouseMapper;
 import com.canglian.business.mapper.WmsStockLockMapper;
 import com.canglian.business.mapper.WmsStockLogMapper;
 import com.canglian.business.mapper.WmsStockMapper;
+import com.canglian.business.service.IFinCostCalculateService;
 import com.canglian.business.service.IFinGeneralLedgerService;
 import com.canglian.business.service.IWmsStockService;
 import com.canglian.common.annotation.WarehouseScope;
@@ -48,6 +56,18 @@ public class WmsStockServiceImpl implements IWmsStockService
     @Autowired(required = false)
     private ISysConfigService sysConfigService;
 
+    @Autowired(required = false)
+    private MdWarehouseMapper mdWarehouseMapper;
+
+    @Autowired(required = false)
+    private MdProductMapper mdProductMapper;
+
+    @Autowired(required = false)
+    private MdLocationMapper mdLocationMapper;
+
+    @Autowired(required = false)
+    private IFinCostCalculateService finCostCalculateService;
+
     @Override
     public WmsStock selectWmsStockById(Long stockId)
     {
@@ -65,11 +85,52 @@ public class WmsStockServiceImpl implements IWmsStockService
     public List<WmsStock> selectWmsStockList(WmsStock wmsStock)
     {
         List<WmsStock> stockList = wmsStockMapper.selectWmsStockList(wmsStock);
+        enrichMasterNames(stockList);
         for (WmsStock stock : stockList)
         {
             fillAvailableAndExpiry(stock);
         }
         return stockList;
+    }
+
+    private void enrichMasterNames(List<WmsStock> stockList)
+    {
+        if (stockList == null || stockList.isEmpty()) return;
+        java.util.Map<Long, MdWarehouse> whMap = new java.util.HashMap<Long, MdWarehouse>();
+        if (mdWarehouseMapper != null)
+        {
+            List<MdWarehouse> whs = mdWarehouseMapper.selectMdWarehouseList(new MdWarehouse());
+            if (whs != null) for (MdWarehouse w : whs) whMap.put(w.getWarehouseId(), w);
+        }
+        java.util.Map<Long, MdProduct> prodMap = new java.util.HashMap<Long, MdProduct>();
+        if (mdProductMapper != null)
+        {
+            List<MdProduct> prods = mdProductMapper.selectMdProductList(new MdProduct());
+            if (prods != null) for (MdProduct p : prods) prodMap.put(p.getProductId(), p);
+        }
+        java.util.Map<Long, MdLocation> locMap = new java.util.HashMap<Long, MdLocation>();
+        if (mdLocationMapper != null)
+        {
+            List<MdLocation> locs = mdLocationMapper.selectMdLocationList(new MdLocation());
+            if (locs != null) for (MdLocation l : locs) locMap.put(l.getLocationId(), l);
+        }
+        for (WmsStock s : stockList)
+        {
+            MdWarehouse w = whMap.get(s.getWarehouseId());
+            if (w != null) { s.setWarehouseCode(w.getWarehouseCode()); s.setWarehouseName(w.getWarehouseName()); }
+            MdProduct p = prodMap.get(s.getProductId());
+            if (p != null) { s.setProductCode(p.getProductCode()); s.setProductName(p.getProductName()); }
+            if (s.getLocationId() == null || s.getLocationId() == 0L)
+            {
+                s.setLocationCode("");
+                s.setLocationName("默认库位");
+            }
+            else
+            {
+                MdLocation l = locMap.get(s.getLocationId());
+                if (l != null) { s.setLocationCode(l.getLocationCode()); s.setLocationName(l.getLocationName()); }
+            }
+        }
     }
 
     @Override
@@ -90,7 +151,8 @@ public class WmsStockServiceImpl implements IWmsStockService
             WmsStock stock = stockList.get(stockIndex);
             try
             {
-                validateImportStock(stock);
+                MdProduct matchedProduct = resolveImportStockRefs(stock);
+                validateImportStock(stock, matchedProduct);
                 if (bizScopeHelper != null)
                 {
                     bizScopeHelper.assertWarehouseAccess(stock.getWarehouseId());
@@ -101,11 +163,15 @@ public class WmsStockServiceImpl implements IWmsStockService
                 }
                 stock.setBatchNo(StringUtils.isEmpty(stock.getBatchNo()) ? "" : stock.getBatchNo().trim());
                 WmsStock existingStock = wmsStockMapper.selectWmsStockByKey(stock);
+                BigDecimal oldQty = existingStock == null ? BigDecimal.ZERO : defaultBigDecimal(existingStock.getQuantity());
+                BigDecimal newQty = defaultBigDecimal(stock.getQuantity());
+                BigDecimal delta = newQty.subtract(oldQty);
                 if (existingStock == null)
                 {
                     fillDefaultStockValue(stock);
                     stock.setCreateBy(operator);
                     wmsStockMapper.insertWmsStock(stock);
+                    syncOpeningStockLogAndCost(stock, matchedProduct, oldQty, newQty, delta, operator);
                     successNumber++;
                 }
                 else if (Boolean.TRUE.equals(updateSupport))
@@ -126,19 +192,22 @@ public class WmsStockServiceImpl implements IWmsStockService
                     {
                         stock.setWarningMaxQty(defaultBigDecimal(existingStock.getWarningMaxQty()));
                     }
+                    if (stock.getProductionDate() == null) stock.setProductionDate(existingStock.getProductionDate());
+                    if (stock.getExpiryDate() == null) stock.setExpiryDate(existingStock.getExpiryDate());
                     stock.setVersion(existingStock.getVersion() == null ? 0L : existingStock.getVersion());
                     stock.setUpdateBy(operator);
                     wmsStockMapper.updateWmsStock(stock);
+                    syncOpeningStockLogAndCost(stock, matchedProduct, oldQty, newQty, delta, operator);
                     successNumber++;
                 }
                 else
                 {
-                    failureMessage.append("<br/>第").append(stockIndex + 1).append("行库存维度已存在");
+                    failureMessage.append("\n第").append(stockIndex + 1).append("行库存维度已存在");
                 }
             }
             catch (Exception exception)
             {
-                failureMessage.append("<br/>第").append(stockIndex + 1).append("行导入失败：").append(exception.getMessage());
+                failureMessage.append("\n第").append(stockIndex + 1).append("行导入失败：").append(exception.getMessage());
             }
         }
         if (failureMessage.length() > 0)
@@ -526,11 +595,13 @@ public class WmsStockServiceImpl implements IWmsStockService
         {
             bizScopeHelper.assertWarehouseAccess(existing.getWarehouseId());
         }
-        // 仅允许修改上下限预警阈值，严禁直接手工篡改账面/锁定/冻结数量
+        // 仅允许修改上下限预警阈值及批次效期信息，严禁直接手工篡改账面/锁定/冻结数量
         WmsStock safePatch = new WmsStock();
         safePatch.setStockId(existing.getStockId());
         safePatch.setWarningMinQty(wmsStock.getWarningMinQty() != null ? wmsStock.getWarningMinQty() : existing.getWarningMinQty());
         safePatch.setWarningMaxQty(wmsStock.getWarningMaxQty() != null ? wmsStock.getWarningMaxQty() : existing.getWarningMaxQty());
+        if (wmsStock.getProductionDate() != null) safePatch.setProductionDate(wmsStock.getProductionDate());
+        if (wmsStock.getExpiryDate() != null) safePatch.setExpiryDate(wmsStock.getExpiryDate());
         safePatch.setUpdateBy(wmsStock.getUpdateBy());
         return wmsStockMapper.updateWmsStock(safePatch);
     }
@@ -653,19 +724,164 @@ public class WmsStockServiceImpl implements IWmsStockService
         return value == null ? BigDecimal.ZERO : value;
     }
 
-    private void validateImportStock(WmsStock stock)
+    private MdProduct resolveImportStockRefs(WmsStock stock)
+    {
+        if (stock.getWarehouseId() == null && StringUtils.isNotEmpty(stock.getWarehouseCode()) && mdWarehouseMapper != null)
+        {
+            String code = stock.getWarehouseCode().trim();
+            MdWarehouse q = new MdWarehouse();
+            q.setWarehouseCode(code);
+            List<MdWarehouse> list = mdWarehouseMapper.selectMdWarehouseList(q);
+            MdWarehouse matched = null;
+            if (list != null)
+            {
+                for (MdWarehouse w : list)
+                {
+                    if (code.equalsIgnoreCase(w.getWarehouseCode()))
+                    {
+                        matched = w;
+                        break;
+                    }
+                }
+            }
+            if (matched == null)
+            {
+                throw new ServiceException("仓库编码[" + code + "]不存在");
+            }
+            if ("1".equals(matched.getStatus()))
+            {
+                throw new ServiceException("仓库[" + matched.getWarehouseName() + "]已停用，禁止期初导入");
+            }
+            stock.setWarehouseId(matched.getWarehouseId());
+        }
+
+        MdProduct matchedProduct = null;
+        if (stock.getProductId() == null && StringUtils.isNotEmpty(stock.getProductCode()) && mdProductMapper != null)
+        {
+            String code = stock.getProductCode().trim();
+            MdProduct q = new MdProduct();
+            q.setProductCode(code);
+            List<MdProduct> list = mdProductMapper.selectMdProductList(q);
+            if (list != null)
+            {
+                for (MdProduct p : list)
+                {
+                    if (code.equalsIgnoreCase(p.getProductCode()))
+                    {
+                        matchedProduct = p;
+                        break;
+                    }
+                }
+            }
+            if (matchedProduct == null)
+            {
+                throw new ServiceException("商品编码[" + code + "]不存在");
+            }
+            if ("1".equals(matchedProduct.getStatus()))
+            {
+                throw new ServiceException("商品[" + matchedProduct.getProductName() + "]已停用，禁止期初导入");
+            }
+            stock.setProductId(matchedProduct.getProductId());
+        }
+        else if (stock.getProductId() != null && mdProductMapper != null)
+        {
+            matchedProduct = mdProductMapper.selectMdProductById(stock.getProductId());
+        }
+
+        if (stock.getLocationId() == null && StringUtils.isNotEmpty(stock.getLocationCode()) && mdLocationMapper != null)
+        {
+            String code = stock.getLocationCode().trim();
+            MdLocation q = new MdLocation();
+            q.setWarehouseId(stock.getWarehouseId());
+            q.setLocationCode(code);
+            List<MdLocation> list = mdLocationMapper.selectMdLocationList(q);
+            MdLocation matched = null;
+            if (list != null)
+            {
+                for (MdLocation l : list)
+                {
+                    if (code.equalsIgnoreCase(l.getLocationCode()))
+                    {
+                        matched = l;
+                        break;
+                    }
+                }
+            }
+            if (matched == null)
+            {
+                throw new ServiceException("当前仓库下不存在库位编码[" + code + "]");
+            }
+            if ("1".equals(matched.getStatus()))
+            {
+                throw new ServiceException("库位[" + matched.getLocationName() + "]已停用，禁止期初导入");
+            }
+            stock.setLocationId(matched.getLocationId());
+        }
+        return matchedProduct;
+    }
+
+    private void syncOpeningStockLogAndCost(WmsStock stock, MdProduct product, BigDecimal oldQty, BigDecimal newQty,
+        BigDecimal delta, String operator)
+    {
+        if (delta == null || delta.compareTo(BigDecimal.ZERO) == 0)
+        {
+            return;
+        }
+        BigDecimal unitCost = (stock.getCostPrice() != null && stock.getCostPrice().compareTo(BigDecimal.ZERO) > 0)
+            ? stock.getCostPrice()
+            : (product != null && product.getCostPrice() != null && product.getCostPrice().compareTo(BigDecimal.ZERO) > 0
+                ? product.getCostPrice() : BigDecimal.ZERO);
+        BigDecimal absQty = delta.abs();
+        String inOut = delta.compareTo(BigDecimal.ZERO) > 0 ? "1" : "2";
+        if (wmsStockLogMapper != null)
+        {
+            WmsStockLog log = new WmsStockLog();
+            log.setWarehouseId(stock.getWarehouseId());
+            log.setProductId(stock.getProductId());
+            log.setLocationId(stock.getLocationId() == null ? 0L : stock.getLocationId());
+            log.setBatchNo(stock.getBatchNo() == null ? "" : stock.getBatchNo());
+            log.setBillType("stock_opening");
+            log.setBillId(stock.getStockId() == null ? 0L : stock.getStockId());
+            log.setInOut(inOut);
+            log.setQuantity(absQty);
+            log.setPrice(unitCost);
+            log.setAmount(absQty.multiply(unitCost).setScale(2, java.math.RoundingMode.HALF_UP));
+            log.setBeforeQty(oldQty);
+            log.setAfterQty(newQty);
+            log.setCreateBy(operator);
+            wmsStockLogMapper.insertWmsStockLog(log);
+        }
+        if (finCostCalculateService != null)
+        {
+            FinCostCalculate calc = new FinCostCalculate();
+            calc.setProductId(stock.getProductId());
+            calc.setWarehouseId(stock.getWarehouseId());
+            calc.setBillId(stock.getStockId() == null ? 0L : stock.getStockId());
+            calc.setBillType("stock_opening");
+            calc.setInOut(inOut);
+            calc.setQuantity(absQty);
+            calc.setPrice(unitCost);
+            finCostCalculateService.calculateCost(calc);
+        }
+    }
+
+    private void validateImportStock(WmsStock stock, MdProduct product)
     {
         if (stock.getWarehouseId() == null)
         {
-            throw new ServiceException("仓库编号不能为空");
+            throw new ServiceException("仓库编码/仓库编号不能为空");
         }
         if (stock.getProductId() == null)
         {
-            throw new ServiceException("商品编号不能为空");
+            throw new ServiceException("商品编码/商品编号不能为空");
         }
         if (stock.getQuantity() == null || stock.getQuantity().compareTo(BigDecimal.ZERO) < 0)
         {
             throw new ServiceException("库存数量不能为空且不能为负数");
+        }
+        if (product != null && "1".equals(product.getEnableBatch()) && StringUtils.isEmpty(stock.getBatchNo()))
+        {
+            throw new ServiceException("商品[" + product.getProductName() + "]启用了批次管理，期初导入必须填写批次号");
         }
     }
 

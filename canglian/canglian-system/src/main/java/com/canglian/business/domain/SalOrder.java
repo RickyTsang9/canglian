@@ -5,6 +5,7 @@ import java.util.Date;
 import java.util.List;
 import org.apache.commons.lang3.builder.ToStringBuilder;
 import org.apache.commons.lang3.builder.ToStringStyle;
+import com.canglian.common.annotation.Excel;
 import com.canglian.common.core.domain.BaseEntity;
 
 /**
@@ -18,12 +19,16 @@ public class SalOrder extends BaseEntity
 
     private Long orderId;
 
+    @Excel(name = "销售订单号")
     private String orderNo;
 
+    @Excel(name = "订单类型", readConverterExp = "sale=销售订单,quote=报价单")
     private String orderType;
 
+    @Excel(name = "客户ID")
     private Long customerId;
 
+    @Excel(name = "仓库ID")
     private Long warehouseId;
 
     private Long deptId;
@@ -36,16 +41,22 @@ public class SalOrder extends BaseEntity
 
     private String sourceBillNo;
 
+    @Excel(name = "业务日期", dateFormat = "yyyy-MM-dd")
     private Date businessDate;
 
+    @Excel(name = "预计交货日", dateFormat = "yyyy-MM-dd")
     private Date expectedDate;
 
+    @Excel(name = "订单数量")
     private BigDecimal totalQty;
 
+    @Excel(name = "含税总额")
     private BigDecimal totalAmount;
 
+    @Excel(name = "折扣金额")
     private BigDecimal discountAmount;
 
+    @Excel(name = "税额")
     private BigDecimal taxTotalAmount;
 
     private String closeReason;
@@ -57,13 +68,16 @@ public class SalOrder extends BaseEntity
     public String getStockLockedFlag() { return stockLockedFlag; }
     public void setStockLockedFlag(String stockLockedFlag) { this.stockLockedFlag = stockLockedFlag; }
 
+    @Excel(name = "业务状态", readConverterExp = "draft=草稿,approved=已审核,partial_shipped=部分发货,shipped=已发货,closed=已关闭")
     private String bizStatus;
 
+    @Excel(name = "审核人")
     private String approveBy;
 
     private Date approveTime;
 
     /** 汇总已下推/已出库数量（非持久化计算字段） */
+    @Excel(name = "已发数量")
     private BigDecimal shippedTotalQty;
 
     private List<SalOrderItem> orderItemList;

@@ -159,11 +159,63 @@ public class BizDataBackupServiceImpl implements IBizDataBackupService
             writer.write("SET FOREIGN_KEY_CHECKS = 0;\n\n");
 
             List<String> tables = listBaseTables(conn);
-            for (String table : tables)
+            boolean snapshotStarted = false;
+            boolean origAutoCommit = conn.getAutoCommit();
+            try
             {
-                tableCount++;
-                writeTableDdl(conn, table, writer);
-                totalRows += writeTableData(conn, table, writer);
+                try (Statement snapSt = conn.createStatement())
+                {
+                    snapSt.execute("SET SESSION TRANSACTION ISOLATION LEVEL REPEATABLE READ");
+                }
+                catch (SQLException ignored)
+                {
+                    // 非 MySQL 或受限环境降级继续
+                }
+                conn.setAutoCommit(false);
+                try (Statement snapSt = conn.createStatement())
+                {
+                    snapSt.execute("START TRANSACTION WITH CONSISTENT SNAPSHOT");
+                    snapshotStarted = true;
+                }
+                catch (SQLException ignored)
+                {
+                    // 兼容不支持 CONSISTENT SNAPSHOT 的驱动，保持 REPEATABLE READ 事务
+                }
+
+                for (String table : tables)
+                {
+                    tableCount++;
+                    writeTableDdl(conn, table, writer);
+                    totalRows += writeTableData(conn, table, writer);
+                }
+                if (snapshotStarted || !conn.getAutoCommit())
+                {
+                    conn.commit();
+                }
+            }
+            catch (Exception snapEx)
+            {
+                try
+                {
+                    if (!conn.getAutoCommit())
+                    {
+                        conn.rollback();
+                    }
+                }
+                catch (SQLException ignored)
+                {
+                }
+                throw snapEx;
+            }
+            finally
+            {
+                try
+                {
+                    conn.setAutoCommit(origAutoCommit);
+                }
+                catch (SQLException ignored)
+                {
+                }
             }
 
             writer.write("SET FOREIGN_KEY_CHECKS = 1;\n");
@@ -573,9 +625,19 @@ public class BizDataBackupServiceImpl implements IBizDataBackupService
     private long writeTableData(Connection conn, String table, BufferedWriter writer) throws SQLException, IOException
     {
         long rows = 0L;
-        try (Statement st = conn.createStatement();
-             ResultSet rs = st.executeQuery("SELECT * FROM `" + table + "`"))
+        try (Statement st = conn.createStatement(ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_READ_ONLY))
         {
+            try
+            {
+                // MySQL Connector/J 流式游标读取，避免大表备份一次性加载进堆内存导致 OOM
+                st.setFetchSize(Integer.MIN_VALUE);
+            }
+            catch (SQLException ignored)
+            {
+                // 兼容 H2 等测试驱动
+            }
+            try (ResultSet rs = st.executeQuery("SELECT * FROM `" + table + "`"))
+            {
             ResultSetMetaData meta = rs.getMetaData();
             int colCount = meta.getColumnCount();
             StringBuilder columnHeader = new StringBuilder();
@@ -630,6 +692,7 @@ public class BizDataBackupServiceImpl implements IBizDataBackupService
             if (rows > 0)
             {
                 writer.write("\n");
+            }
             }
         }
         return rows;

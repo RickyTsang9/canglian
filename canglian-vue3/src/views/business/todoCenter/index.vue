@@ -23,7 +23,7 @@
         <div class="todo-panel">
           <div class="panel-header">
             <span>审批待办</span>
-            <el-tag type="warning">{{ pendingApproveList.length }}</el-tag>
+            <el-tag type="warning">{{ summaryData.pendingApproveCount ?? pendingApproveList.length }}</el-tag>
           </div>
           <el-table v-if="loading || pendingApproveList.length > 0" v-loading="loading" :data="pendingApproveList" border>
             <el-table-column label="单据类型" align="center" prop="billTypeLabel" width="100" />
@@ -47,7 +47,7 @@
         <div class="todo-panel">
           <div class="panel-header">
             <span>库存预警</span>
-            <el-tag type="danger">{{ lowStockList.length }}</el-tag>
+            <el-tag type="danger">{{ summaryData.lowStockCount ?? lowStockList.length }}</el-tag>
           </div>
           <el-table v-if="loading || lowStockList.length > 0" v-loading="loading" :data="lowStockList" border>
             <el-table-column label="仓库" align="center" min-width="95" show-overflow-tooltip>
@@ -60,12 +60,14 @@
                 <span>{{ getProductName(scope.row.productId) }}</span>
               </template>
             </el-table-column>
-            <el-table-column label="库位" align="center" width="88">
+            <el-table-column label="库位" align="center" width="110" show-overflow-tooltip>
               <template #default="scope">
-                <span>{{ scope.row.locationId ? `#${scope.row.locationId}` : "默认库位" }}</span>
+                <span>{{ scope.row.locationId ? getLocationName(scope.row.locationId) : "默认库位" }}</span>
               </template>
             </el-table-column>
-            <el-table-column label="当前库存" align="right" prop="quantity" width="85" />
+            <el-table-column label="当前可用" align="right" width="85">
+              <template #default="scope">{{ scope.row.availableQuantity ?? scope.row.quantity ?? 0 }}</template>
+            </el-table-column>
             <el-table-column label="最小库存" align="right" prop="warningMinQty" width="85" />
             <el-table-column label="处理" align="center" width="76" fixed="right">
               <template #default>
@@ -120,7 +122,17 @@ import { useBusinessOptions } from "@/utils/businessOptions"
 
 const { proxy } = getCurrentInstance()
 const router = useRouter()
-const { loadWarehouses, loadProducts, loadCustomers, loadSuppliers, getWarehouseName, getProductName, getCustomerName, getSupplierName } = useBusinessOptions()
+const { loadWarehouses, loadLocations, loadProducts, loadCustomers, loadSuppliers, getWarehouseName, getLocationName, getProductName, getCustomerName, getSupplierName } = useBusinessOptions()
+
+function safePush(target) {
+  const path = typeof target === "string" ? target : target?.path
+  const resolved = path ? router.resolve(path) : null
+  if (!resolved || !resolved.matched || resolved.matched.length === 0 || resolved.name === "NotFound" || resolved.matched.some(r => String(r.path || "").includes(":pathMatch"))) {
+    proxy.$modal.msgWarning("当前账号暂无访问该模块的菜单权限")
+    return
+  }
+  router.push(target)
+}
 const loading = ref(false)
 const summaryData = ref({})
 
@@ -167,7 +179,7 @@ const financeTodoList = computed(() => {
 // 查询统一待办汇总
 function getSummary() {
   loading.value = true
-  Promise.all([loadWarehouses(), loadProducts(), loadCustomers(), loadSuppliers()])
+  Promise.all([loadWarehouses(), loadLocations(), loadProducts(), loadCustomers(), loadSuppliers()])
   getWorkbenchSummary().then(response => {
     summaryData.value = response.data || {}
   }).finally(() => {
@@ -191,13 +203,14 @@ function handleSummaryClick(summaryItem) {
     handleStockWarning()
     return
   }
-  router.push({ path: summaryItem.path })
+  safePush({ path: summaryItem.path })
 }
 
 // 进入审批待办对应页面
 function handlePendingApprove(todoItem) {
-  if (todoItem.routePath) {
-    router.push({ path: todoItem.routePath })
+  const targetRoute = todoItem.route || todoItem.routePath
+  if (targetRoute) {
+    safePush({ path: targetRoute })
     return
   }
   const billTypePathMap = {
@@ -205,23 +218,34 @@ function handlePendingApprove(todoItem) {
     purOrder: "/business/purOrder",
     inbound: "/wms/inbound",
     outbound: "/wms/outbound",
+    transfer: "/wms/transfer",
+    inventoryCheck: "/wms/inventoryCheck",
     purchaseReturn: "/wms/purchaseReturn",
     saleReturn: "/wms/saleReturn",
+    receivable: "/finance/receivable",
+    payable: "/finance/payable",
+    receipt: "/finance/receipt",
+    payment: "/finance/payment",
+    expense: "/finance/expense",
+    invoice: "/finance/salesInvoice",
     salesInvoice: "/finance/salesInvoice",
-    purchaseInvoice: "/finance/purchaseInvoice"
+    purchaseInvoice: "/finance/purchaseInvoice",
+    writeOff: "/finance/writeOff",
+    badDebt: "/finance/badDebt",
+    fundTransfer: "/finance/fundAccount"
   }
-  router.push({ path: billTypePathMap[todoItem.billType] || "/business/workbench" })
+  safePush({ path: billTypePathMap[todoItem.billType] || "/business/workbench" })
 }
 
 // 进入库存预警页面
 function handleStockWarning() {
-  router.push({ path: "/wms/stock", query: { warningMode: "1" } })
+  safePush({ path: "/wms/stock", query: { warningMode: "1" } })
 }
 
 // 进入往来账款页面
 function handleFinanceTodo(todoItem) {
   const financePath = todoItem.billType === "payable" ? "/finance/payable" : "/finance/receivable"
-  router.push({ path: financePath })
+  safePush({ path: financePath })
 }
 
 getSummary()

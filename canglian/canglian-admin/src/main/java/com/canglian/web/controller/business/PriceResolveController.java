@@ -22,7 +22,7 @@ public class PriceResolveController extends BaseController
     @Autowired
     private IPriceResolverService priceResolverService;
 
-    @PreAuthorize("@ss.hasPermi('business:price:resolve') or @ss.hasPermi('business:saleOrder:add') or @ss.hasPermi('business:saleOrder:edit') or @ss.hasPermi('business:outbound:add')")
+    @PreAuthorize("@ss.hasPermi('business:price:resolve') or @ss.hasPermi('business:saleOrder:add') or @ss.hasPermi('business:saleOrder:edit') or @ss.hasPermi('business:outbound:add') or @ss.hasPermi('business:outbound:edit') or @ss.hasPermi('business:saleReturn:add') or @ss.hasPermi('business:saleReturn:edit')")
     @GetMapping("/resolve")
     public AjaxResult resolve(@RequestParam(required = false) Long customerId,
                               @RequestParam Long productId,

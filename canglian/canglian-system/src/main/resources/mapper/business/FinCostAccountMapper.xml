@@ -37,6 +37,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         where product_id = #{productId}
           and warehouse_id = #{warehouseId}
           and cost_method = #{costMethod}
+        for update
     </select>
 
     <select id="selectFinCostAccountList" parameterType="FinCostAccount" resultMap="FinCostAccountResult">

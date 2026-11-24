@@ -45,4 +45,7 @@ public interface IFinPayableService
 
     /** 撤销应付红蓝对冲 */
     public int unoffsetRedPayable(Long offsetId, String operator);
+
+    /** 同步供应商档案期初应付余额到已确认期初应付单（幂等/防篡改） */
+    public FinPayable syncOpeningPayable(Long supplierId, String supplierCode, BigDecimal openingAmount, Integer payableDays, String operator);
 }

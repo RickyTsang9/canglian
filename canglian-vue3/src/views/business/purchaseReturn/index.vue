@@ -25,6 +25,9 @@
       <el-col :span="1.5">
         <el-button type="danger" plain icon="Delete" :disabled="isMultipleDisabled" @click="handleDelete" v-hasPermi="['business:purchaseReturn:remove']">删除</el-button>
       </el-col>
+      <el-col :span="1.5">
+        <el-button type="warning" plain icon="Download" @click="handleExport" v-hasPermi="['business:purchaseReturn:export', 'business:purchaseReturn:list']">导出</el-button>
+      </el-col>
       <right-toolbar v-model:showSearch="showSearch" @queryTable="getList" />
     </el-row>
 
@@ -441,4 +444,8 @@ function handleDelete(row) {
 }
 
 loadWarehouses(); loadSuppliers(); loadProducts(); loadLocations(); getList()
+
+function handleExport() {
+  proxy.download("business/purchaseReturn/export", { ...queryParams.value }, `采购退货单_${new Date().getTime()}.xlsx`)
+}
 </script>

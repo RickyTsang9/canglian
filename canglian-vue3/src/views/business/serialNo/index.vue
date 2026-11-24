@@ -18,7 +18,8 @@
         <el-select v-model="queryParams.status" placeholder="请选择状态" clearable style="width: 118px">
           <el-option label="在库" value="in_stock" />
           <el-option label="已出库" value="out_stock" />
-          <el-option label="退货回库" value="returned" />
+          <el-option label="退货/红冲" value="returned" />
+          <el-option label="盘亏核销" value="loss" />
           <el-option label="已报废" value="scrapped" />
         </el-select>
       </el-form-item>
@@ -40,6 +41,9 @@
       </el-col>
       <el-col :span="1.5">
         <el-button type="danger" plain icon="Delete" :disabled="selectedIds.length === 0" @click="handleDelete()" v-hasPermi="['business:serialNo:edit']">删除</el-button>
+      </el-col>
+      <el-col :span="1.5">
+        <el-button type="warning" plain icon="Download" @click="handleExport" v-hasPermi="['business:serialNo:export', 'business:serialNo:list']">导出</el-button>
       </el-col>
       <right-toolbar v-model:showSearch="showSearch" @queryTable="getList" />
     </el-row>
@@ -242,7 +246,7 @@ function parseSnLines(text) {
 }
 
 function statusLabel(s) {
-  const map = { in_stock: "在库", out_stock: "已出库", returned: "退货回库", scrapped: "已报废" }
+  const map = { in_stock: "在库", out_stock: "已出库", returned: "退货/红冲", loss: "盘亏核销", scrapped: "已报废" }
   return map[s] || s || "-"
 }
 
@@ -254,7 +258,18 @@ function statusTagType(s) {
 }
 
 function actionLabel(a) {
-  const map = { inbound: "入库登记", outbound: "出库核销", sale_return: "销售退货回库", purchase_return: "采购退货出库", transfer: "仓库调拨", adjust: "库存调整" }
+  const map = {
+    inbound: "入库登记",
+    outbound: "出库核销",
+    sale_return: "销售退货回库",
+    purchase_return: "采购退货出库",
+    transfer: "仓库调拨",
+    inventory_check_gain: "盘点盘盈登记",
+    inventory_check_loss: "盘点盘亏核销",
+    inventory_check_reverse: "盘点红冲核销",
+    inventory_check_rollback: "盘点撤销恢复",
+    adjust: "库存调整"
+  }
   return map[a] || a
 }
 
@@ -367,4 +382,8 @@ function handleDelete(row) {
 }
 
 getList()
+
+function handleExport() {
+  proxy.download("business/serialNo/export", { ...queryParams }, `序列号台账_${new Date().getTime()}.xlsx`)
+}
 </script>

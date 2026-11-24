@@ -123,5 +123,18 @@ public class MdSupplierController extends BaseController
     {
         return toAjax(mdSupplierService.deleteMdSupplierByIds(supplierIds));
     }
+
+    /**
+     * 导出供应商档案
+     */
+    @Log(title = "供应商档案", businessType = BusinessType.EXPORT)
+    @PreAuthorize("@ss.hasPermi('business:supplier:export') or @ss.hasPermi('business:supplier:list')")
+    @PostMapping("/export")
+    public void export(HttpServletResponse response, MdSupplier mdSupplier)
+    {
+        List<MdSupplier> list = mdSupplierService.selectMdSupplierList(mdSupplier);
+        ExcelUtil<MdSupplier> util = new ExcelUtil<MdSupplier>(MdSupplier.class);
+        util.exportExcel(response, list, "供应商档案");
+    }
 }
 

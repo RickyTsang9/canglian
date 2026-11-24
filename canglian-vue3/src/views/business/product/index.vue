@@ -74,6 +74,9 @@
           v-hasPermi="['business:product:remove']"
         >删除</el-button>
       </el-col>
+      <el-col :span="1.5">
+        <el-button type="warning" plain icon="Download" @click="handleExport" v-hasPermi="['business:product:export', 'business:product:list']">导出</el-button>
+      </el-col>
       <right-toolbar v-model:showSearch="showSearch" @queryTable="getList"></right-toolbar>
     </el-row>
 
@@ -305,47 +308,59 @@
     </el-dialog>
 
     <!-- 商品多单位与条码换算抽屉 -->
-    <el-drawer v-model="unitDrawerOpen" :title="`多单位管理 - ${currentUnitProduct.productName || ''}`" size="780px">
+    <el-drawer v-model="unitDrawerOpen" :title="`多单位管理 - ${currentUnitProduct.productName || ''}`" size="860px">
       <div style="margin-bottom: 12px">
         <el-form :inline="true" :model="unitForm" size="small">
           <el-form-item label="单位名">
-            <el-input v-model="unitForm.unitName" placeholder="如：箱/盒" style="width: 95px" />
+            <el-input v-model="unitForm.unitName" placeholder="如：箱/盒" style="width: 90px" />
           </el-form-item>
           <el-form-item label="换算率">
-            <el-input-number v-model="unitForm.convertRatio" :min="0.0001" :step="1" controls-position="right" style="width: 100px" />
+            <el-input-number v-model="unitForm.convertRatio" :min="0.0001" :step="1" controls-position="right" style="width: 96px" @change="handleUnitRatioChange" />
           </el-form-item>
           <el-form-item label="条码">
-            <el-input v-model="unitForm.barCode" placeholder="包装条码" style="width: 130px" />
+            <el-input v-model="unitForm.barCode" placeholder="包装条码" style="width: 125px" />
           </el-form-item>
           <el-form-item label="采/售价">
-            <el-input-number v-model="unitForm.purchasePrice" :min="0" :precision="2" placeholder="采" controls-position="right" style="width: 88px" />
-            <el-input-number v-model="unitForm.salePrice" :min="0" :precision="2" placeholder="售" controls-position="right" style="width: 88px; margin-left: 4px" />
+            <el-input-number v-model="unitForm.purchasePrice" :min="0" :precision="2" placeholder="采" controls-position="right" style="width: 86px" />
+            <el-input-number v-model="unitForm.salePrice" :min="0" :precision="2" placeholder="售" controls-position="right" style="width: 86px; margin-left: 4px" />
           </el-form-item>
           <el-form-item>
-            <el-button type="primary" @click="submitAddUnit">新增单位</el-button>
+            <el-button type="primary" @click="submitSaveUnit">{{ unitForm.unitId ? '保存修改' : '新增单位' }}</el-button>
+            <el-button v-if="unitForm.unitId" @click="resetUnitForm">取消编辑</el-button>
           </el-form-item>
         </el-form>
       </div>
       <el-table :data="productUnitList" border size="small">
         <el-table-column label="单位" prop="unitName" width="80" align="center" />
-        <el-table-column label="基准单位" width="85" align="center">
+        <el-table-column label="基准单位" width="82" align="center">
           <template #default="scope">
             <el-tag :type="scope.row.isBaseUnit === '1' ? 'success' : 'info'">{{ scope.row.isBaseUnit === '1' ? '是' : '否' }}</el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="换算率(1=N基)" prop="convertRatio" width="115" align="right" />
-        <el-table-column label="包装条码" prop="barCode" min-width="120" show-overflow-tooltip>
+        <el-table-column label="换算率(1=N基)" prop="convertRatio" width="110" align="right" />
+        <el-table-column label="包装条码" prop="barCode" min-width="115" show-overflow-tooltip>
           <template #default="scope">{{ scope.row.barCode || '-' }}</template>
         </el-table-column>
-        <el-table-column label="采购价" prop="purchasePrice" width="90" align="right">
+        <el-table-column label="采购价" prop="purchasePrice" width="85" align="right">
           <template #default="scope">{{ Number(scope.row.purchasePrice || 0).toFixed(2) }}</template>
         </el-table-column>
-        <el-table-column label="销售价" prop="salePrice" width="90" align="right">
+        <el-table-column label="销售价" prop="salePrice" width="85" align="right">
           <template #default="scope">{{ Number(scope.row.salePrice || 0).toFixed(2) }}</template>
         </el-table-column>
-        <el-table-column label="操作" width="96" fixed="right" align="center">
+        <el-table-column label="状态" width="72" align="center">
           <template #default="scope">
-            <el-button v-if="scope.row.isBaseUnit !== '1'" link type="danger" @click="handleDeleteUnit(scope.row)">删除</el-button>
+            <el-tag :type="scope.row.status === '1' ? 'danger' : 'success'" size="small">{{ scope.row.status === '1' ? '停用' : '启用' }}</el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column label="操作" width="165" fixed="right" align="center">
+          <template #default="scope">
+            <template v-if="scope.row.isBaseUnit !== '1'">
+              <el-button link type="primary" @click="startEditUnit(scope.row)">编辑</el-button>
+              <el-button link :type="scope.row.status === '1' ? 'success' : 'warning'" @click="toggleUnitStatus(scope.row)">
+                {{ scope.row.status === '1' ? '启用' : '停用' }}
+              </el-button>
+              <el-button link type="danger" @click="handleDeleteUnit(scope.row)">删除</el-button>
+            </template>
             <el-tag v-else size="small" type="info">基准锁定</el-tag>
           </template>
         </el-table-column>
@@ -357,7 +372,7 @@
 <script setup name="Product">
 import { getToken } from "@/utils/auth"
 import { listProduct, addProduct, delProduct, getProduct, updateProduct } from "@/api/business/product"
-import { listUnitsByProduct, addProductUnit, delProductUnit } from "@/api/business/productUnit"
+import { listProductUnit, listUnitsByProduct, addProductUnit, updateProductUnit, delProductUnit } from "@/api/business/productUnit"
 
 const { proxy } = getCurrentInstance()
 const { sys_normal_disable } = proxy.useDict("sys_normal_disable")
@@ -553,12 +568,13 @@ const handleFileRemove = () => {
   upload.selectedFile = null
 }
 
-// 文件上传成功处理
+// 文件上传成功处理（纯文本安全渲染，防范导入结果 XSS）
 const handleFileSuccess = (response, file) => {
   upload.open = false
   upload.isUploading = false
   proxy.$refs["uploadRef"].handleRemove(file)
-  proxy.$alert("<div style='overflow: auto;overflow-x: hidden;max-height: 70vh;padding: 10px 20px 0;'>" + response.msg + "</div>", "导入结果", { dangerouslyUseHTMLString: true })
+  const plainMsg = String(response?.msg || "导入完成").replace(/<br\s*\/?>/gi, "\n")
+  proxy.$alert(plainMsg, "导入结果", { dangerouslyUseHTMLString: false })
   getList()
 }
 
@@ -581,41 +597,92 @@ function submitFileForm() {
 const unitDrawerOpen = ref(false)
 const currentUnitProduct = ref({})
 const productUnitList = ref([])
-const unitForm = reactive({ unitName: "", convertRatio: 1, barCode: "", purchasePrice: 0, salePrice: 0, isBaseUnit: "0" })
+const unitForm = reactive({ unitId: undefined, unitName: "", convertRatio: 1, barCode: "", purchasePrice: 0, salePrice: 0, isBaseUnit: "0", status: "0" })
+
+function resetUnitForm() {
+  const row = currentUnitProduct.value || {}
+  Object.assign(unitForm, {
+    unitId: undefined,
+    unitName: "",
+    convertRatio: 1,
+    barCode: "",
+    purchasePrice: Number(row.costPrice || 0),
+    salePrice: Number(row.salePrice || 0),
+    isBaseUnit: "0",
+    status: "0"
+  })
+}
+
+function handleUnitRatioChange(val) {
+  if (unitForm.unitId) return
+  const ratio = Number(val || 1)
+  const row = currentUnitProduct.value || {}
+  if (ratio > 0) {
+    unitForm.purchasePrice = Number((Number(row.costPrice || 0) * ratio).toFixed(2))
+    unitForm.salePrice = Number((Number(row.salePrice || 0) * ratio).toFixed(2))
+  }
+}
 
 function openUnitDrawer(row) {
   currentUnitProduct.value = row
-  Object.assign(unitForm, { unitName: "", convertRatio: 1, barCode: "", purchasePrice: Number(row.costPrice || 0), salePrice: Number(row.salePrice || 0), isBaseUnit: "0" })
+  resetUnitForm()
   unitDrawerOpen.value = true
   loadProductUnitList(row.productId)
 }
 
 function loadProductUnitList(productId) {
-  listUnitsByProduct(productId).then(res => {
-    productUnitList.value = res.data || []
+  listUnitsByProduct(productId).then(() => listProductUnit({ productId, pageNum: 1, pageSize: 200 })).then(res => {
+    productUnitList.value = res.rows || res.data || []
   })
 }
 
-function submitAddUnit() {
+function startEditUnit(row) {
+  Object.assign(unitForm, {
+    unitId: row.unitId,
+    unitName: row.unitName,
+    convertRatio: Number(row.convertRatio || 1),
+    barCode: row.barCode || "",
+    purchasePrice: Number(row.purchasePrice || 0),
+    salePrice: Number(row.salePrice || 0),
+    isBaseUnit: row.isBaseUnit || "0",
+    status: row.status || "0"
+  })
+}
+
+function submitSaveUnit() {
   if (!unitForm.unitName) {
     proxy.$modal.msgError("请输入单位名称")
     return
   }
-  addProductUnit({
+  const payload = {
+    unitId: unitForm.unitId,
     productId: currentUnitProduct.value.productId,
     unitName: unitForm.unitName,
     convertRatio: unitForm.convertRatio,
     barCode: unitForm.barCode,
     purchasePrice: unitForm.purchasePrice,
     salePrice: unitForm.salePrice,
-    isBaseUnit: productUnitList.value.length === 0 ? "1" : "0",
-    status: "0"
-  }).then(() => {
-    proxy.$modal.msgSuccess("新增单位成功")
-    unitForm.unitName = ""
-    unitForm.barCode = ""
+    isBaseUnit: unitForm.unitId ? unitForm.isBaseUnit : (productUnitList.value.length === 0 ? "1" : "0"),
+    status: unitForm.status || "0"
+  }
+  const req = unitForm.unitId ? updateProductUnit(payload) : addProductUnit(payload)
+  req.then(() => {
+    proxy.$modal.msgSuccess(unitForm.unitId ? "修改单位成功" : "新增单位成功")
+    resetUnitForm()
     loadProductUnitList(currentUnitProduct.value.productId)
   })
+}
+
+function toggleUnitStatus(row) {
+  const nextStatus = row.status === "1" ? "0" : "1"
+  const label = nextStatus === "1" ? "停用" : "启用"
+  proxy.$modal.confirm(`确认${label}单位"${row.unitName}"？`).then(() => updateProductUnit({
+    ...row,
+    status: nextStatus
+  })).then(() => {
+    proxy.$modal.msgSuccess(`${label}成功`)
+    loadProductUnitList(currentUnitProduct.value.productId)
+  }).catch(() => {})
 }
 
 function handleDeleteUnit(row) {
@@ -626,4 +693,8 @@ function handleDeleteUnit(row) {
 }
 
 getList()
+
+function handleExport() {
+  proxy.download("business/product/export", { ...queryParams.value }, `商品档案_${new Date().getTime()}.xlsx`)
+}
 </script>

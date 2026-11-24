@@ -11,6 +11,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import com.canglian.business.domain.FinBadDebt;
 import com.canglian.business.domain.FinExpense;
+import com.canglian.business.domain.FinFundTransfer;
 import com.canglian.business.domain.FinInvoice;
 import com.canglian.business.domain.FinPayable;
 import com.canglian.business.domain.FinPayment;
@@ -32,6 +33,7 @@ import com.canglian.business.domain.WmsStock;
 import com.canglian.business.domain.WmsTransfer;
 import com.canglian.business.mapper.FinBadDebtMapper;
 import com.canglian.business.mapper.FinExpenseMapper;
+import com.canglian.business.mapper.FinFundLogMapper;
 import com.canglian.business.mapper.FinInvoiceMapper;
 import com.canglian.business.mapper.FinPayableMapper;
 import com.canglian.business.mapper.FinPaymentMapper;
@@ -125,6 +127,9 @@ public class BusinessWorkbenchServiceImpl implements IBusinessWorkbenchService
     private FinBadDebtMapper finBadDebtMapper;
 
     @Autowired(required = false)
+    private FinFundLogMapper finFundLogMapper;
+
+    @Autowired(required = false)
     private BizScopeHelper bizScopeHelper;
 
     @Override
@@ -160,8 +165,24 @@ public class BusinessWorkbenchServiceImpl implements IBusinessWorkbenchService
         }
         List<WmsOutbound> wmsOutboundList = safeList(wmsOutboundMapper.selectWmsOutboundList(outboundQuery));
 
-        List<FinReceivable> finReceivableList = safeList(finReceivableMapper.selectFinReceivableList(new FinReceivable()));
-        List<FinPayable> finPayableList = safeList(finPayableMapper.selectFinPayableList(new FinPayable()));
+        List<FinReceivable> rawReceivables = safeList(finReceivableMapper.selectFinReceivableList(new FinReceivable()));
+        List<FinReceivable> finReceivableList = new ArrayList<FinReceivable>();
+        for (FinReceivable r : rawReceivables)
+        {
+            if (bizScopeHelper == null || bizScopeHelper.canAccessRecord(r.getDeptId(), r.getOwnerUserId(), null))
+            {
+                finReceivableList.add(r);
+            }
+        }
+        List<FinPayable> rawPayables = safeList(finPayableMapper.selectFinPayableList(new FinPayable()));
+        List<FinPayable> finPayableList = new ArrayList<FinPayable>();
+        for (FinPayable p : rawPayables)
+        {
+            if (bizScopeHelper == null || bizScopeHelper.canAccessRecord(p.getDeptId(), p.getOwnerUserId(), null))
+            {
+                finPayableList.add(p);
+            }
+        }
 
         List<WmsStock> rawStocks = safeList(wmsStockMapper.selectWmsStockList(new WmsStock()));
         List<WmsStock> wmsStockList = new ArrayList<WmsStock>();
@@ -177,7 +198,7 @@ public class BusinessWorkbenchServiceImpl implements IBusinessWorkbenchService
         List<Map<String, Object>> topLowStocks = allLowStocks.size() > 10
             ? new ArrayList<Map<String, Object>>(allLowStocks.subList(0, 10)) : allLowStocks;
 
-        List<Map<String, Object>> allPending = collectAllPendingApproveList(salOrderList, purOrderList, wmsInboundList, wmsOutboundList);
+        List<Map<String, Object>> allPending = collectAllPendingApproveList(salOrderList, purOrderList, wmsInboundList, wmsOutboundList, finReceivableList, finPayableList);
         List<Map<String, Object>> topPending = allPending.size() > 15
             ? new ArrayList<Map<String, Object>>(allPending.subList(0, 15)) : allPending;
 
@@ -490,9 +511,36 @@ public class BusinessWorkbenchServiceImpl implements IBusinessWorkbenchService
      * 汇总全部 12 类单据的草稿待审待办，按业务日期降序排列并附带跳转路由
      */
     private List<Map<String, Object>> collectAllPendingApproveList(List<SalOrder> salOrderList, List<PurOrder> purOrderList,
-        List<WmsInbound> inboundList, List<WmsOutbound> outboundList)
+        List<WmsInbound> inboundList, List<WmsOutbound> outboundList,
+        List<FinReceivable> finReceivableList, List<FinPayable> finPayableList)
     {
         List<Map<String, Object>> list = new ArrayList<Map<String, Object>>();
+        for (FinReceivable r : finReceivableList)
+        {
+            if ("draft".equals(r.getBizStatus()))
+            {
+                appendPendingApproveItem(list, "receivable", "应收单", r.getReceivableId(), r.getReceivableNo(),
+                    r.getBusinessDate() != null ? r.getBusinessDate() : r.getCreateTime(), "/finance/receivable");
+            }
+        }
+        for (FinPayable p : finPayableList)
+        {
+            if ("draft".equals(p.getBizStatus()))
+            {
+                appendPendingApproveItem(list, "payable", "应付单", p.getPayableId(), p.getPayableNo(),
+                    p.getBusinessDate() != null ? p.getBusinessDate() : p.getCreateTime(), "/finance/payable");
+            }
+        }
+        if (finFundLogMapper != null)
+        {
+            FinFundTransfer ftQ = new FinFundTransfer();
+            ftQ.setStatus("0");
+            for (FinFundTransfer ft : safeList(finFundLogMapper.selectFinFundTransferList(ftQ)))
+            {
+                appendPendingApproveItem(list, "fundTransfer", "资金互转", ft.getTransferId(), ft.getTransferNo(),
+                    ft.getTransferDate() != null ? ft.getTransferDate() : ft.getCreateTime(), "/finance/fundAccount");
+            }
+        }
         for (SalOrder o : salOrderList)
         {
             if ("draft".equals(o.getBizStatus()))
@@ -613,6 +661,10 @@ public class BusinessWorkbenchServiceImpl implements IBusinessWorkbenchService
         {
             FinExpense q = new FinExpense();
             q.setStatus("0");
+            if (bizScopeHelper != null)
+            {
+                bizScopeHelper.applyScopeFilter(q, "", true, false);
+            }
             for (FinExpense e : safeList(finExpenseMapper.selectFinExpenseList(q)))
             {
                 appendPendingApproveItem(list, "expense", "费用单", e.getExpenseId(), e.getExpenseNo(),

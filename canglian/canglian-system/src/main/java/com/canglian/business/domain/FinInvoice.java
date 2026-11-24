@@ -5,6 +5,7 @@ import java.util.Date;
 import com.fasterxml.jackson.annotation.JsonFormat;
 import org.apache.commons.lang3.builder.ToStringBuilder;
 import org.apache.commons.lang3.builder.ToStringStyle;
+import com.canglian.common.annotation.Excel;
 import com.canglian.common.core.domain.BaseEntity;
 
 /**
@@ -18,12 +19,15 @@ public class FinInvoice extends BaseEntity
 
     private Long invoiceId;
 
+    @Excel(name = "发票号码")
     private String invoiceNo;
 
     /** sale/purchase */
+    @Excel(name = "类型", readConverterExp = "sale=销项发票,purchase=进项发票")
     private String invoiceType;
 
     /** blue蓝票 / red红票 */
+    @Excel(name = "票种", readConverterExp = "normal=蓝字正常票,red=红字冲红票")
     private String invoiceKind;
 
     private Long originInvoiceId;
@@ -40,26 +44,34 @@ public class FinInvoice extends BaseEntity
 
     private Long sourceBillId;
 
+    @Excel(name = "关联单号")
     private String sourceBillNo;
 
     @JsonFormat(pattern = "yyyy-MM-dd")
     private Date businessDate;
 
     @JsonFormat(pattern = "yyyy-MM-dd")
+    @Excel(name = "开票日期", dateFormat = "yyyy-MM-dd")
     private Date invoiceDate;
 
+    @Excel(name = "价税合计")
     private BigDecimal invoiceAmount;
 
+    @Excel(name = "税率(%)")
     private BigDecimal taxRate;
 
+    @Excel(name = "税额")
     private BigDecimal taxAmount;
 
+    @Excel(name = "不含税金额")
     private BigDecimal untaxedAmount;
 
+    @Excel(name = "状态", readConverterExp = "0=草稿,1=已确认")
     private String status;
 
     private String bizStatus;
 
+    @Excel(name = "确认人")
     private String confirmBy;
 
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")

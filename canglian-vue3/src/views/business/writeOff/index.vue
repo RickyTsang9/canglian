@@ -33,6 +33,9 @@
       <el-col :span="1.5">
         <el-button type="danger" plain icon="Delete" :disabled="isMultipleDisabled" @click="handleDelete" v-hasPermi="['business:writeOff:remove']">删除</el-button>
       </el-col>
+      <el-col :span="1.5">
+        <el-button type="warning" plain icon="Download" @click="handleExport" v-hasPermi="['business:writeOff:export', 'business:writeOff:list']">导出</el-button>
+      </el-col>
       <right-toolbar v-model:showSearch="showSearch" @queryTable="getList" />
     </el-row>
 
@@ -76,7 +79,7 @@
           <div class="table-action-cell">
             <el-button v-if="canEditRow(scope.row)" link type="primary" icon="Edit" @click="handleUpdate(scope.row)" v-hasPermi="['business:writeOff:edit']">修改</el-button>
             <el-button v-if="canConfirmRow(scope.row)" link type="success" icon="CircleCheck" @click="handleConfirm(scope.row)" v-hasPermi="['business:writeOff:confirm']">确认</el-button>
-            <el-button v-if="scope.row.status === '1'" link type="warning" icon="RefreshLeft" @click="handleUnconfirm(scope.row)" v-hasPermi="['business:writeOff:confirm']">反确认</el-button>
+            <el-button v-if="scope.row.status === '1'" link type="warning" icon="RefreshLeft" @click="handleUnconfirm(scope.row)" v-hasPermi="['business:writeOff:unconfirm']">反确认</el-button>
             <el-button link type="primary" icon="Printer" @click="handlePrint(scope.row)">打印</el-button>
             <el-button v-if="canDeleteRow(scope.row)" link type="danger" icon="Delete" @click="handleDelete(scope.row)" v-hasPermi="['business:writeOff:remove']">删除</el-button>
           </div>
@@ -358,4 +361,8 @@ function handleDelete(row) {
 }
 
 getList()
+
+function handleExport() {
+  proxy.download("business/writeOff/export", { ...queryParams.value }, `核销单_${new Date().getTime()}.xlsx`)
+}
 </script>

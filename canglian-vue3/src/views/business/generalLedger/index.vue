@@ -169,6 +169,107 @@
           </el-table-column>
         </el-table>
       </el-tab-pane>
+
+      <!-- 5. 科目余额表与试算平衡 -->
+      <el-tab-pane label="科目余额表" name="trialBalance">
+        <el-form :model="tbQuery" :inline="true">
+          <el-form-item label="开始日期">
+            <el-date-picker v-model="tbQuery.startDate" type="date" value-format="YYYY-MM-DD" placeholder="请选择开始日期" clearable />
+          </el-form-item>
+          <el-form-item label="结束日期">
+            <el-date-picker v-model="tbQuery.endDate" type="date" value-format="YYYY-MM-DD" placeholder="请选择结束日期" clearable />
+          </el-form-item>
+          <el-form-item>
+            <el-button type="primary" icon="Search" @click="loadTrialBalance">查询试算</el-button>
+            <el-button icon="Refresh" @click="resetTrialBalance">重置</el-button>
+          </el-form-item>
+        </el-form>
+        <el-alert
+          :title="tbSummary.periodBalanced && tbSummary.endingBalanced
+            ? `试算平衡通过！本期借方合计 ￥${Number(tbSummary.totalPeriodDebit || 0).toFixed(2)} = 本期贷方合计 ￥${Number(tbSummary.totalPeriodCredit || 0).toFixed(2)} | 期末借方余额 ￥${Number(tbSummary.totalEndingDebit || 0).toFixed(2)} = 期末贷方余额 ￥${Number(tbSummary.totalEndingCredit || 0).toFixed(2)}`
+            : `借贷不平衡预警：本期借方 ￥${Number(tbSummary.totalPeriodDebit || 0).toFixed(2)} vs 贷方 ￥${Number(tbSummary.totalPeriodCredit || 0).toFixed(2)}`"
+          :type="tbSummary.periodBalanced && tbSummary.endingBalanced ? 'success' : 'error'"
+          :closable="false"
+          show-icon
+          style="margin-bottom: 12px"
+        />
+        <el-table v-loading="tbLoading" :data="tbRows" border>
+          <el-table-column label="科目编码" align="center" prop="subjectCode" width="110" />
+          <el-table-column label="科目名称" align="center" prop="subjectName" min-width="140" />
+          <el-table-column label="类别" align="center" width="90">
+            <template #default="scope"><el-tag effect="plain" size="small">{{ subjectTypeMap[scope.row.subjectType] || scope.row.subjectType || '-' }}</el-tag></template>
+          </el-table-column>
+          <el-table-column label="方向" align="center" width="76">
+            <template #default="scope">
+              <el-tag :type="scope.row.balanceDirection === 'debit' ? 'primary' : 'warning'" size="small">{{ scope.row.balanceDirection === 'debit' ? '借' : '贷' }}</el-tag>
+            </template>
+          </el-table-column>
+          <el-table-column label="本期借方发生" align="right" header-align="right" min-width="125">
+            <template #default="scope">￥{{ Number(scope.row.periodDebit || 0).toFixed(2) }}</template>
+          </el-table-column>
+          <el-table-column label="本期贷方发生" align="right" header-align="right" min-width="125">
+            <template #default="scope">￥{{ Number(scope.row.periodCredit || 0).toFixed(2) }}</template>
+          </el-table-column>
+          <el-table-column label="期末借方余额" align="right" header-align="right" min-width="125">
+            <template #default="scope">￥{{ Number(scope.row.endingDebit || 0).toFixed(2) }}</template>
+          </el-table-column>
+          <el-table-column label="期末贷方余额" align="right" header-align="right" min-width="125">
+            <template #default="scope">￥{{ Number(scope.row.endingCredit || 0).toFixed(2) }}</template>
+          </el-table-column>
+          <el-table-column label="操作" align="center" width="110" fixed="right">
+            <template #default="scope">
+              <el-button link type="primary" @click="jumpToSubjectLedger(scope.row.subjectCode)">明细账</el-button>
+            </template>
+          </el-table-column>
+        </el-table>
+      </el-tab-pane>
+
+      <!-- 6. 科目明细分类账 -->
+      <el-tab-pane label="科目明细账" name="subjectLedger">
+        <el-form :model="ledgerQuery" :inline="true">
+          <el-form-item label="会计科目">
+            <el-select v-model="ledgerQuery.subjectCode" placeholder="请选择科目" filterable style="width: 220px" @change="loadSubjectLedger">
+              <el-option v-for="s in subjectList" :key="s.subjectCode" :label="`${s.subjectCode} - ${s.subjectName}`" :value="s.subjectCode" />
+            </el-select>
+          </el-form-item>
+          <el-form-item label="开始日期">
+            <el-date-picker v-model="ledgerQuery.startDate" type="date" value-format="YYYY-MM-DD" placeholder="开始日期" clearable style="width: 150px" />
+          </el-form-item>
+          <el-form-item label="结束日期">
+            <el-date-picker v-model="ledgerQuery.endDate" type="date" value-format="YYYY-MM-DD" placeholder="结束日期" clearable style="width: 150px" />
+          </el-form-item>
+          <el-form-item>
+            <el-button type="primary" icon="Search" @click="loadSubjectLedger">查询明细</el-button>
+          </el-form-item>
+        </el-form>
+        <el-alert
+          v-if="ledgerQuery.subjectCode"
+          :title="`科目：${ledgerSummary.subjectCode} ${ledgerSummary.subjectName} | 借方累计：￥${Number(ledgerSummary.totalDebit || 0).toFixed(2)} | 贷方累计：￥${Number(ledgerSummary.totalCredit || 0).toFixed(2)} | 期末余额：￥${Number(ledgerSummary.endingBalance || 0).toFixed(2)}`"
+          type="info"
+          :closable="false"
+          show-icon
+          style="margin-bottom: 12px"
+        />
+        <el-table v-loading="ledgerLoading" :data="ledgerRows" border>
+          <el-table-column label="业务日期" align="center" prop="eventDate" width="108" />
+          <el-table-column label="凭证号" align="center" prop="voucherNo" width="136" />
+          <el-table-column label="来源单号" align="center" prop="billNo" min-width="136" show-overflow-tooltip />
+          <el-table-column label="辅助核算" align="center" prop="auxiliaryName" min-width="115" show-overflow-tooltip>
+            <template #default="scope">{{ scope.row.auxiliaryName || '-' }}</template>
+          </el-table-column>
+          <el-table-column label="摘要" prop="summary" min-width="165" show-overflow-tooltip />
+          <el-table-column label="借方金额" align="right" header-align="right" width="110">
+            <template #default="scope">￥{{ Number(scope.row.debitAmount || 0).toFixed(2) }}</template>
+          </el-table-column>
+          <el-table-column label="贷方金额" align="right" header-align="right" width="110">
+            <template #default="scope">￥{{ Number(scope.row.creditAmount || 0).toFixed(2) }}</template>
+          </el-table-column>
+          <el-table-column label="方向" align="center" prop="balanceDirection" width="60" />
+          <el-table-column label="余额" align="right" header-align="right" width="115">
+            <template #default="scope"><strong>￥{{ Number(scope.row.runningBalance || 0).toFixed(2) }}</strong></template>
+          </el-table-column>
+        </el-table>
+      </el-tab-pane>
     </el-tabs>
 
     <!-- 科目新增/修改弹窗 -->
@@ -285,7 +386,8 @@ import {
   listAccountSubject, addAccountSubject, updateAccountSubject, delAccountSubject,
   listAuxiliaryItem, syncAuxiliaryItems,
   listFiscalPeriod, initFiscalPeriodYear, checkPeriodReadiness, closeFiscalPeriod, reopenFiscalPeriod,
-  listVoucherTemplate, addVoucherTemplate, updateVoucherTemplate, delVoucherTemplate
+  listVoucherTemplate, addVoucherTemplate, updateVoucherTemplate, delVoucherTemplate,
+  getTrialBalance, getSubjectLedger
 } from "@/api/business/generalLedger"
 
 const { proxy } = getCurrentInstance()
@@ -311,34 +413,27 @@ const auxiliaryTypeMap = {
 
 const eventTypeMap = {
   inbound_complete: "采购入库审核",
-  inbound_audit: "采购入库审核",
   outbound_complete: "销售签收确认收入",
   outbound_cogs: "销售签收结转成本",
   outbound_cogs_return: "出库退货成本冲回",
   outbound_return: "出库整单退货冲回",
   sale_return_complete: "销售退货入库",
-  sale_return_audit: "销售退货入库",
-  sale_return_cogs: "销售退货成本冲回",
   purchase_return_complete: "采购退货出库",
-  purchase_return_audit: "采购退货出库",
   inventory_check_gain: "库存盘盈入账",
   inventory_check_loss: "库存盘亏入账",
   receipt_confirm: "收款单确认",
   refund_receipt: "销售退款冲回",
   payment_confirm: "付款单确认",
   expense_confirm: "费用单确认",
-  write_off_confirm: "往来核销确认",
   bad_debt_confirm: "坏账计提确认",
   bad_debt_recover: "坏账收回入账",
   fund_transfer: "资金内部互转",
   fund_transfer_fee: "内部互转手续费",
-  invoice_confirm: "发票确认入账",
   sale_invoice_confirm: "销项增值税确认",
   purchase_invoice_confirm: "进项增值税确认",
   manual_receivable: "手工应收确认",
   manual_payable: "手工应付确认",
-  cost_adjust: "受控成本调价",
-  cost_adjust_confirm: "受控成本调价"
+  cost_adjust: "受控成本调价"
 }
 
 const activeTab = ref("subject")
@@ -346,10 +441,18 @@ const subjectLoading = ref(false)
 const auxiliaryLoading = ref(false)
 const periodLoading = ref(false)
 const templateLoading = ref(false)
+const tbLoading = ref(false)
+const ledgerLoading = ref(false)
 const subjectList = ref([])
 const auxiliaryList = ref([])
 const periodList = ref([])
 const templateList = ref([])
+const tbRows = ref([])
+const tbSummary = reactive({ totalPeriodDebit: 0, totalPeriodCredit: 0, totalEndingDebit: 0, totalEndingCredit: 0, periodBalanced: true, endingBalanced: true })
+const tbQuery = reactive({ startDate: `${new Date().getFullYear()}-01-01`, endDate: `${new Date().getFullYear()}-12-31` })
+const ledgerRows = ref([])
+const ledgerSummary = reactive({ subjectCode: "", subjectName: "", totalDebit: 0, totalCredit: 0, endingBalance: 0 })
+const ledgerQuery = reactive({ subjectCode: "1122", startDate: `${new Date().getFullYear()}-01-01`, endDate: `${new Date().getFullYear()}-12-31` })
 
 const subjectQuery = reactive({ status: undefined })
 const auxiliaryQuery = reactive({ auxiliaryType: undefined })
@@ -470,6 +573,58 @@ function handleDeleteTemplate(row) {
     proxy.$modal.msgSuccess("删除成功"); getTemplateList()
   }).catch(() => {})
 }
+
+function loadTrialBalance() {
+  tbLoading.value = true
+  getTrialBalance(tbQuery).then(res => {
+    const d = res.data || {}
+    tbRows.value = d.rows || []
+    Object.assign(tbSummary, {
+      totalPeriodDebit: d.totalPeriodDebit || 0,
+      totalPeriodCredit: d.totalPeriodCredit || 0,
+      totalEndingDebit: d.totalEndingDebit || 0,
+      totalEndingCredit: d.totalEndingCredit || 0,
+      periodBalanced: d.periodBalanced !== false,
+      endingBalanced: d.endingBalanced !== false
+    })
+  }).finally(() => { tbLoading.value = false })
+}
+
+function resetTrialBalance() {
+  const y = new Date().getFullYear()
+  tbQuery.startDate = `${y}-01-01`
+  tbQuery.endDate = `${y}-12-31`
+  loadTrialBalance()
+}
+
+function loadSubjectLedger() {
+  if (!ledgerQuery.subjectCode) return
+  ledgerLoading.value = true
+  getSubjectLedger(ledgerQuery).then(res => {
+    const d = res.data || {}
+    ledgerRows.value = d.rows || []
+    Object.assign(ledgerSummary, {
+      subjectCode: d.subjectCode || ledgerQuery.subjectCode,
+      subjectName: d.subjectName || "",
+      totalDebit: d.totalDebit || 0,
+      totalCredit: d.totalCredit || 0,
+      endingBalance: d.endingBalance || 0
+    })
+  }).finally(() => { ledgerLoading.value = false })
+}
+
+function jumpToSubjectLedger(subjectCode) {
+  ledgerQuery.subjectCode = subjectCode
+  ledgerQuery.startDate = tbQuery.startDate
+  ledgerQuery.endDate = tbQuery.endDate
+  activeTab.value = "subjectLedger"
+  loadSubjectLedger()
+}
+
+watch(activeTab, tab => {
+  if (tab === "trialBalance") loadTrialBalance()
+  else if (tab === "subjectLedger" && ledgerQuery.subjectCode) loadSubjectLedger()
+})
 
 getSubjectList(); getAuxiliaryList(); getPeriodList(); getTemplateList()
 </script>

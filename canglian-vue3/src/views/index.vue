@@ -49,7 +49,7 @@
             :key="act.path"
             type="button"
             class="quick-chip"
-            @click="router.push(act.path)"
+            @click="safePush(act.path)"
           >
             <el-icon><component :is="act.icon" /></el-icon>
             <span>{{ act.label }}</span>
@@ -103,7 +103,7 @@
         v-for="op in opsPulseList"
         :key="op.label"
         class="ops-tile"
-        @click="router.push(op.route)"
+        @click="safePush(op.route)"
       >
         <div class="ops-left">
           <span class="ops-icon"><el-icon :size="15"><component :is="op.icon" /></el-icon></span>
@@ -211,6 +211,7 @@
 
 <script setup name="Index">
 import { useRouter } from "vue-router"
+import { ElMessage } from "element-plus"
 import * as echarts from "echarts"
 import { receivableAging, payableAging, profitLoss, revenueExpense, costStructure } from "@/api/business/report"
 import { getWorkbenchSummary } from "@/api/business/workbench"
@@ -249,13 +250,29 @@ const periodPresets = [
   { key: "year", label: "本年" }
 ]
 
-const quickActions = [
-  { label: "销售开单", path: "/business/saleOrder", icon: "Sell" },
-  { label: "采购入库", path: "/wms/inbound", icon: "Box" },
-  { label: "扫码作业", path: "/wms/scan", icon: "FullScreen" },
-  { label: "业务工作台", path: "/business/workbench", icon: "Odometer" },
-  { label: "财务报表", path: "/finance/report", icon: "DataAnalysis" }
+function hasRouteAccess(path) {
+  if (!path) return false
+  const resolved = router.resolve(path)
+  return resolved && resolved.matched && resolved.matched.length > 0 && resolved.name !== "NotFound" && !resolved.matched.some(r => String(r.path || "").includes(":pathMatch"))
+}
+
+function safePush(target) {
+  const path = typeof target === "string" ? target : target?.path
+  if (!hasRouteAccess(path)) {
+    ElMessage.warning("当前账号暂无访问该模块的菜单权限")
+    return
+  }
+  router.push(target)
+}
+
+const allQuickActions = [
+  { label: "销售开单", path: "/business/saleOrder", icon: "Sell", perm: "business:saleOrder:list" },
+  { label: "采购入库", path: "/wms/inbound", icon: "Box", perm: "business:inbound:list" },
+  { label: "扫码作业", path: "/wms/scan", icon: "FullScreen", perm: "business:scan:list" },
+  { label: "业务工作台", path: "/business/workbench", icon: "Odometer", perm: "business:workbench:view" },
+  { label: "财务报表", path: "/finance/report", icon: "DataAnalysis", perm: "business:report:view" }
 ]
+const quickActions = computed(() => allQuickActions.filter(act => hasRouteAccess(act.path) || (act.perm && auth.hasPermi(act.perm))))
 
 const dashboardQuery = reactive({
   startDate: "",
@@ -304,7 +321,7 @@ function formatCostTypeLabel(raw) {
 }
 
 function goToReport(tab) {
-  router.push({ path: "/finance/report", query: tab ? { tab } : {} })
+  safePush({ path: "/finance/report", query: tab ? { tab } : {} })
 }
 
 const summaryList = computed(() => [

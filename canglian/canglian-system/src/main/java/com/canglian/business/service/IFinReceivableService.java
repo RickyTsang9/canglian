@@ -45,4 +45,7 @@ public interface IFinReceivableService
 
     /** 撤销应收红蓝对冲 */
     public int unoffsetRedReceivable(Long offsetId, String operator);
+
+    /** 同步客商档案期初应收余额到已确认期初应收单（幂等/防篡改） */
+    public FinReceivable syncOpeningReceivable(Long customerId, String customerCode, BigDecimal openingAmount, Integer receivableDays, String operator);
 }

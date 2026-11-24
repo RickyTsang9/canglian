@@ -23,7 +23,7 @@ public class FinFundLog extends BaseEntity
     @Excel(name = "账户名称")
     private String accountName;
 
-    @Excel(name = "业务类型")
+    @Excel(name = "业务类型", readConverterExp = "receipt=销售收款,payment=采购付款,expense=期间费用,transfer_in=内部转入,transfer_out=内部转出,transfer_fee=互转手续费,transfer_reverse_in=互转冲回转入,transfer_reverse_out=互转冲回转出,transfer_fee_reverse=手续费冲回,bad_debt_recover=坏账收回,opening=期初建账,unconfirm=单据反确认冲回")
     private String bizType;
 
     private Long billId;

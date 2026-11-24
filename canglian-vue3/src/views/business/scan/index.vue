@@ -236,6 +236,9 @@
                 <el-form-item label="实盘数">
                   <el-input-number v-model="inventoryCheckForm.actualQty" :min="0" controls-position="right" style="width: 95px" />
                 </el-form-item>
+                <el-form-item label="SN码">
+                  <el-input v-model="inventoryCheckForm.snCodes" placeholder="盈亏SN(逗号分隔)" style="width: 155px" />
+                </el-form-item>
                 <el-form-item>
                   <el-button type="success" @click="handleAppendInventoryCheckItem">加入</el-button>
                   <el-button type="primary" @click="handleInventoryCheck">生成盘点单</el-button>
@@ -245,10 +248,11 @@
               <el-table v-if="inventoryCheckItemList.length" :data="inventoryCheckItemList" border size="small">
                 <el-table-column label="商品" prop="productName" />
                 <el-table-column label="批次" prop="batchNo" width="85" />
-                <el-table-column label="账面" prop="stockQty" width="70" align="right" />
-                <el-table-column label="实盘" prop="actualQty" width="70" align="right" />
-                <el-table-column label="差异" prop="diffQty" width="70" align="right" />
-                <el-table-column label="操作" width="60" align="center">
+                <el-table-column label="账面" prop="stockQty" width="66" align="right" />
+                <el-table-column label="实盘" prop="actualQty" width="66" align="right" />
+                <el-table-column label="差异" prop="diffQty" width="66" align="right" />
+                <el-table-column label="SN码" prop="snCodes" min-width="95" show-overflow-tooltip />
+                <el-table-column label="操作" width="55" align="center">
                   <template #default="scope"><el-button link type="danger" @click="inventoryCheckItemList.splice(scope.$index, 1)">删</el-button></template>
                 </el-table-column>
               </el-table>
@@ -285,6 +289,9 @@
                 <el-form-item label="数量">
                   <el-input-number v-model="transferForm.quantity" :min="1" controls-position="right" style="width: 95px" />
                 </el-form-item>
+                <el-form-item label="SN码">
+                  <el-input v-model="transferForm.snCodes" placeholder="启用SN商品必填(逗号分隔)" style="width: 165px" />
+                </el-form-item>
                 <el-form-item>
                   <el-button type="success" @click="handleAppendTransferItem">加入</el-button>
                   <el-button type="primary" @click="handleTransfer">生成调拨单</el-button>
@@ -294,9 +301,10 @@
               <el-table v-if="transferItemList.length" :data="transferItemList" border size="small">
                 <el-table-column label="商品" prop="productName" />
                 <el-table-column label="批次" prop="batchNo" width="85" />
-                <el-table-column label="可用" prop="availableQty" width="70" align="right" />
-                <el-table-column label="调拨数" prop="quantity" width="75" align="right" />
-                <el-table-column label="操作" width="60" align="center">
+                <el-table-column label="可用" prop="availableQty" width="68" align="right" />
+                <el-table-column label="调拨数" prop="quantity" width="72" align="right" />
+                <el-table-column label="SN码" prop="snCodes" min-width="95" show-overflow-tooltip />
+                <el-table-column label="操作" width="55" align="center">
                   <template #default="scope"><el-button link type="danger" @click="transferItemList.splice(scope.$index, 1)">删</el-button></template>
                 </el-table-column>
               </el-table>
@@ -330,7 +338,7 @@ function loadPendingVerifyOutbounds() {
 loadPendingVerifyOutbounds()
 
 const pendingVerifyOutbounds = computed(() =>
-  outboundOptions.value.filter(ob => String(ob.isReversal || "0") !== "1" && String(ob.reversedFlag || "0") !== "1" && String(ob.deliveryStatus || "0") === "0" && String(ob.verifiedFlag || "0") !== "1")
+  outboundOptions.value.filter(ob => String(ob.status || "0") === "1" && String(ob.isReversal || "0") !== "1" && String(ob.reversedFlag || "0") !== "1" && String(ob.deliveryStatus || "0") === "0" && String(ob.verifiedFlag || "0") !== "1")
 )
 
 const productScanForm = reactive({ barCode: "" })
@@ -339,8 +347,8 @@ const stockScanForm = reactive({ barCode: "", warehouseId: undefined, locationCo
 const quickSaleForm = reactive({ customerId: undefined, warehouseId: undefined, barCode: "", quantity: 1, remark: "" })
 const quickInboundForm = reactive({ warehouseId: undefined, supplierId: undefined, locationCode: "", batchNo: "", productionDate: undefined, expiryDate: undefined, snCodes: "", autoAudit: false, barCode: "", quantity: 1, remark: "" })
 const verifyForm = reactive({ outboundId: undefined, barCode: "", quantity: 1 })
-const inventoryCheckForm = reactive({ warehouseId: undefined, locationCode: "", batchNo: "", barCode: "", actualQty: 1, remark: "" })
-const transferForm = reactive({ outWarehouseId: undefined, inWarehouseId: undefined, outLocationCode: "", inLocationCode: "", batchNo: "", barCode: "", quantity: 1, remark: "" })
+const inventoryCheckForm = reactive({ warehouseId: undefined, locationCode: "", batchNo: "", barCode: "", actualQty: 1, snCodes: "", remark: "" })
+const transferForm = reactive({ outWarehouseId: undefined, inWarehouseId: undefined, outLocationCode: "", inLocationCode: "", batchNo: "", barCode: "", quantity: 1, snCodes: "", remark: "" })
 
 const productResult = ref({})
 const resolvedScanUnit = computed(() => productResult.value.matchedUnit || productResult.value.unit || null)
@@ -499,20 +507,26 @@ function handleAppendInventoryCheckItem() {
     scanStock({ barCode: inventoryCheckForm.barCode, warehouseId: inventoryCheckForm.warehouseId, locationCode: inventoryCheckForm.locationCode, batchNo: inventoryCheckForm.batchNo })
   ]).then(([pRes, sRes]) => {
     const p = pRes.data?.product
+    const unit = pRes.data?.matchedUnit || pRes.data?.unit
+    const ratio = Number(unit?.convertRatio || 1)
     const stockQty = Number(sRes.data?.totalQty || 0)
     if (!p) { proxy.$modal.msgError("未找到扫码商品"); return }
     const batchNo = String(inventoryCheckForm.batchNo || "").trim()
+    const snCodes = String(inventoryCheckForm.snCodes || "").trim()
     const existing = inventoryCheckItemList.value.find(i => i.barCode === inventoryCheckForm.barCode && i.batchNo === batchNo)
     if (existing) {
       existing.actualQty = Number(existing.actualQty) + Number(inventoryCheckForm.actualQty || 0)
-      existing.diffQty = existing.actualQty - existing.stockQty
+      existing.diffQty = Number((existing.actualQty * ratio - existing.stockQty).toFixed(4))
+      if (snCodes) existing.snCodes = existing.snCodes ? `${existing.snCodes},${snCodes}` : snCodes
     } else {
+      const actualQty = Number(inventoryCheckForm.actualQty || 0)
       inventoryCheckItemList.value.push({
         barCode: inventoryCheckForm.barCode, batchNo, productId: p.productId, productName: p.productName,
-        stockQty, actualQty: Number(inventoryCheckForm.actualQty || 0), diffQty: Number(inventoryCheckForm.actualQty || 0) - stockQty
+        stockQty, actualQty, diffQty: Number((actualQty * ratio - stockQty).toFixed(4)), snCodes
       })
     }
     inventoryCheckForm.barCode = ""
+    inventoryCheckForm.snCodes = ""
     inventoryCheckForm.actualQty = 1
   })
 }
@@ -538,15 +552,23 @@ function handleAppendTransferItem() {
     scanStock({ barCode: transferForm.barCode, warehouseId: transferForm.outWarehouseId, locationCode: transferForm.outLocationCode, batchNo: transferForm.batchNo })
   ]).then(([pRes, sRes]) => {
     const p = pRes.data?.product
+    const unit = pRes.data?.matchedUnit || pRes.data?.unit
+    const ratio = Number(unit?.convertRatio || 1)
     const availableQty = Number(sRes.data?.availableQty || 0)
     if (!p) { proxy.$modal.msgError("未找到扫码商品"); return }
     const batchNo = String(transferForm.batchNo || "").trim()
+    const snCodes = String(transferForm.snCodes || "").trim()
     const existing = transferItemList.value.find(i => i.barCode === transferForm.barCode && i.batchNo === batchNo)
     const nextQty = Number(existing?.quantity || 0) + Number(transferForm.quantity || 1)
-    if (nextQty > availableQty) { proxy.$modal.msgError("调出库位可用库存不足"); return }
-    if (existing) existing.quantity = nextQty
-    else transferItemList.value.push({ barCode: transferForm.barCode, batchNo, productId: p.productId, productName: p.productName, availableQty, quantity: nextQty, costPrice: Number(p.costPrice || 0) })
+    if (nextQty * ratio > availableQty) { proxy.$modal.msgError("调出库位可用库存不足"); return }
+    if (existing) {
+      existing.quantity = nextQty
+      if (snCodes) existing.snCodes = existing.snCodes ? `${existing.snCodes},${snCodes}` : snCodes
+    } else {
+      transferItemList.value.push({ barCode: transferForm.barCode, batchNo, productId: p.productId, productName: p.productName, availableQty, quantity: nextQty, costPrice: Number(p.costPrice || 0), snCodes })
+    }
     transferForm.barCode = ""
+    transferForm.snCodes = ""
     transferForm.quantity = 1
   })
 }

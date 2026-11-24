@@ -61,6 +61,9 @@
           v-hasPermi="['business:receivable:remove']"
         >删除</el-button>
       </el-col>
+      <el-col :span="1.5">
+        <el-button type="warning" plain icon="Download" @click="handleExport" v-hasPermi="['business:receivable:export', 'business:receivable:list']">导出</el-button>
+      </el-col>
       <right-toolbar v-model:showSearch="showSearch" @queryTable="getList"></right-toolbar>
     </el-row>
 
@@ -248,7 +251,7 @@
         <el-table-column label="操作人" prop="createBy" width="90" align="center" />
         <el-table-column label="操作" width="105" align="center">
           <template #default="s">
-            <el-button v-if="s.row.status === '0'" link type="danger" @click="handleUnoffset(s.row)" v-hasPermi="['business:receivable:edit']">撤销对冲</el-button>
+            <el-button v-if="s.row.status === '0'" link type="danger" @click="handleUnoffset(s.row)" v-hasPermi="['business:receivable:unoffset']">撤销对冲</el-button>
             <span v-else>-</span>
           </template>
         </el-table-column>
@@ -571,4 +574,8 @@ function handleDelete(currentRow) {
 
 loadCustomers()
 getList()
+
+function handleExport() {
+  proxy.download("business/receivable/export", { ...queryParams.value }, `应收账款_${new Date().getTime()}.xlsx`)
+}
 </script>

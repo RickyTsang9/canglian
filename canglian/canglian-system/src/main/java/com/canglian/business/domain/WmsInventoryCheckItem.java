@@ -35,6 +35,8 @@ public class WmsInventoryCheckItem
     @JsonFormat(pattern = "yyyy-MM-dd")
     private Date expiryDate;
 
+    private String snCodes;
+
     private BigDecimal stockQty;
 
     private BigDecimal actualQty;
@@ -55,6 +57,8 @@ public class WmsInventoryCheckItem
     public void setProductionDate(Date productionDate) { this.productionDate = productionDate; }
     public Date getExpiryDate() { return expiryDate; }
     public void setExpiryDate(Date expiryDate) { this.expiryDate = expiryDate; }
+    public String getSnCodes() { return snCodes; }
+    public void setSnCodes(String snCodes) { this.snCodes = snCodes; }
 
     /**
      * 获取盘点明细id

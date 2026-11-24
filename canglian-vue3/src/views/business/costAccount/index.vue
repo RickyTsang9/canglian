@@ -31,6 +31,9 @@
     </el-form>
 
     <el-row :gutter="10" class="mb8">
+      <el-col :span="1.5">
+        <el-button type="warning" plain icon="Download" @click="handleExport" v-hasPermi="['business:costAccount:export', 'business:costAccount:list']">导出</el-button>
+      </el-col>
       <right-toolbar v-model:showSearch="showSearch" @queryTable="getList"></right-toolbar>
     </el-row>
 
@@ -125,4 +128,8 @@ function resetQuery() {
 Promise.all([loadProducts(), loadWarehouses()]).finally(() => {
   getList()
 })
+
+function handleExport() {
+  proxy.download("business/costAccount/export", { ...queryParams }, `成本总账_${new Date().getTime()}.xlsx`)
+}
 </script>

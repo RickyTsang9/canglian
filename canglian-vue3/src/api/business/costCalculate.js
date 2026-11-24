@@ -15,6 +15,14 @@ export function updateCostConfig(data) {
   })
 }
 
+export function simulateCost(data) {
+  return request({
+    url: '/business/costCalculate/simulate',
+    method: 'post',
+    data: data
+  })
+}
+
 export function calculateCost(data) {
   return request({
     url: '/business/costCalculate/calculate',

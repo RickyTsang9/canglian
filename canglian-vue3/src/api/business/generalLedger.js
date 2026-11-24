@@ -59,3 +59,11 @@ export function updateVoucherTemplate(data) {
 export function delVoucherTemplate(templateId) {
   return request({ url: '/business/generalLedger/voucherTemplate/' + templateId, method: 'delete' })
 }
+
+export function getTrialBalance(query) {
+  return request({ url: '/business/generalLedger/trialBalance', method: 'get', params: query })
+}
+
+export function getSubjectLedger(query) {
+  return request({ url: '/business/generalLedger/subjectLedger', method: 'get', params: query })
+}

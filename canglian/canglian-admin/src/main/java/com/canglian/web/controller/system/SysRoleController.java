@@ -292,6 +292,10 @@ public class SysRoleController extends BaseController
     @PutMapping("/authUser/cancel")
     public AjaxResult cancelAuthUser(@RequestBody SysUserRole userRole)
     {
+        roleService.checkRoleAllowed(new SysRole(userRole.getRoleId()));
+        roleService.checkRoleDataScope(userRole.getRoleId());
+        userService.checkUserAllowed(new SysUser(userRole.getUserId()));
+        userService.checkUserDataScope(userRole.getUserId());
         return toAjax(roleService.deleteAuthUser(userRole));
     }
 
@@ -303,6 +307,16 @@ public class SysRoleController extends BaseController
     @PutMapping("/authUser/cancelAll")
     public AjaxResult cancelAuthUserAll(Long roleId, Long[] userIds)
     {
+        roleService.checkRoleAllowed(new SysRole(roleId));
+        roleService.checkRoleDataScope(roleId);
+        if (userIds != null)
+        {
+            for (Long userId : userIds)
+            {
+                userService.checkUserAllowed(new SysUser(userId));
+                userService.checkUserDataScope(userId);
+            }
+        }
         return toAjax(roleService.deleteAuthUsers(roleId, userIds));
     }
 
@@ -314,7 +328,16 @@ public class SysRoleController extends BaseController
     @PutMapping("/authUser/selectAll")
     public AjaxResult selectAuthUserAll(Long roleId, Long[] userIds)
     {
+        roleService.checkRoleAllowed(new SysRole(roleId));
         roleService.checkRoleDataScope(roleId);
+        if (userIds != null)
+        {
+            for (Long userId : userIds)
+            {
+                userService.checkUserAllowed(new SysUser(userId));
+                userService.checkUserDataScope(userId);
+            }
+        }
         return toAjax(roleService.insertAuthUsers(roleId, userIds));
     }
 

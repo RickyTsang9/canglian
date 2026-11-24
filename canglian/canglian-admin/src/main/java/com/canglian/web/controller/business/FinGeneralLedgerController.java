@@ -145,4 +145,21 @@ public class FinGeneralLedgerController extends BaseController
     {
         return toAjax(finGeneralLedgerService.deleteVoucherTemplateById(templateId));
     }
+
+    @PreAuthorize("@ss.hasPermi('business:generalLedger:query')")
+    @GetMapping("/trialBalance")
+    public AjaxResult trialBalance(@RequestParam(required = false) String startDate,
+                                   @RequestParam(required = false) String endDate)
+    {
+        return success(finGeneralLedgerService.selectTrialBalance(startDate, endDate));
+    }
+
+    @PreAuthorize("@ss.hasPermi('business:generalLedger:query')")
+    @GetMapping("/subjectLedger")
+    public AjaxResult subjectLedger(@RequestParam String subjectCode,
+                                    @RequestParam(required = false) String startDate,
+                                    @RequestParam(required = false) String endDate)
+    {
+        return success(finGeneralLedgerService.selectSubjectLedger(subjectCode, startDate, endDate));
+    }
 }

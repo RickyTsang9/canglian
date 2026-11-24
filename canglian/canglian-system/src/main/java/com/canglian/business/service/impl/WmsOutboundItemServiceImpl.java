@@ -46,8 +46,25 @@ public class WmsOutboundItemServiceImpl implements IWmsOutboundItemService
         if (wmsOutboundItem != null && wmsOutboundItem.getOutboundId() != null)
         {
             assertOutboundAccess(wmsOutboundItem.getOutboundId());
+            return wmsOutboundItemMapper.selectWmsOutboundItemList(wmsOutboundItem);
         }
-        return wmsOutboundItemMapper.selectWmsOutboundItemList(wmsOutboundItem);
+        List<WmsOutboundItem> list = wmsOutboundItemMapper.selectWmsOutboundItemList(wmsOutboundItem);
+        if (bizScopeHelper == null || list == null || list.isEmpty()) return list;
+        java.util.List<WmsOutboundItem> filtered = new java.util.ArrayList<WmsOutboundItem>();
+        java.util.Map<Long, Boolean> cache = new java.util.HashMap<Long, Boolean>();
+        for (WmsOutboundItem it : list)
+        {
+            Long pid = it.getOutboundId();
+            Boolean ok = cache.get(pid);
+            if (ok == null)
+            {
+                WmsOutbound doc = pid == null ? null : wmsOutboundMapper.selectWmsOutboundById(pid);
+                ok = doc != null && bizScopeHelper.canAccessRecord(doc.getDeptId(), doc.getOwnerUserId(), doc.getWarehouseId());
+                cache.put(pid, ok);
+            }
+            if (Boolean.TRUE.equals(ok)) filtered.add(it);
+        }
+        return filtered;
     }
 
     @Override

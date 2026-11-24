@@ -31,6 +31,7 @@ import com.canglian.business.service.IFinGeneralLedgerService;
 import com.canglian.business.service.IFinVoucherEventService;
 import com.canglian.business.service.IMdProductUnitService;
 import com.canglian.business.service.IWmsInventoryCheckService;
+import com.canglian.business.service.IWmsSerialNoService;
 import com.canglian.common.exception.ServiceException;
 import com.canglian.common.utils.StringUtils;
 
@@ -79,6 +80,9 @@ public class WmsInventoryCheckServiceImpl implements IWmsInventoryCheckService
 
     @Autowired(required = false)
     private IFinVoucherEventService finVoucherEventService;
+
+    @Autowired(required = false)
+    private IWmsSerialNoService wmsSerialNoService;
 
     @Override
     public WmsInventoryCheck selectWmsInventoryCheckById(Long checkId)
@@ -250,11 +254,20 @@ public class WmsInventoryCheckServiceImpl implements IWmsInventoryCheckService
 
             Long locationId = defaultLocationId(inventoryCheckItem.getLocationId());
             String batchNo = defaultBatchNo(inventoryCheckItem.getBatchNo());
+            MdProduct product = mdProductMapper != null ? mdProductMapper.selectMdProductById(inventoryCheckItem.getProductId()) : null;
+            if (product != null && "1".equals(product.getEnableBatch()) && StringUtils.isEmpty(batchNo))
+            {
+                throw new ServiceException("商品[" + product.getProductName() + "]已启用批次管理，盘点明细必须填写批次号");
+            }
             String itemKey = inventoryCheckItem.getProductId() + "#" + locationId + "#" + batchNo;
             if (!seenKeys.add(itemKey)) throw new ServiceException("同一盘点单中存在重复的商品/库位/批次明细，请合并后再审核");
 
             BigDecimal ratio = resolveConvertRatio(inventoryCheckItem);
             BigDecimal actualBaseQty = actualQuantity.multiply(ratio).setScale(4, RoundingMode.HALF_UP);
+            if (product != null && "1".equals(product.getEnableSerial()) && actualBaseQty.stripTrailingZeros().scale() > 0)
+            {
+                throw new ServiceException("序列号管控商品[" + product.getProductName() + "]的实盘基准数量必须为整数");
+            }
 
             WmsStock stockQuery = new WmsStock();
             stockQuery.setWarehouseId(inventoryCheck.getWarehouseId());
@@ -273,6 +286,8 @@ public class WmsInventoryCheckServiceImpl implements IWmsInventoryCheckService
                     stock.setProductId(inventoryCheckItem.getProductId());
                     stock.setLocationId(locationId);
                     stock.setBatchNo(batchNo);
+                    stock.setProductionDate(inventoryCheckItem.getProductionDate());
+                    stock.setExpiryDate(inventoryCheckItem.getExpiryDate());
                     stock.setQuantity(actualBaseQty);
                     stock.setLockedQuantity(BigDecimal.ZERO);
                     stock.setFrozenQuantity(BigDecimal.ZERO);
@@ -291,10 +306,23 @@ public class WmsInventoryCheckServiceImpl implements IWmsInventoryCheckService
                 }
                 beforeQuantity = defaultBigDecimal(stock.getQuantity());
                 stock.setQuantity(actualBaseQty);
+                if (stock.getProductionDate() == null && inventoryCheckItem.getProductionDate() != null)
+                {
+                    stock.setProductionDate(inventoryCheckItem.getProductionDate());
+                }
+                if (stock.getExpiryDate() == null && inventoryCheckItem.getExpiryDate() != null)
+                {
+                    stock.setExpiryDate(inventoryCheckItem.getExpiryDate());
+                }
                 stock.setUpdateBy(operator);
                 wmsStockMapper.updateWmsStock(stock);
             }
             BigDecimal baseDiffQty = actualBaseQty.subtract(beforeQuantity);
+            if (wmsSerialNoService != null && baseDiffQty.compareTo(BigDecimal.ZERO) != 0)
+            {
+                wmsSerialNoService.handleInventoryCheckSerials(product, inventoryCheck.getWarehouseId(), locationId, batchNo,
+                    checkId, inventoryCheck.getCheckNo(), inventoryCheckItem.getExpiryDate(), inventoryCheckItem.getSnCodes(), baseDiffQty, operator);
+            }
             BigDecimal displayStockQty = ratio.compareTo(BigDecimal.ONE) > 0
                 ? beforeQuantity.divide(ratio, 4, RoundingMode.HALF_UP) : beforeQuantity;
             BigDecimal displayDiffQty = actualQuantity.subtract(displayStockQty);
@@ -403,7 +431,7 @@ public class WmsInventoryCheckServiceImpl implements IWmsInventoryCheckService
         List<WmsInventoryCheckItem> items = wmsInventoryCheckItemMapper.selectWmsInventoryCheckItemList(q);
         if (items != null)
         {
-            revertCheckDiffs(check.getWarehouseId(), items, "inventory_check_unaudit", checkId, operator);
+            revertCheckDiffs(check.getWarehouseId(), items, "inventory_check_unaudit", checkId, check.getCheckNo(), true, operator);
         }
         check.setStatus("0");
         check.setUnauditBy(operator);
@@ -425,6 +453,7 @@ public class WmsInventoryCheckServiceImpl implements IWmsInventoryCheckService
         if (!"1".equals(origin.getStatus())) throw new ServiceException("仅已审核盘点单允许红冲");
         if ("1".equals(origin.getIsReversal())) throw new ServiceException("红冲单据不允许再次红冲");
         if ("1".equals(origin.getReversedFlag())) throw new ServiceException("该盘点单已被红冲，请勿重复红冲");
+        finGeneralLedgerService.assertPeriodOpen(resolveBusinessDate(origin));
         finGeneralLedgerService.assertPeriodOpen(new Date());
 
         WmsInventoryCheckItem q = new WmsInventoryCheckItem();
@@ -448,7 +477,7 @@ public class WmsInventoryCheckServiceImpl implements IWmsInventoryCheckService
         reversal.setRemark("红冲原盘点单：" + origin.getCheckNo());
         wmsInventoryCheckMapper.insertWmsInventoryCheck(reversal);
 
-        BigDecimal[] revTotals = revertCheckDiffs(origin.getWarehouseId(), originItems, "inventory_check_reverse", reversal.getCheckId(), operator);
+        BigDecimal[] revTotals = revertCheckDiffs(origin.getWarehouseId(), originItems, "inventory_check_reverse", reversal.getCheckId(), reversal.getCheckNo(), false, operator);
         for (WmsInventoryCheckItem oi : originItems)
         {
             WmsInventoryCheckItem ri = new WmsInventoryCheckItem();
@@ -458,6 +487,9 @@ public class WmsInventoryCheckServiceImpl implements IWmsInventoryCheckService
             ri.setBatchNo(defaultBatchNo(oi.getBatchNo()));
             ri.setUnitName(oi.getUnitName());
             ri.setConvertRatio(oi.getConvertRatio());
+            ri.setProductionDate(oi.getProductionDate());
+            ri.setExpiryDate(oi.getExpiryDate());
+            ri.setSnCodes(oi.getSnCodes());
             ri.setStockQty(oi.getActualQty());
             ri.setActualQty(oi.getStockQty());
             ri.setDiffQty(defaultBigDecimal(oi.getDiffQty()).negate());
@@ -486,7 +518,8 @@ public class WmsInventoryCheckServiceImpl implements IWmsInventoryCheckService
         return selectWmsInventoryCheckById(reversal.getCheckId());
     }
 
-    private BigDecimal[] revertCheckDiffs(Long warehouseId, List<WmsInventoryCheckItem> items, String billType, Long billId, String operator)
+    private BigDecimal[] revertCheckDiffs(Long warehouseId, List<WmsInventoryCheckItem> items, String billType, Long billId,
+                                          String billNo, boolean deleteSerials, String operator)
     {
         BigDecimal gainAmt = BigDecimal.ZERO;
         BigDecimal lossAmt = BigDecimal.ZERO;
@@ -496,6 +529,12 @@ public class WmsInventoryCheckServiceImpl implements IWmsInventoryCheckService
             if (diffQty.compareTo(BigDecimal.ZERO) == 0) continue;
             Long locationId = defaultLocationId(item.getLocationId());
             String batchNo = defaultBatchNo(item.getBatchNo());
+            MdProduct product = mdProductMapper != null ? mdProductMapper.selectMdProductById(item.getProductId()) : null;
+            if (wmsSerialNoService != null)
+            {
+                wmsSerialNoService.rollbackInventoryCheckSerials(product, warehouseId, locationId, billId, billNo,
+                    item.getSnCodes(), diffQty, deleteSerials, operator);
+            }
             WmsStock q = new WmsStock();
             q.setWarehouseId(warehouseId);
             q.setProductId(item.getProductId());
@@ -599,6 +638,7 @@ public class WmsInventoryCheckServiceImpl implements IWmsInventoryCheckService
         if (locationId == null || locationId <= 0L || warehouseId == null || mdLocationMapper == null) return;
         MdLocation loc = mdLocationMapper.selectMdLocationByLocationId(locationId);
         if (loc == null) throw new ServiceException("指定库位(#" + locationId + ")不存在");
+        if ("1".equals(loc.getStatus())) throw new ServiceException("库位[" + loc.getLocationName() + "]已停用，禁止盘点");
         if (!warehouseId.equals(loc.getWarehouseId()))
         {
             throw new ServiceException("库位[" + loc.getLocationName() + "]不属于当前盘点仓库");

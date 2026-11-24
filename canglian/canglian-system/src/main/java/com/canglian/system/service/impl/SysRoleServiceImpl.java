@@ -10,7 +10,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import com.canglian.common.annotation.DataScope;
 import com.canglian.common.constant.UserConstants;
+import com.canglian.common.core.domain.entity.SysMenu;
 import com.canglian.common.core.domain.entity.SysRole;
+import com.canglian.common.core.domain.entity.SysUser;
 import com.canglian.common.exception.ServiceException;
 import com.canglian.common.utils.SecurityUtils;
 import com.canglian.common.utils.StringUtils;
@@ -18,6 +20,7 @@ import com.canglian.common.utils.spring.SpringUtils;
 import com.canglian.system.domain.SysRoleDept;
 import com.canglian.system.domain.SysRoleMenu;
 import com.canglian.system.domain.SysUserRole;
+import com.canglian.system.mapper.SysMenuMapper;
 import com.canglian.system.mapper.SysRoleDeptMapper;
 import com.canglian.system.mapper.SysRoleMapper;
 import com.canglian.system.mapper.SysRoleMenuMapper;
@@ -47,6 +50,9 @@ public class SysRoleServiceImpl implements ISysRoleService
 
     @Autowired
     private SysRoleWarehouseMapper roleWarehouseMapper;
+
+    @Autowired(required = false)
+    private SysMenuMapper menuMapper;
 
     /**
      * 根据条件分页查询角色数据
@@ -237,6 +243,7 @@ public class SysRoleServiceImpl implements ISysRoleService
     @Transactional
     public int insertRole(SysRole role)
     {
+        assertRolePrivilegeNotEscalated(role);
         // 新增角色信息
         roleMapper.insertRole(role);
         return insertRoleMenu(role);
@@ -252,6 +259,7 @@ public class SysRoleServiceImpl implements ISysRoleService
     @Transactional
     public int updateRole(SysRole role)
     {
+        assertRolePrivilegeNotEscalated(role);
         // 修改角色信息
         roleMapper.updateRole(role);
         // 删除角色与菜单关联
@@ -287,6 +295,7 @@ public class SysRoleServiceImpl implements ISysRoleService
     @Transactional
     public int authDataScope(SysRole role)
     {
+        assertRoleScopeNotEscalated(role);
         // 修改角色信息（含 warehouseScope）
         roleMapper.updateRole(role);
         // 删除角色与部门关联
@@ -299,6 +308,93 @@ public class SysRoleServiceImpl implements ISysRoleService
         }
         // 新增角色和部门信息（数据权限）
         return insertRoleDept(role);
+    }
+
+    private void assertRolePrivilegeNotEscalated(SysRole role)
+    {
+        if (role == null) return;
+        SysUser current;
+        try
+        {
+            current = SecurityUtils.getLoginUser() == null ? null : SecurityUtils.getLoginUser().getUser();
+        }
+        catch (Exception ex)
+        {
+            return;
+        }
+        if (current == null || current.isAdmin()) return;
+        if ("admin".equalsIgnoreCase(role.getRoleKey()))
+        {
+            throw new ServiceException("禁止创建或修改超级管理员权限字符");
+        }
+        if (role.getMenuIds() != null && role.getMenuIds().length > 0 && menuMapper != null)
+        {
+            SysMenu q = new SysMenu();
+            q.getParams().put("userId", current.getUserId());
+            List<SysMenu> ownedMenus = menuMapper.selectMenuListByUserId(q);
+            Set<Long> ownedIds = new HashSet<Long>();
+            if (ownedMenus != null)
+            {
+                for (SysMenu m : ownedMenus)
+                {
+                    if (m != null && m.getMenuId() != null) ownedIds.add(m.getMenuId());
+                }
+            }
+            for (Long menuId : role.getMenuIds())
+            {
+                if (menuId != null && !ownedIds.contains(menuId))
+                {
+                    throw new ServiceException("权限越级拦截：禁止为角色授予当前账号未持有的菜单权限(#" + menuId + ")");
+                }
+            }
+        }
+        assertRoleScopeNotEscalated(role);
+    }
+
+    private void assertRoleScopeNotEscalated(SysRole role)
+    {
+        if (role == null) return;
+        SysUser current;
+        try
+        {
+            current = SecurityUtils.getLoginUser() == null ? null : SecurityUtils.getLoginUser().getUser();
+        }
+        catch (Exception ex)
+        {
+            return;
+        }
+        if (current == null || current.isAdmin()) return;
+        boolean callerHasAllData = false;
+        boolean callerHasAllWarehouse = false;
+        if (current.getRoles() != null)
+        {
+            for (SysRole r : current.getRoles())
+            {
+                if (r == null || "1".equals(r.getStatus())) continue;
+                if ("1".equals(r.getDataScope())) callerHasAllData = true;
+                if (!"2".equals(r.getWarehouseScope())) callerHasAllWarehouse = true;
+            }
+        }
+        if ("1".equals(role.getDataScope()) && !callerHasAllData)
+        {
+            throw new ServiceException("权限越级拦截：当前账号无全部数据权限，禁止为角色授予全部数据权限");
+        }
+        if ("1".equals(role.getWarehouseScope()) && !callerHasAllWarehouse)
+        {
+            throw new ServiceException("权限越级拦截：当前账号受仓库隔离限制，禁止为角色授予全部仓库权限");
+        }
+        if ("2".equals(role.getWarehouseScope()) && !callerHasAllWarehouse && role.getWarehouseIds() != null && roleWarehouseMapper != null)
+        {
+            List<Long> ownedWh = roleWarehouseMapper.selectAuthorizedWarehouseIdsByUserId(current.getUserId());
+            Set<Long> ownedSet = new HashSet<Long>(ownedWh == null ? new ArrayList<Long>() : ownedWh);
+            for (Long whId : role.getWarehouseIds())
+            {
+                if (whId != null && !ownedSet.contains(whId))
+                {
+                    throw new ServiceException("权限越级拦截：禁止授予当前账号未授权的仓库(#" + whId + ")");
+                }
+            }
+        }
     }
 
     /**

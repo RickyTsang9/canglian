@@ -97,4 +97,14 @@ public interface FinGeneralLedgerMapper
     public int countPendingVoucherEventInPeriod(@Param("startDate") Date startDate, @Param("endDate") Date endDate);
 
     public int countUnwrittenBackVoucherInPeriod(@Param("startDate") Date startDate, @Param("endDate") Date endDate);
+
+    public int countDraftReceivableInPeriod(@Param("startDate") Date startDate, @Param("endDate") Date endDate);
+
+    public int countDraftPayableInPeriod(@Param("startDate") Date startDate, @Param("endDate") Date endDate);
+
+    public int countUnsignedOutboundInPeriod(@Param("startDate") Date startDate, @Param("endDate") Date endDate);
+
+    public List<Map<String, Object>> selectTrialBalance(@Param("startDate") String startDate, @Param("endDate") String endDate);
+
+    public List<Map<String, Object>> selectSubjectLedger(@Param("subjectCode") String subjectCode, @Param("startDate") String startDate, @Param("endDate") String endDate);
 }

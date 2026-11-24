@@ -40,82 +40,202 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
 
     <select id="selectReceivableAgingReport" parameterType="Long" resultMap="FinAgingReportResult">
         select
-            r.customer_id as dimension_id,
-            coalesce(max(c.customer_name), concat('客户#', r.customer_id)) as dimension_name,
-            ifnull(sum(case when r.amount &gt; 0 and (r.due_date is null or datediff(curdate(), r.due_date) &lt; 0) then r.amount - ifnull(r.received_amount, 0) - ifnull(r.bad_debt_amount, 0) else 0 end), 0) as not_due_amount,
-            ifnull(sum(case when r.amount &gt; 0 and datediff(curdate(), r.due_date) between 0 and 30 then r.amount - ifnull(r.received_amount, 0) - ifnull(r.bad_debt_amount, 0) else 0 end), 0) as days_0_30_amount,
-            ifnull(sum(case when r.amount &gt; 0 and datediff(curdate(), r.due_date) between 31 and 60 then r.amount - ifnull(r.received_amount, 0) - ifnull(r.bad_debt_amount, 0) else 0 end), 0) as days_31_60_amount,
-            ifnull(sum(case when r.amount &gt; 0 and datediff(curdate(), r.due_date) between 61 and 90 then r.amount - ifnull(r.received_amount, 0) - ifnull(r.bad_debt_amount, 0) else 0 end), 0) as days_61_90_amount,
-            ifnull(sum(case when r.amount &gt; 0 and datediff(curdate(), r.due_date) &gt; 90 then r.amount - ifnull(r.received_amount, 0) - ifnull(r.bad_debt_amount, 0) else 0 end), 0) as days_90_above_amount,
-            ifnull(sum(case when r.amount &lt; 0 then r.amount - ifnull(r.received_amount, 0) - ifnull(r.bad_debt_amount, 0) else 0 end), 0) as credit_balance,
-            ifnull(sum(r.amount - ifnull(r.received_amount, 0) - ifnull(r.bad_debt_amount, 0)), 0) as net_balance
-        from fin_receivable r
-        left join md_customer c on r.customer_id = c.customer_id
-        <where>
-            and r.biz_status = 'confirmed'
+            t.dimension_id,
+            coalesce(max(c.customer_name), concat('客户#', t.dimension_id)) as dimension_name,
+            ifnull(sum(t.not_due_amount), 0) as not_due_amount,
+            ifnull(sum(t.days_0_30_amount), 0) as days_0_30_amount,
+            ifnull(sum(t.days_31_60_amount), 0) as days_31_60_amount,
+            ifnull(sum(t.days_61_90_amount), 0) as days_61_90_amount,
+            ifnull(sum(t.days_90_above_amount), 0) as days_90_above_amount,
+            ifnull(sum(t.credit_balance), 0) as credit_balance,
+            ifnull(sum(t.net_balance), 0) as net_balance
+        from (
+            select
+                r.customer_id as dimension_id,
+                case when r.amount &gt; 0 and (r.due_date is null or datediff(curdate(), r.due_date) &lt; 0) then r.amount - ifnull(r.received_amount, 0) - ifnull(r.bad_debt_amount, 0) else 0 end as not_due_amount,
+                case when r.amount &gt; 0 and datediff(curdate(), r.due_date) between 0 and 30 then r.amount - ifnull(r.received_amount, 0) - ifnull(r.bad_debt_amount, 0) else 0 end as days_0_30_amount,
+                case when r.amount &gt; 0 and datediff(curdate(), r.due_date) between 31 and 60 then r.amount - ifnull(r.received_amount, 0) - ifnull(r.bad_debt_amount, 0) else 0 end as days_31_60_amount,
+                case when r.amount &gt; 0 and datediff(curdate(), r.due_date) between 61 and 90 then r.amount - ifnull(r.received_amount, 0) - ifnull(r.bad_debt_amount, 0) else 0 end as days_61_90_amount,
+                case when r.amount &gt; 0 and datediff(curdate(), r.due_date) &gt; 90 then r.amount - ifnull(r.received_amount, 0) - ifnull(r.bad_debt_amount, 0) else 0 end as days_90_above_amount,
+                case when r.amount &lt; 0 then r.amount - ifnull(r.received_amount, 0) - ifnull(r.bad_debt_amount, 0) else 0 end as credit_balance,
+                (r.amount - ifnull(r.received_amount, 0) - ifnull(r.bad_debt_amount, 0)) as net_balance
+            from fin_receivable r
+            where r.biz_status = 'confirmed'
             <if test="customerId != null">
                 and r.customer_id = #{customerId}
             </if>
-        </where>
-        group by r.customer_id
+            union all
+            select
+                rc.customer_id as dimension_id,
+                0 as not_due_amount,
+                0 as days_0_30_amount,
+                0 as days_31_60_amount,
+                0 as days_61_90_amount,
+                0 as days_90_above_amount,
+                -greatest(rc.amount - ifnull(wo.used_amt, 0), 0) as credit_balance,
+                -greatest(rc.amount - ifnull(wo.used_amt, 0), 0) as net_balance
+            from fin_receipt rc
+            left join (
+                select receipt_id, sum(amount) as used_amt
+                from fin_write_off
+                where status = '1'
+                group by receipt_id
+            ) wo on wo.receipt_id = rc.receipt_id
+            where rc.status = '1'
+              and rc.receivable_id is null
+              and rc.amount &gt; 0
+              and rc.customer_id is not null
+              and (rc.amount - ifnull(wo.used_amt, 0)) &gt; 0
+            <if test="customerId != null">
+                and rc.customer_id = #{customerId}
+            </if>
+        ) t
+        left join md_customer c on t.dimension_id = c.customer_id
+        group by t.dimension_id
     </select>
 
     <select id="selectPayableAgingReport" parameterType="Long" resultMap="FinAgingReportResult">
         select
-            p.supplier_id as dimension_id,
-            coalesce(max(s.supplier_name), concat('供应商#', p.supplier_id)) as dimension_name,
-            ifnull(sum(case when p.amount &gt; 0 and (p.due_date is null or datediff(curdate(), p.due_date) &lt; 0) then p.amount - ifnull(p.paid_amount, 0) else 0 end), 0) as not_due_amount,
-            ifnull(sum(case when p.amount &gt; 0 and datediff(curdate(), p.due_date) between 0 and 30 then p.amount - ifnull(p.paid_amount, 0) else 0 end), 0) as days_0_30_amount,
-            ifnull(sum(case when p.amount &gt; 0 and datediff(curdate(), p.due_date) between 31 and 60 then p.amount - ifnull(p.paid_amount, 0) else 0 end), 0) as days_31_60_amount,
-            ifnull(sum(case when p.amount &gt; 0 and datediff(curdate(), p.due_date) between 61 and 90 then p.amount - ifnull(p.paid_amount, 0) else 0 end), 0) as days_61_90_amount,
-            ifnull(sum(case when p.amount &gt; 0 and datediff(curdate(), p.due_date) &gt; 90 then p.amount - ifnull(p.paid_amount, 0) else 0 end), 0) as days_90_above_amount,
-            ifnull(sum(case when p.amount &lt; 0 then p.amount - ifnull(p.paid_amount, 0) else 0 end), 0) as credit_balance,
-            ifnull(sum(p.amount - ifnull(p.paid_amount, 0)), 0) as net_balance
-        from fin_payable p
-        left join md_supplier s on p.supplier_id = s.supplier_id
-        <where>
-            and p.biz_status = 'confirmed'
+            t.dimension_id,
+            coalesce(max(s.supplier_name), concat('供应商#', t.dimension_id)) as dimension_name,
+            ifnull(sum(t.not_due_amount), 0) as not_due_amount,
+            ifnull(sum(t.days_0_30_amount), 0) as days_0_30_amount,
+            ifnull(sum(t.days_31_60_amount), 0) as days_31_60_amount,
+            ifnull(sum(t.days_61_90_amount), 0) as days_61_90_amount,
+            ifnull(sum(t.days_90_above_amount), 0) as days_90_above_amount,
+            ifnull(sum(t.credit_balance), 0) as credit_balance,
+            ifnull(sum(t.net_balance), 0) as net_balance
+        from (
+            select
+                p.supplier_id as dimension_id,
+                case when p.amount &gt; 0 and (p.due_date is null or datediff(curdate(), p.due_date) &lt; 0) then p.amount - ifnull(p.paid_amount, 0) else 0 end as not_due_amount,
+                case when p.amount &gt; 0 and datediff(curdate(), p.due_date) between 0 and 30 then p.amount - ifnull(p.paid_amount, 0) else 0 end as days_0_30_amount,
+                case when p.amount &gt; 0 and datediff(curdate(), p.due_date) between 31 and 60 then p.amount - ifnull(p.paid_amount, 0) else 0 end as days_31_60_amount,
+                case when p.amount &gt; 0 and datediff(curdate(), p.due_date) between 61 and 90 then p.amount - ifnull(p.paid_amount, 0) else 0 end as days_61_90_amount,
+                case when p.amount &gt; 0 and datediff(curdate(), p.due_date) &gt; 90 then p.amount - ifnull(p.paid_amount, 0) else 0 end as days_90_above_amount,
+                case when p.amount &lt; 0 then p.amount - ifnull(p.paid_amount, 0) else 0 end as credit_balance,
+                (p.amount - ifnull(p.paid_amount, 0)) as net_balance
+            from fin_payable p
+            where p.biz_status = 'confirmed'
             <if test="supplierId != null">
                 and p.supplier_id = #{supplierId}
             </if>
-        </where>
-        group by p.supplier_id
+            union all
+            select
+                pm.supplier_id as dimension_id,
+                0 as not_due_amount,
+                0 as days_0_30_amount,
+                0 as days_31_60_amount,
+                0 as days_61_90_amount,
+                0 as days_90_above_amount,
+                -greatest(pm.amount - ifnull(wo.used_amt, 0), 0) as credit_balance,
+                -greatest(pm.amount - ifnull(wo.used_amt, 0), 0) as net_balance
+            from fin_payment pm
+            left join (
+                select payment_id, sum(amount) as used_amt
+                from fin_write_off
+                where status = '1'
+                group by payment_id
+            ) wo on wo.payment_id = pm.payment_id
+            where pm.status = '1'
+              and pm.payable_id is null
+              and pm.amount &gt; 0
+              and pm.supplier_id is not null
+              and (pm.amount - ifnull(wo.used_amt, 0)) &gt; 0
+            <if test="supplierId != null">
+                and pm.supplier_id = #{supplierId}
+            </if>
+        ) t
+        left join md_supplier s on t.dimension_id = s.supplier_id
+        group by t.dimension_id
     </select>
 
     <select id="selectReceivableReconciliationReport" parameterType="Long" resultMap="FinReconciliationReportResult">
         select
-            r.customer_id as dimension_id,
-            coalesce(max(c.customer_name), concat('客户#', r.customer_id)) as dimension_name,
-            ifnull(sum(r.amount), 0) as bill_amount,
-            ifnull(sum(ifnull(r.received_amount, 0)), 0) as paid_amount,
-            ifnull(sum(r.amount - ifnull(r.received_amount, 0) - ifnull(r.bad_debt_amount, 0)), 0) as diff_amount
-        from fin_receivable r
-        left join md_customer c on r.customer_id = c.customer_id
-        <where>
-            and r.biz_status = 'confirmed'
+            t.dimension_id,
+            coalesce(max(c.customer_name), concat('客户#', t.dimension_id)) as dimension_name,
+            ifnull(sum(t.bill_amount), 0) as bill_amount,
+            ifnull(sum(t.paid_amount), 0) as paid_amount,
+            ifnull(sum(t.diff_amount), 0) as diff_amount
+        from (
+            select
+                r.customer_id as dimension_id,
+                r.amount as bill_amount,
+                ifnull(r.received_amount, 0) as paid_amount,
+                (r.amount - ifnull(r.received_amount, 0) - ifnull(r.bad_debt_amount, 0)) as diff_amount
+            from fin_receivable r
+            where r.biz_status = 'confirmed'
             <if test="customerId != null">
                 and r.customer_id = #{customerId}
             </if>
-        </where>
-        group by r.customer_id
+            union all
+            select
+                rc.customer_id as dimension_id,
+                0 as bill_amount,
+                greatest(rc.amount - ifnull(wo.used_amt, 0), 0) as paid_amount,
+                -greatest(rc.amount - ifnull(wo.used_amt, 0), 0) as diff_amount
+            from fin_receipt rc
+            left join (
+                select receipt_id, sum(amount) as used_amt
+                from fin_write_off
+                where status = '1'
+                group by receipt_id
+            ) wo on wo.receipt_id = rc.receipt_id
+            where rc.status = '1'
+              and rc.receivable_id is null
+              and rc.amount &gt; 0
+              and rc.customer_id is not null
+              and (rc.amount - ifnull(wo.used_amt, 0)) &gt; 0
+            <if test="customerId != null">
+                and rc.customer_id = #{customerId}
+            </if>
+        ) t
+        left join md_customer c on t.dimension_id = c.customer_id
+        group by t.dimension_id
     </select>
 
     <select id="selectPayableReconciliationReport" parameterType="Long" resultMap="FinReconciliationReportResult">
         select
-            p.supplier_id as dimension_id,
-            coalesce(max(s.supplier_name), concat('供应商#', p.supplier_id)) as dimension_name,
-            ifnull(sum(p.amount), 0) as bill_amount,
-            ifnull(sum(ifnull(p.paid_amount, 0)), 0) as paid_amount,
-            ifnull(sum(p.amount - ifnull(p.paid_amount, 0)), 0) as diff_amount
-        from fin_payable p
-        left join md_supplier s on p.supplier_id = s.supplier_id
-        <where>
-            and p.biz_status = 'confirmed'
+            t.dimension_id,
+            coalesce(max(s.supplier_name), concat('供应商#', t.dimension_id)) as dimension_name,
+            ifnull(sum(t.bill_amount), 0) as bill_amount,
+            ifnull(sum(t.paid_amount), 0) as paid_amount,
+            ifnull(sum(t.diff_amount), 0) as diff_amount
+        from (
+            select
+                p.supplier_id as dimension_id,
+                p.amount as bill_amount,
+                ifnull(p.paid_amount, 0) as paid_amount,
+                (p.amount - ifnull(p.paid_amount, 0)) as diff_amount
+            from fin_payable p
+            where p.biz_status = 'confirmed'
             <if test="supplierId != null">
                 and p.supplier_id = #{supplierId}
             </if>
-        </where>
-        group by p.supplier_id
+            union all
+            select
+                pm.supplier_id as dimension_id,
+                0 as bill_amount,
+                greatest(pm.amount - ifnull(wo.used_amt, 0), 0) as paid_amount,
+                -greatest(pm.amount - ifnull(wo.used_amt, 0), 0) as diff_amount
+            from fin_payment pm
+            left join (
+                select payment_id, sum(amount) as used_amt
+                from fin_write_off
+                where status = '1'
+                group by payment_id
+            ) wo on wo.payment_id = pm.payment_id
+            where pm.status = '1'
+              and pm.payable_id is null
+              and pm.amount &gt; 0
+              and pm.supplier_id is not null
+              and (pm.amount - ifnull(wo.used_amt, 0)) &gt; 0
+            <if test="supplierId != null">
+                and pm.supplier_id = #{supplierId}
+            </if>
+        ) t
+        left join md_supplier s on t.dimension_id = s.supplier_id
+        group by t.dimension_id
     </select>
 
     <!-- 权责发生制经营利润表：严格按签收确认(delivery_status='2')确认收入与成本，排除红冲/被红冲单据，扣减已确认销项税（含红票），计入盘点损益/调价/互转手续费/当期坏账收回 -->
@@ -203,23 +323,23 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
               from fin_bad_debt
               where status in ('1', '2')
                 and bad_debt_date between #{startDate} and #{endDate})
-             - (select ifnull(sum(ifnull(recovered_amount, 0)), 0)
-                from fin_bad_debt
-                where status = '2'
-                  and recover_time is not null
-                  and date(recover_time) between #{startDate} and #{endDate})) as bad_debt_amount
+             - (select ifnull(sum(change_amount), 0)
+                from fin_fund_log
+                where biz_type = 'bad_debt_recover'
+                  and direction = '1'
+                  and date(biz_date) between #{startDate} and #{endDate})) as bad_debt_amount
     </select>
 
-    <!-- 现金收支汇总表（收付实现制，严格限定已确认单据，包含坏账收回流入与互转手续费流出） -->
+    <!-- 现金收支汇总表（收付实现制，严格限定已确认单据，包含全部坏账部分/全额收回实际入账流水与互转手续费流出） -->
     <select id="selectRevenueExpenseReport" resultMap="FinRevenueExpenseReportResult">
         select
             ((select ifnull(sum(amount), 0) from fin_receipt where status = '1' and receipt_date between #{startDate} and #{endDate})
-             + (select ifnull(sum(ifnull(recovered_amount, 0)), 0) from fin_bad_debt where status = '2' and recover_time is not null and date(recover_time) between #{startDate} and #{endDate})) as income_amount,
+             + (select ifnull(sum(change_amount), 0) from fin_fund_log where biz_type = 'bad_debt_recover' and direction = '1' and date(biz_date) between #{startDate} and #{endDate})) as income_amount,
             ((select ifnull(sum(amount), 0) from fin_payment where status = '1' and payment_date between #{startDate} and #{endDate})
              + (select ifnull(sum(amount), 0) from fin_expense where status = '1' and expense_date between #{startDate} and #{endDate})
              + (select ifnull(sum(ifnull(fee_amount, 0)), 0) from fin_fund_transfer where status = '1' and ifnull(fee_amount, 0) &gt; 0 and transfer_date between #{startDate} and #{endDate})) as expense_amount,
             (((select ifnull(sum(amount), 0) from fin_receipt where status = '1' and receipt_date between #{startDate} and #{endDate})
-              + (select ifnull(sum(ifnull(recovered_amount, 0)), 0) from fin_bad_debt where status = '2' and recover_time is not null and date(recover_time) between #{startDate} and #{endDate}))
+              + (select ifnull(sum(change_amount), 0) from fin_fund_log where biz_type = 'bad_debt_recover' and direction = '1' and date(biz_date) between #{startDate} and #{endDate}))
              - ((select ifnull(sum(amount), 0) from fin_payment where status = '1' and payment_date between #{startDate} and #{endDate})
                 + (select ifnull(sum(amount), 0) from fin_expense where status = '1' and expense_date between #{startDate} and #{endDate})
                 + (select ifnull(sum(ifnull(fee_amount, 0)), 0) from fin_fund_transfer where status = '1' and ifnull(fee_amount, 0) &gt; 0 and transfer_date between #{startDate} and #{endDate}))) as net_amount
@@ -288,11 +408,11 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
                  from fin_bad_debt
                  where status in ('1', '2')
                    and bad_debt_date between #{startDate} and #{endDate})
-                - (select ifnull(sum(ifnull(recovered_amount, 0)), 0)
-                   from fin_bad_debt
-                   where status = '2'
-                     and recover_time is not null
-                     and date(recover_time) between #{startDate} and #{endDate})) as cost_amount
+                - (select ifnull(sum(change_amount), 0)
+                   from fin_fund_log
+                   where biz_type = 'bad_debt_recover'
+                     and direction = '1'
+                     and date(biz_date) between #{startDate} and #{endDate})) as cost_amount
         union all
         select '银行手续费' as cost_type,
                ifnull(sum(ifnull(fee_amount, 0)), 0) as cost_amount
@@ -400,7 +520,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             c.customer_name as customerName,
             round(ifnull(ob.sale_amount, 0) - ifnull(sr.return_amount, 0), 2) as saleAmount,
             ifnull(ob.bill_count, 0) as orderCount,
-            round(ifnull(ar.received_amount, 0), 2) as receivedContribution,
+            round(ifnull(ar.received_amount, 0) + ifnull(bd.recovered_amount, 0), 2) as receivedContribution,
             round(ifnull(ar.unpaid_amount, 0), 2) as unpaidAmount
         from md_customer c
         left join (
@@ -436,6 +556,15 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
               and customer_id is not null
             group by customer_id
         ) ar on ar.customer_id = c.customer_id
+        left join (
+            select customer_id,
+                   sum(ifnull(recovered_amount, 0)) as recovered_amount
+            from fin_bad_debt
+            where status in ('1', '2')
+              and ifnull(recovered_amount, 0) &gt; 0
+              and customer_id is not null
+            group by customer_id
+        ) bd on bd.customer_id = c.customer_id
         where c.del_flag = '0'
           and (ifnull(ob.bill_count, 0) &gt; 0 or ifnull(sr.return_amount, 0) &gt; 0)
         order by saleAmount desc
@@ -458,12 +587,12 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             select
                 product_id,
                 sum(case
-                    when bill_type = 'outbound' and in_out = '2' then quantity
+                    when bill_type in ('outbound', 'sale_return_unaudit', 'sale_return_reverse') and in_out = '2' then quantity
                     when bill_type in ('outbound_unaudit', 'outbound_reverse', 'outbound_return', 'sale_return') and in_out = '1' then -quantity
                     else 0
                 end) as outbound_qty,
                 sum(case
-                    when bill_type = 'inbound' and in_out = '1' then quantity
+                    when bill_type in ('inbound', 'purchase_return_unaudit', 'purchase_return_reverse') and in_out = '1' then quantity
                     when bill_type in ('inbound_unaudit', 'inbound_reverse', 'purchase_return') and in_out = '2' then -quantity
                     else 0
                 end) as inbound_qty
@@ -518,11 +647,11 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         where status = '1'
           and receipt_date between #{startDate} and #{endDate}
         union all
-        select '坏账收回流入' as fundTypeName, 'bad_debt_recover' as fundType, ifnull(sum(ifnull(recovered_amount, 0)), 0) as amount
-        from fin_bad_debt
-        where status = '2'
-          and recover_time is not null
-          and date(recover_time) between #{startDate} and #{endDate}
+        select '坏账收回流入' as fundTypeName, 'bad_debt_recover' as fundType, ifnull(sum(change_amount), 0) as amount
+        from fin_fund_log
+        where biz_type = 'bad_debt_recover'
+          and direction = '1'
+          and date(biz_date) between #{startDate} and #{endDate}
         union all
         select '采购付款' as fundTypeName, 'payment' as fundType, ifnull(sum(amount), 0) as amount
         from fin_payment

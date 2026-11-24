@@ -41,6 +41,9 @@
       <el-col :span="1.5">
         <el-button type="danger" plain icon="Delete" :disabled="isMultipleDisabled" @click="handleDelete" v-hasPermi="['business:invoice:remove']">删除</el-button>
       </el-col>
+      <el-col :span="1.5">
+        <el-button type="warning" plain icon="Download" @click="handleExport" v-hasPermi="['business:invoice:export', 'business:invoice:list']">导出</el-button>
+      </el-col>
       <right-toolbar v-model:showSearch="showSearch" @queryTable="getList" />
     </el-row>
 
@@ -326,26 +329,32 @@ async function loadSourceBills(type) {
       }))
     } else if (type === "receivable") {
       const rows = await fetchOpenReceivables(form.value.customerId)
-      sourceBillOptions.value = rows.map(r => ({
-        id: r.receivableId,
-        billNo: r.billNo || `AR-${r.receivableId}`,
-        counterpartyId: r.customerId,
-        amount: Number(r.amount || 0),
-        label: `${r.billNo || `AR-${r.receivableId}`} (${getCustomerName(r.customerId)} | ￥${Number(r.amount || 0).toFixed(2)})`
-      }))
+      sourceBillOptions.value = rows.map(r => {
+        const no = r.receivableNo || r.billNo || `AR-${r.receivableId}`
+        return {
+          id: r.receivableId,
+          billNo: no,
+          counterpartyId: r.customerId,
+          amount: Number(r.amount || 0),
+          label: `${no} (${getCustomerName(r.customerId)} | ￥${Number(r.amount || 0).toFixed(2)})`
+        }
+      })
     } else if (type === "payable") {
       const rows = await fetchOpenPayables(form.value.supplierId)
-      sourceBillOptions.value = rows.map(r => ({
-        id: r.payableId,
-        billNo: r.billNo || `AP-${r.payableId}`,
-        counterpartyId: r.supplierId,
-        amount: Number(r.amount || 0),
-        label: `${r.billNo || `AP-${r.payableId}`} (${getSupplierName(r.supplierId)} | ￥${Number(r.amount || 0).toFixed(2)})`
-      }))
+      sourceBillOptions.value = rows.map(r => {
+        const no = r.payableNo || r.billNo || `AP-${r.payableId}`
+        return {
+          id: r.payableId,
+          billNo: no,
+          counterpartyId: r.supplierId,
+          amount: Number(r.amount || 0),
+          label: `${no} (${getSupplierName(r.supplierId)} | ￥${Number(r.amount || 0).toFixed(2)})`
+        }
+      })
     } else if (type === "sale_order") {
       const res = await listSaleOrder({ pageNum: 1, pageSize: 200, customerId: form.value.customerId })
-      sourceBillOptions.value = (res.rows || []).filter(r => r.status === "1" || r.bizStatus === "audited").map(r => {
-        const amt = Number(r.taxTotalAmount || r.totalAmount || 0)
+      sourceBillOptions.value = (res.rows || []).filter(r => r.status === "1" || r.status === "2" || r.bizStatus === "approved" || r.bizStatus === "executing" || r.bizStatus === "completed").map(r => {
+        const amt = Number(r.totalAmount || 0)
         return {
           id: r.orderId,
           billNo: r.orderNo,
@@ -356,14 +365,15 @@ async function loadSourceBills(type) {
       })
     } else if (type === "pur_order") {
       const res = await listPurOrder({ pageNum: 1, pageSize: 200, supplierId: form.value.supplierId })
-      sourceBillOptions.value = (res.rows || []).filter(r => r.status === "1" || r.bizStatus === "audited").map(r => {
-        const amt = Number(r.taxTotalAmount || r.totalAmount || 0)
+      sourceBillOptions.value = (res.rows || []).filter(r => r.status === "1" || r.status === "2" || r.bizStatus === "approved" || r.bizStatus === "executing" || r.bizStatus === "completed").map(r => {
+        const amt = Number(r.totalAmount || 0)
+        const no = r.purchaseOrderNo || r.orderNo || `PO-${r.purchaseOrderId}`
         return {
           id: r.purchaseOrderId,
-          billNo: r.orderNo,
+          billNo: no,
           counterpartyId: r.supplierId,
           amount: amt,
-          label: `${r.orderNo} (${getSupplierName(r.supplierId)} | ￥${amt.toFixed(2)})`
+          label: `${no} (${getSupplierName(r.supplierId)} | ￥${amt.toFixed(2)})`
         }
       })
     }
@@ -520,4 +530,8 @@ function handleDelete(row) {
 
 watch(invoiceType, () => { reset(); getList() })
 getList()
+
+function handleExport() {
+  proxy.download("business/invoice/export", { ...queryParams.value }, `发票管理_${new Date().getTime()}.xlsx`)
+}
 </script>

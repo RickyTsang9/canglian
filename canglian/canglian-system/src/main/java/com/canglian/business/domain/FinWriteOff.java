@@ -4,6 +4,7 @@ import java.math.BigDecimal;
 import java.util.Date;
 import org.apache.commons.lang3.builder.ToStringBuilder;
 import org.apache.commons.lang3.builder.ToStringStyle;
+import com.canglian.common.annotation.Excel;
 import com.canglian.common.core.domain.BaseEntity;
 
 /**
@@ -19,30 +20,39 @@ public class FinWriteOff extends BaseEntity
     private Long writeOffId;
 
     /** 核销单号 */
+    @Excel(name = "核销单号")
     private String writeOffNo;
 
     /** 核销类型 */
+    @Excel(name = "核销类型", readConverterExp = "receivable=应收核销,payable=应付核销")
     private String writeOffType;
 
     /** 应收id */
+    @Excel(name = "应收单ID")
     private Long receivableId;
 
     /** 应付id */
+    @Excel(name = "应付单ID")
     private Long payableId;
 
     /** 收款单id */
+    @Excel(name = "收款单ID")
     private Long receiptId;
 
     /** 付款单id */
+    @Excel(name = "付款单ID")
     private Long paymentId;
 
     /** 核销金额 */
+    @Excel(name = "核销金额")
     private BigDecimal amount;
 
     /** 核销日期 */
+    @Excel(name = "核销日期", dateFormat = "yyyy-MM-dd")
     private Date writeOffDate;
 
     /** 状态 */
+    @Excel(name = "状态", readConverterExp = "0=草稿,1=已核销")
     private String status;
 
     /**

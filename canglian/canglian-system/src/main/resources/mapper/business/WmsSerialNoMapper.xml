@@ -54,6 +54,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         <include refid="selectWmsSerialNoVo"/>
         where sn_code = #{snCode}
         limit 1
+        for update
     </select>
 
     <select id="selectWmsSerialNoList" parameterType="WmsSerialNo" resultMap="WmsSerialNoResult">
@@ -112,8 +113,14 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             <if test="batchNo != null">batch_no = #{batchNo},</if>
             <if test="status != null">status = #{status},</if>
             <if test="inboundId != null">inbound_id = #{inboundId},</if>
-            <if test="outboundId != null">outbound_id = #{outboundId},</if>
-            <if test="customerId != null">customer_id = #{customerId},</if>
+            <choose>
+                <when test="outboundId != null">outbound_id = #{outboundId},</when>
+                <when test="status == 'in_stock'">outbound_id = null,</when>
+            </choose>
+            <choose>
+                <when test="customerId != null">customer_id = #{customerId},</when>
+                <when test="status == 'in_stock'">customer_id = null,</when>
+            </choose>
             <if test="warrantyEndDate != null">warranty_end_date = #{warrantyEndDate},</if>
             <if test="remark != null">remark = #{remark},</if>
             <if test="updateBy != null and updateBy != ''">update_by = #{updateBy},</if>

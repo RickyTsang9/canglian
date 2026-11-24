@@ -5,6 +5,7 @@ import java.util.Date;
 import java.util.List;
 import org.apache.commons.lang3.builder.ToStringBuilder;
 import org.apache.commons.lang3.builder.ToStringStyle;
+import com.canglian.common.annotation.Excel;
 import com.canglian.common.core.domain.BaseEntity;
 
 /**
@@ -18,12 +19,15 @@ public class WmsPurchaseReturn extends BaseEntity
 
     private Long purchaseReturnId;
 
+    @Excel(name = "采购退货单号")
     private String returnNo;
 
     private String returnType;
 
+    @Excel(name = "供应商ID")
     private Long supplierId;
 
+    @Excel(name = "仓库ID")
     private Long warehouseId;
 
     private Long deptId;
@@ -34,20 +38,26 @@ public class WmsPurchaseReturn extends BaseEntity
 
     private Long sourceBillId;
 
+    @Excel(name = "原入库单号")
     private String sourceBillNo;
 
+    @Excel(name = "退货日期", dateFormat = "yyyy-MM-dd")
     private Date businessDate;
 
+    @Excel(name = "退货数量")
     private BigDecimal totalQty;
 
+    @Excel(name = "退货金额")
     private BigDecimal totalAmount;
 
     private Long payableId;
 
+    @Excel(name = "状态", readConverterExp = "0=草稿,1=已审核")
     private String status;
 
     private String bizStatus;
 
+    @Excel(name = "审核人")
     private String auditBy;
 
     private Date auditTime;

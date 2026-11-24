@@ -183,6 +183,10 @@ public class WmsSerialNoServiceImpl implements IWmsSerialNoService
                 {
                     throw new ServiceException("序列号 " + sn.getSnCode() + " 已流转出库，禁止删除");
                 }
+                if (sn.getInboundId() != null)
+                {
+                    throw new ServiceException("序列号 " + sn.getSnCode() + " 由已审核入库单自动建档，禁止手工删除，请通过原入库单反审核处理");
+                }
             }
         }
         return wmsSerialNoMapper.deleteWmsSerialNoByIds(serialIds);
@@ -264,11 +268,21 @@ public class WmsSerialNoServiceImpl implements IWmsSerialNoService
     public void handleOutboundSerials(MdProduct product, Long warehouseId, Long outboundId, String billNo,
                                       Long customerId, String rawSnCodes, BigDecimal baseQty, String operator)
     {
+        handleOutboundSerials(product, warehouseId, null, null, outboundId, billNo, customerId, rawSnCodes, baseQty, operator);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void handleOutboundSerials(MdProduct product, Long warehouseId, Long locationId, String batchNo,
+                                      Long outboundId, String billNo, Long customerId, String rawSnCodes,
+                                      BigDecimal baseQty, String operator)
+    {
         if (!isSerialEnabled(product))
         {
             return;
         }
         List<String> codes = requireExactSnCount(product, rawSnCodes, baseQty, "出库审核");
+        String normBatch = batchNo == null ? "" : batchNo.trim();
         for (String code : codes)
         {
             WmsSerialNo sn = wmsSerialNoMapper.selectWmsSerialNoByCode(code);
@@ -283,6 +297,14 @@ public class WmsSerialNoServiceImpl implements IWmsSerialNoService
             if (warehouseId != null && !warehouseId.equals(sn.getWarehouseId()))
             {
                 throw new ServiceException("序列号[" + code + "]当前所在仓库(#" + sn.getWarehouseId() + ")与出库仓库(#" + warehouseId + ")不符");
+            }
+            if (locationId != null && locationId > 0L && sn.getLocationId() != null && !locationId.equals(sn.getLocationId()))
+            {
+                throw new ServiceException("序列号[" + code + "]当前所在库位(#" + sn.getLocationId() + ")与出库库位(#" + locationId + ")不符");
+            }
+            if (StringUtils.isNotEmpty(normBatch) && StringUtils.isNotEmpty(sn.getBatchNo()) && !normBatch.equals(sn.getBatchNo().trim()))
+            {
+                throw new ServiceException("序列号[" + code + "]所属批次[" + sn.getBatchNo() + "]与出库批次[" + normBatch + "]不符");
             }
         }
         consumeSerialNos(codes, outboundId, billNo, customerId, "出库单[" + billNo + "]审核核销SN", operator);
@@ -330,11 +352,21 @@ public class WmsSerialNoServiceImpl implements IWmsSerialNoService
     public void handleTransferSerials(MdProduct product, Long outWarehouseId, Long inWarehouseId, Long inLocationId,
                                       Long transferId, String billNo, String rawSnCodes, BigDecimal baseQty, String operator)
     {
+        handleTransferSerials(product, outWarehouseId, null, null, inWarehouseId, inLocationId, transferId, billNo, rawSnCodes, baseQty, operator);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void handleTransferSerials(MdProduct product, Long outWarehouseId, Long outLocationId, String batchNo,
+                                      Long inWarehouseId, Long inLocationId, Long transferId, String billNo,
+                                      String rawSnCodes, BigDecimal baseQty, String operator)
+    {
         if (!isSerialEnabled(product))
         {
             return;
         }
         List<String> codes = requireExactSnCount(product, rawSnCodes, baseQty, "调拨审核");
+        String normBatch = batchNo == null ? "" : batchNo.trim();
         for (String code : codes)
         {
             WmsSerialNo sn = wmsSerialNoMapper.selectWmsSerialNoByCode(code);
@@ -350,6 +382,14 @@ public class WmsSerialNoServiceImpl implements IWmsSerialNoService
             {
                 throw new ServiceException("序列号[" + code + "]不在调出仓库 #" + outWarehouseId + "，无法调拨");
             }
+            if (outLocationId != null && outLocationId > 0L && sn.getLocationId() != null && !outLocationId.equals(sn.getLocationId()))
+            {
+                throw new ServiceException("序列号[" + code + "]当前库位(#" + sn.getLocationId() + ")与调出库位(#" + outLocationId + ")不符");
+            }
+            if (StringUtils.isNotEmpty(normBatch) && StringUtils.isNotEmpty(sn.getBatchNo()) && !normBatch.equals(sn.getBatchNo().trim()))
+            {
+                throw new ServiceException("序列号[" + code + "]所属批次[" + sn.getBatchNo() + "]与调拨批次[" + normBatch + "]不符");
+            }
             sn.setWarehouseId(inWarehouseId);
             sn.setLocationId(inLocationId == null ? 0L : inLocationId);
             sn.setUpdateBy(operator);
@@ -364,11 +404,20 @@ public class WmsSerialNoServiceImpl implements IWmsSerialNoService
     public void handlePurchaseReturnSerials(MdProduct product, Long warehouseId, Long returnId, String billNo,
                                             String rawSnCodes, BigDecimal baseQty, String operator)
     {
+        handlePurchaseReturnSerials(product, warehouseId, null, null, returnId, billNo, rawSnCodes, baseQty, operator);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void handlePurchaseReturnSerials(MdProduct product, Long warehouseId, Long locationId, String batchNo,
+                                            Long returnId, String billNo, String rawSnCodes, BigDecimal baseQty, String operator)
+    {
         if (!isSerialEnabled(product))
         {
             return;
         }
         List<String> codes = requireExactSnCount(product, rawSnCodes, baseQty, "采购退货审核");
+        String normBatch = batchNo == null ? "" : batchNo.trim();
         for (String code : codes)
         {
             WmsSerialNo sn = wmsSerialNoMapper.selectWmsSerialNoByCode(code);
@@ -383,6 +432,14 @@ public class WmsSerialNoServiceImpl implements IWmsSerialNoService
             if (warehouseId != null && !warehouseId.equals(sn.getWarehouseId()))
             {
                 throw new ServiceException("序列号[" + code + "]不在退货仓库 #" + warehouseId);
+            }
+            if (locationId != null && locationId > 0L && sn.getLocationId() != null && !locationId.equals(sn.getLocationId()))
+            {
+                throw new ServiceException("序列号[" + code + "]所在库位(#" + sn.getLocationId() + ")与采购退货库位(#" + locationId + ")不符");
+            }
+            if (StringUtils.isNotEmpty(normBatch) && StringUtils.isNotEmpty(sn.getBatchNo()) && !normBatch.equals(sn.getBatchNo().trim()))
+            {
+                throw new ServiceException("序列号[" + code + "]所属批次[" + sn.getBatchNo() + "]与采购退货批次[" + normBatch + "]不符");
             }
             sn.setStatus("returned");
             sn.setUpdateBy(operator);
@@ -424,6 +481,15 @@ public class WmsSerialNoServiceImpl implements IWmsSerialNoService
     public void handleSaleReturnSerials(MdProduct product, Long warehouseId, Long locationId, Long saleReturnId,
                                         String billNo, String rawSnCodes, BigDecimal baseQty, String operator)
     {
+        handleSaleReturnSerials(product, warehouseId, locationId, null, null, saleReturnId, billNo, rawSnCodes, baseQty, operator);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void handleSaleReturnSerials(MdProduct product, Long warehouseId, Long locationId, Long sourceOutboundId,
+                                        Long customerId, Long saleReturnId, String billNo, String rawSnCodes,
+                                        BigDecimal baseQty, String operator)
+    {
         if (!isSerialEnabled(product))
         {
             return;
@@ -439,6 +505,14 @@ public class WmsSerialNoServiceImpl implements IWmsSerialNoService
             if (!product.getProductId().equals(sn.getProductId()))
             {
                 throw new ServiceException("序列号[" + code + "]不属于商品[" + product.getProductName() + "]");
+            }
+            if (sourceOutboundId != null && sn.getOutboundId() != null && !sourceOutboundId.equals(sn.getOutboundId()))
+            {
+                throw new ServiceException("序列号[" + code + "]不属于关联来源出库单(#" + sourceOutboundId + ")，禁止跨单退货");
+            }
+            if (customerId != null && sn.getCustomerId() != null && !customerId.equals(sn.getCustomerId()))
+            {
+                throw new ServiceException("序列号[" + code + "]不属于当前退货客户(#" + customerId + ")，禁止跨客户退货");
             }
         }
         returnSerialNos(codes, warehouseId, locationId, saleReturnId, billNo, "销售退货单[" + billNo + "]退货回库", operator);
@@ -459,6 +533,141 @@ public class WmsSerialNoServiceImpl implements IWmsSerialNoService
             return;
         }
         consumeSerialNos(codes, saleReturnId, billNo, customerId, "销售退货撤销回退SN至已出库", operator);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void handleInventoryCheckSerials(MdProduct product, Long warehouseId, Long locationId, String batchNo,
+                                            Long checkId, String billNo, Date expiryDate, String rawSnCodes,
+                                            BigDecimal baseDiffQty, String operator)
+    {
+        if (!isSerialEnabled(product) || baseDiffQty == null || baseDiffQty.compareTo(BigDecimal.ZERO) == 0)
+        {
+            return;
+        }
+        String normBatch = batchNo == null ? "" : batchNo.trim();
+        if (baseDiffQty.compareTo(BigDecimal.ZERO) > 0)
+        {
+            List<String> codes = requireExactSnCount(product, rawSnCodes, baseDiffQty, "盘盈审核");
+            for (String code : codes)
+            {
+                WmsSerialNo existing = wmsSerialNoMapper.selectWmsSerialNoByCode(code);
+                if (existing != null)
+                {
+                    throw new ServiceException("盘盈序列号[" + code + "]已存在，禁止重复登记");
+                }
+                WmsSerialNo sn = new WmsSerialNo();
+                sn.setSnCode(code);
+                sn.setProductId(product.getProductId());
+                sn.setWarehouseId(warehouseId);
+                sn.setLocationId(locationId == null ? 0L : locationId);
+                sn.setBatchNo(normBatch);
+                sn.setStatus("in_stock");
+                sn.setInboundId(checkId);
+                sn.setWarrantyEndDate(expiryDate);
+                sn.setRemark("盘点盘盈[" + billNo + "]登记SN");
+                sn.setCreateBy(operator);
+                wmsSerialNoMapper.insertWmsSerialNo(sn);
+                writeLog(sn, "inventory_check_gain", "inventory_check", checkId, billNo, warehouseId, null,
+                    "盘点单[" + billNo + "]盘盈登记SN", operator);
+            }
+        }
+        else
+        {
+            List<String> codes = requireExactSnCount(product, rawSnCodes, baseDiffQty.abs(), "盘亏审核");
+            for (String code : codes)
+            {
+                WmsSerialNo sn = wmsSerialNoMapper.selectWmsSerialNoByCode(code);
+                if (sn == null || !"in_stock".equals(sn.getStatus()))
+                {
+                    throw new ServiceException("盘亏序列号[" + code + "]不存在或不在库，无法核销");
+                }
+                if (!product.getProductId().equals(sn.getProductId()))
+                {
+                    throw new ServiceException("盘亏序列号[" + code + "]不属于商品[" + product.getProductName() + "]");
+                }
+                if (warehouseId != null && !warehouseId.equals(sn.getWarehouseId()))
+                {
+                    throw new ServiceException("盘亏序列号[" + code + "]不在盘点仓库 #" + warehouseId);
+                }
+                if (locationId != null && locationId > 0L && sn.getLocationId() != null && !locationId.equals(sn.getLocationId()))
+                {
+                    throw new ServiceException("盘亏序列号[" + code + "]所在库位(#" + sn.getLocationId() + ")与盘点库位(#" + locationId + ")不符");
+                }
+                if (StringUtils.isNotEmpty(normBatch) && StringUtils.isNotEmpty(sn.getBatchNo()) && !normBatch.equals(sn.getBatchNo().trim()))
+                {
+                    throw new ServiceException("盘亏序列号[" + code + "]所属批次[" + sn.getBatchNo() + "]与盘点批次[" + normBatch + "]不符");
+                }
+                sn.setStatus("loss");
+                sn.setUpdateBy(operator);
+                wmsSerialNoMapper.updateWmsSerialNo(sn);
+                writeLog(sn, "inventory_check_loss", "inventory_check", checkId, billNo, warehouseId, null,
+                    "盘点单[" + billNo + "]盘亏核销SN", operator);
+            }
+        }
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void rollbackInventoryCheckSerials(MdProduct product, Long warehouseId, Long locationId, Long checkId,
+                                              String billNo, String rawSnCodes, BigDecimal originalBaseDiffQty,
+                                              boolean deleteRecord, String operator)
+    {
+        if (!isSerialEnabled(product) || originalBaseDiffQty == null || originalBaseDiffQty.compareTo(BigDecimal.ZERO) == 0)
+        {
+            return;
+        }
+        List<String> codes = parseSnCodes(rawSnCodes);
+        if (codes.isEmpty())
+        {
+            return;
+        }
+        if (originalBaseDiffQty.compareTo(BigDecimal.ZERO) > 0)
+        {
+            List<Long> idsToDelete = new ArrayList<Long>();
+            for (String code : codes)
+            {
+                WmsSerialNo sn = wmsSerialNoMapper.selectWmsSerialNoByCode(code);
+                if (sn == null) continue;
+                if (!"in_stock".equals(sn.getStatus()))
+                {
+                    throw new ServiceException("盘盈登记的序列号[" + code + "]已流转出库，禁止反审核/红冲盘点单");
+                }
+                if (deleteRecord)
+                {
+                    idsToDelete.add(sn.getSerialId());
+                }
+                else
+                {
+                    sn.setStatus("loss");
+                    sn.setUpdateBy(operator);
+                    wmsSerialNoMapper.updateWmsSerialNo(sn);
+                    writeLog(sn, "inventory_check_reverse", "inventory_check", checkId, billNo, warehouseId, null,
+                        "盘点单红冲核销原盘盈SN", operator);
+                }
+            }
+            if (deleteRecord && !idsToDelete.isEmpty())
+            {
+                wmsSerialNoMapper.deleteWmsSerialNoByIds(idsToDelete.toArray(new Long[0]));
+            }
+        }
+        else
+        {
+            for (String code : codes)
+            {
+                WmsSerialNo sn = wmsSerialNoMapper.selectWmsSerialNoByCode(code);
+                if (sn == null) continue;
+                sn.setStatus("in_stock");
+                if (warehouseId != null) sn.setWarehouseId(warehouseId);
+                if (locationId != null) sn.setLocationId(locationId);
+                sn.setOutboundId(null);
+                sn.setCustomerId(null);
+                sn.setUpdateBy(operator);
+                wmsSerialNoMapper.updateWmsSerialNo(sn);
+                writeLog(sn, "inventory_check_rollback", "inventory_check", checkId, billNo, sn.getWarehouseId(), null,
+                    "盘点单撤销恢复原盘亏SN在库", operator);
+            }
+        }
     }
 
     private boolean isSerialEnabled(MdProduct product)

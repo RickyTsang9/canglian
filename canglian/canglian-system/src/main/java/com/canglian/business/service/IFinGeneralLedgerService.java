@@ -43,4 +43,10 @@ public interface IFinGeneralLedgerService
     public int updateVoucherTemplate(FinVoucherTemplate template);
 
     public int deleteVoucherTemplateById(Long templateId);
+
+    /** 查询科目余额表与试算平衡汇总 */
+    public Map<String, Object> selectTrialBalance(String startDate, String endDate);
+
+    /** 查询指定会计科目的明细分类账与逐笔余额 */
+    public Map<String, Object> selectSubjectLedger(String subjectCode, String startDate, String endDate);
 }

@@ -25,6 +25,9 @@
       <el-col :span="1.5">
         <el-button type="danger" plain icon="Delete" :disabled="isMultipleDisabled" @click="handleDelete" v-hasPermi="['business:inventoryCheck:remove']">删除</el-button>
       </el-col>
+      <el-col :span="1.5">
+        <el-button type="warning" plain icon="Download" @click="handleExport" v-hasPermi="['business:inventoryCheck:export', 'business:inventoryCheck:list']">导出</el-button>
+      </el-col>
       <right-toolbar v-model:showSearch="showSearch" @queryTable="getList" />
     </el-row>
 
@@ -101,19 +104,20 @@
         <el-form-item label="备注" prop="remark">
           <el-input v-model="form.remark" type="textarea" :rows="2" placeholder="请输入内容" />
         </el-form-item>
-        <el-divider content-position="left">盘点明细（支持多单位与库位联动，审核同步生成成本与盘盈亏凭证）</el-divider>
+        <el-divider content-position="left">盘点明细（支持一键载入账面库存、多单位与序列号管控，审核同步生成成本与盘盈亏凭证）</el-divider>
         <div class="mb8">
           <el-button type="primary" plain size="small" icon="Plus" @click="addItemRow">新增明细</el-button>
+          <el-button type="success" plain size="small" icon="Download" @click="loadCurrentWarehouseStock" :disabled="!form.warehouseId">载入当前仓现有库存</el-button>
         </div>
         <el-table :data="form.itemList" border size="small">
-          <el-table-column label="商品" min-width="190">
+          <el-table-column label="商品" min-width="180">
             <template #default="scope">
               <el-select v-model="scope.row.productId" placeholder="选择商品" filterable style="width: 100%" @change="handleProductChange(scope.row)">
-                <el-option v-for="p in activeProductOptions" :key="p.productId" :label="`${p.productCode || ''} - ${p.productName}`" :value="p.productId" />
+                <el-option v-for="p in activeProductOptions" :key="p.productId" :label="`${p.productCode || ''} - ${p.productName}${p.enableSerial === '1' ? ' [SN]' : ''}`" :value="p.productId" />
               </el-select>
             </template>
           </el-table-column>
-          <el-table-column label="库位" width="140">
+          <el-table-column label="库位" width="135">
             <template #default="scope">
               <el-select v-model="scope.row.locationId" placeholder="默认库位" filterable style="width: 100%">
                 <el-option label="默认库位" :value="0" />
@@ -121,24 +125,33 @@
               </el-select>
             </template>
           </el-table-column>
-          <el-table-column label="单位" min-width="125">
+          <el-table-column label="单位" min-width="115">
             <template #default="scope">
               <el-select v-model="scope.row.unitName" placeholder="选择单位" filterable style="width: 100%" @change="handleUnitChange(scope.row)">
                 <el-option v-for="u in getUnitOptions(scope.row.productId)" :key="u.unitName" :label="`${u.unitName}(×${u.convertRatio})`" :value="u.unitName" />
               </el-select>
             </template>
           </el-table-column>
-          <el-table-column label="批次号" width="110">
-            <template #default="scope"><el-input v-model="scope.row.batchNo" placeholder="选填" /></template>
+          <el-table-column label="批次号" width="105">
+            <template #default="scope"><el-input v-model="scope.row.batchNo" placeholder="批次号" /></template>
           </el-table-column>
-          <el-table-column label="实盘数量" width="100">
+          <el-table-column label="账面数" width="76" align="right">
+            <template #default="scope">{{ scope.row.stockQty != null ? scope.row.stockQty : '-' }}</template>
+          </el-table-column>
+          <el-table-column label="实盘数量" width="95">
             <template #default="scope">
               <el-input-number v-model="scope.row.actualQty" :min="0" :precision="2" :controls="false" style="width: 100%" />
             </template>
           </el-table-column>
-          <el-table-column label="成本单价" width="100">
+          <el-table-column label="基准成本价" width="95">
             <template #default="scope">
               <el-input-number v-model="scope.row.price" :min="0" :precision="2" :controls="false" style="width: 100%" />
+            </template>
+          </el-table-column>
+          <el-table-column label="盈亏SN码" min-width="150">
+            <template #default="scope">
+              <el-input v-if="isProductSerialEnabled(scope.row.productId)" v-model="scope.row.snCodes" placeholder="盘盈/盘亏差异SN(逗号分隔)" />
+              <span v-else style="color: #909399; font-size: 12px">-</span>
             </template>
           </el-table-column>
           <el-table-column label="操作" width="55" align="center">
@@ -170,6 +183,9 @@
         <el-table-column label="实盘数" prop="actualQty" width="75" align="right" />
         <el-table-column label="盈亏数" prop="diffQty" width="75" align="right" />
         <el-table-column label="盈亏额" prop="diffAmount" width="85" align="right" />
+        <el-table-column label="SN码" prop="snCodes" min-width="120" show-overflow-tooltip>
+          <template #default="s">{{ s.row.snCodes || '-' }}</template>
+        </el-table-column>
       </el-table>
     </el-drawer>
 
@@ -179,6 +195,7 @@
 
 <script setup name="InventoryCheck">
 import { listInventoryCheck, addInventoryCheck, delInventoryCheck, getInventoryCheck, updateInventoryCheck, auditInventoryCheck, unauditInventoryCheck, reverseInventoryCheck } from "@/api/business/inventoryCheck"
+import { listStock } from "@/api/business/stock"
 import BusinessTraceDialog from "@/components/Canglian/BusinessTraceDialog.vue"
 import { useBusinessOptions } from "@/utils/businessOptions"
 import { printBusinessDocument } from "@/utils/documentPrint"
@@ -187,7 +204,7 @@ const { proxy } = getCurrentInstance()
 const {
   warehouseOptions, productOptions, activeWarehouseOptions, activeProductOptions,
   loadWarehouses, loadProducts, loadLocations, fetchLocationsByWarehouse, fetchProductUnits,
-  getWarehouseName, getProductName, getLocationName
+  isProductSerialEnabled, getWarehouseName, getProductName, getLocationName
 } = useBusinessOptions()
 
 const docStatusOptions = [
@@ -243,9 +260,37 @@ function getList() {
 
 function addItemRow() {
   if (!Array.isArray(form.value.itemList)) form.value.itemList = []
-  form.value.itemList.push({ productId: undefined, unitName: "", convertRatio: 1, locationId: 0, batchNo: "", actualQty: 0, price: 0 })
+  form.value.itemList.push({ productId: undefined, unitName: "", convertRatio: 1, locationId: 0, batchNo: "", stockQty: undefined, actualQty: 0, price: 0, snCodes: "" })
 }
 function removeItemRow(idx) { form.value.itemList.splice(idx, 1) }
+
+async function loadCurrentWarehouseStock() {
+  if (!form.value.warehouseId) { proxy.$modal.msgWarning("请先选择盘点仓库"); return }
+  const res = await listStock({ warehouseId: form.value.warehouseId, pageNum: 1, pageSize: 500 })
+  const rows = (res.rows || []).filter(s => Number(s.quantity || 0) > 0)
+  if (!rows.length) { proxy.$modal.msgWarning("当前仓库暂无在库库存"); return }
+  const newItems = []
+  for (const s of rows) {
+    const prod = productOptions.value.find(p => Number(p.productId) === Number(s.productId))
+    const units = await ensureUnitsLoaded(s.productId)
+    const baseUnit = units.find(u => u.isBaseUnit === "1") || units[0] || { unitName: (prod && (prod.baseUnit || prod.unitName)) || "件", convertRatio: 1 }
+    newItems.push({
+      productId: s.productId,
+      locationId: s.locationId != null ? s.locationId : 0,
+      batchNo: s.batchNo || "",
+      unitName: baseUnit.unitName,
+      convertRatio: Number(baseUnit.convertRatio || 1),
+      productionDate: s.productionDate,
+      expiryDate: s.expiryDate,
+      stockQty: Number(s.quantity || 0),
+      actualQty: Number(s.quantity || 0),
+      price: prod ? Number(prod.costPrice || 0) : 0,
+      snCodes: ""
+    })
+  }
+  form.value.itemList = newItems
+  proxy.$modal.msgSuccess(`已载入当前仓库 ${newItems.length} 条账面库存明细`)
+}
 
 async function handleProductChange(row) {
   const p = productOptions.value.find(item => Number(item.productId) === Number(row.productId))
@@ -376,4 +421,8 @@ function handleDelete(row) {
 }
 
 loadWarehouses(); loadProducts(); loadLocations(); getList()
+
+function handleExport() {
+  proxy.download("business/inventoryCheck/export", { ...queryParams.value }, `库存盘点单_${new Date().getTime()}.xlsx`)
+}
 </script>

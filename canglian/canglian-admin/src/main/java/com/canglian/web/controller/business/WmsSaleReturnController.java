@@ -1,6 +1,8 @@
 package com.canglian.web.controller.business;
 
 import java.util.List;
+import com.canglian.common.utils.poi.ExcelUtil;
+import javax.servlet.http.HttpServletResponse;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
@@ -114,6 +116,19 @@ public class WmsSaleReturnController extends BaseController
     public AjaxResult remove(@PathVariable Long[] saleReturnIds)
     {
         return toAjax(wmsSaleReturnService.deleteWmsSaleReturnByIds(saleReturnIds));
+    }
+
+    /**
+     * 导出销售退货单
+     */
+    @Log(title = "销售退货单", businessType = BusinessType.EXPORT)
+    @PreAuthorize("@ss.hasPermi('business:saleReturn:export') or @ss.hasPermi('business:saleReturn:list')")
+    @PostMapping("/export")
+    public void export(HttpServletResponse response, WmsSaleReturn wmsSaleReturn)
+    {
+        List<WmsSaleReturn> list = wmsSaleReturnService.selectWmsSaleReturnList(wmsSaleReturn);
+        ExcelUtil<WmsSaleReturn> util = new ExcelUtil<WmsSaleReturn>(WmsSaleReturn.class);
+        util.exportExcel(response, list, "销售退货单");
     }
 }
 

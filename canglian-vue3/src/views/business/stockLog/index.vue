@@ -32,6 +32,9 @@
       <el-col :span="12">
         <el-tag type="info">库存流水为系统自动记录的审计台账（只读，不可手工改删）</el-tag>
       </el-col>
+      <el-col :span="1.5">
+        <el-button type="warning" plain icon="Download" @click="handleExport" v-hasPermi="['business:stockLog:export', 'business:stockLog:list']">导出</el-button>
+      </el-col>
       <right-toolbar v-model:showSearch="showSearch" @queryTable="getList"></right-toolbar>
     </el-row>
 
@@ -90,34 +93,30 @@
 
 <script setup name="StockLog">
 import { listStockLog } from "@/api/business/stockLog"
-import { listInbound } from "@/api/business/inbound"
-import { listOutbound } from "@/api/business/outbound"
-import { listTransfer } from "@/api/business/transfer"
-import { listInventoryCheck } from "@/api/business/inventoryCheck"
-import { listPurchaseReturn } from "@/api/business/purchaseReturn"
-import { listSaleReturn } from "@/api/business/saleReturn"
 import { useBusinessOptions } from "@/utils/businessOptions"
 
 const { proxy } = getCurrentInstance()
-const { warehouseOptions, productOptions, loadWarehouses, loadProducts, getWarehouseName, getProductName } = useBusinessOptions()
+const { warehouseOptions, productOptions, loadWarehouses, loadProducts, fetchBillNoMap, getWarehouseName, getProductName } = useBusinessOptions()
 
 const billNoMap = reactive({})
 function loadBillNoMaps() {
-  listInbound({ pageNum: 1, pageSize: 500 }).then(r => (r.rows || []).forEach(i => { billNoMap[`inbound:${i.inboundId}`] = i.inboundNo })).catch(() => {})
-  listOutbound({ pageNum: 1, pageSize: 500 }).then(r => (r.rows || []).forEach(i => {
-    billNoMap[`outbound:${i.outboundId}`] = i.outboundNo
-    billNoMap[`outbound_return:${i.outboundId}`] = i.outboundNo
-  })).catch(() => {})
-  listTransfer({ pageNum: 1, pageSize: 500 }).then(r => (r.rows || []).forEach(i => {
-    billNoMap[`transfer:${i.transferId}`] = i.transferNo
-    billNoMap[`scan_transfer:${i.transferId}`] = i.transferNo
-  })).catch(() => {})
-  listInventoryCheck({ pageNum: 1, pageSize: 500 }).then(r => (r.rows || []).forEach(i => {
-    billNoMap[`inventory_check:${i.checkId}`] = i.checkNo
-    billNoMap[`scan_check:${i.checkId}`] = i.checkNo
-  })).catch(() => {})
-  listPurchaseReturn({ pageNum: 1, pageSize: 500 }).then(r => (r.rows || []).forEach(i => { billNoMap[`purchase_return:${i.purchaseReturnId}`] = i.returnNo })).catch(() => {})
-  listSaleReturn({ pageNum: 1, pageSize: 500 }).then(r => (r.rows || []).forEach(i => { billNoMap[`sale_return:${i.saleReturnId}`] = i.returnNo })).catch(() => {})
+  fetchBillNoMap().then(data => {
+    Object.entries(data.inbound || {}).forEach(([id, no]) => { billNoMap[`inbound:${id}`] = no })
+    Object.entries(data.outbound || {}).forEach(([id, no]) => {
+      billNoMap[`outbound:${id}`] = no
+      billNoMap[`outbound_return:${id}`] = no
+    })
+    Object.entries(data.transfer || {}).forEach(([id, no]) => {
+      billNoMap[`transfer:${id}`] = no
+      billNoMap[`scan_transfer:${id}`] = no
+    })
+    Object.entries(data.inventoryCheck || {}).forEach(([id, no]) => {
+      billNoMap[`inventory_check:${id}`] = no
+      billNoMap[`scan_check:${id}`] = no
+    })
+    Object.entries(data.purchaseReturn || {}).forEach(([id, no]) => { billNoMap[`purchase_return:${id}`] = no })
+    Object.entries(data.saleReturn || {}).forEach(([id, no]) => { billNoMap[`sale_return:${id}`] = no })
+  }).catch(() => {})
 }
 function getBillNoLabel(row) {
   if (row.billNo) return row.billNo
@@ -184,4 +183,8 @@ loadWarehouses()
 loadProducts()
 loadBillNoMaps()
 getList()
+
+function handleExport() {
+  proxy.download("business/stockLog/export", { ...queryParams.value }, `库存流水_${new Date().getTime()}.xlsx`)
+}
 </script>

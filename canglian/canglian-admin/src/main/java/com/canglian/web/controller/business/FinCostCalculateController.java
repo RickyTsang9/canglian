@@ -46,11 +46,26 @@ public class FinCostCalculateController extends BaseController
         return success(finCostCalculateService.updateGlobalCostMethod(costMethod, getUsername()));
     }
 
+    /**
+     * 纯内存沙箱模拟测算（只读，不落库不锁成本算法开关）
+     */
+    @PreAuthorize("@ss.hasPermi('business:costCalculate:query')")
+    @PostMapping("/simulate")
+    public AjaxResult simulate(@RequestBody FinCostCalculate finCostCalculate)
+    {
+        return success(finCostCalculateService.simulateCost(finCostCalculate));
+    }
+
     @PreAuthorize("@ss.hasPermi('business:costCalculate:calculate')")
     @Log(title = "成本核算", businessType = BusinessType.INSERT)
     @PostMapping("/calculate")
     public AjaxResult calculate(@RequestBody FinCostCalculate finCostCalculate)
     {
+        if (finCostCalculate != null && ("manual".equalsIgnoreCase(finCostCalculate.getBillType())
+            || finCostCalculate.getBillId() == null || finCostCalculate.getBillId() <= 0L))
+        {
+            return success(finCostCalculateService.simulateCost(finCostCalculate));
+        }
         FinCostLog finCostLog = finCostCalculateService.calculateCost(finCostCalculate);
         return success(finCostLog);
     }

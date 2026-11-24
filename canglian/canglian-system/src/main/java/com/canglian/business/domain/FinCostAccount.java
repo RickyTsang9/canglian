@@ -3,6 +3,7 @@ package com.canglian.business.domain;
 import java.math.BigDecimal;
 import org.apache.commons.lang3.builder.ToStringBuilder;
 import org.apache.commons.lang3.builder.ToStringStyle;
+import com.canglian.common.annotation.Excel;
 import com.canglian.common.core.domain.BaseEntity;
 
 /**
@@ -18,24 +19,31 @@ public class FinCostAccount extends BaseEntity
     private Long costAccountId;
 
     /** 商品id */
+    @Excel(name = "商品ID")
     private Long productId;
 
     /** 仓库id */
+    @Excel(name = "仓库ID")
     private Long warehouseId;
 
     /** 成本算法 */
+    @Excel(name = "核算方法", readConverterExp = "moving=移动加权平均,fifo=先进先出")
     private String costMethod;
 
     /** 总数量 */
+    @Excel(name = "结存数量")
     private BigDecimal totalQty;
 
     /** 总金额 */
+    @Excel(name = "结存成本总额")
     private BigDecimal totalAmount;
 
     /** 平均成本 */
+    @Excel(name = "移动均价")
     private BigDecimal avgCost;
 
     /** 最近入库成本单价 */
+    @Excel(name = "最近入库单价")
     private BigDecimal lastCostPrice;
 
     /** 最近入库数量 */

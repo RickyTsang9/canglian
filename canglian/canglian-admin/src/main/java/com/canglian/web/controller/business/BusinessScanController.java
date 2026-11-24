@@ -125,7 +125,8 @@ public class BusinessScanController extends BaseController
         return success(businessScanService.createQuickInbound(payload, getUsername()));
     }
 
-    @PreAuthorize("@ss.hasPermi('business:scan:query') or @ss.hasPermi('business:outbound:query')")
+    @PreAuthorize("@ss.hasPermi('business:outbound:verify') or @ss.hasPermi('business:outbound:ship') or @ss.hasPermi('business:scan:add')")
+    @Log(title = "扫码出库复核", businessType = BusinessType.UPDATE)
     @PostMapping("/outboundVerify/{outboundId}")
     public AjaxResult outboundVerify(@PathVariable Long outboundId, @RequestBody java.util.List<java.util.Map<String, Object>> scannedItems)
     {

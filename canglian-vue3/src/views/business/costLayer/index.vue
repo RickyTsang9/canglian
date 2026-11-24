@@ -25,6 +25,9 @@
     </el-form>
 
     <el-row :gutter="10" class="mb8">
+      <el-col :span="1.5">
+        <el-button type="warning" plain icon="Download" @click="handleExport" v-hasPermi="['business:costLayer:export', 'business:costLayer:list']">导出</el-button>
+      </el-col>
       <right-toolbar v-model:showSearch="showSearch" @queryTable="getList"></right-toolbar>
     </el-row>
 
@@ -108,4 +111,8 @@ function resetQuery() {
 Promise.all([loadProducts(), loadWarehouses()]).finally(() => {
   getList()
 })
+
+function handleExport() {
+  proxy.download("business/costLayer/export", { ...queryParams }, `FIFO成本层_${new Date().getTime()}.xlsx`)
+}
 </script>

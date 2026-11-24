@@ -25,6 +25,8 @@ public class ScanTransferItem
 
     private BigDecimal costPrice;
 
+    private String snCodes;
+
     public String getBarCode()
     {
         return barCode;
@@ -103,5 +105,15 @@ public class ScanTransferItem
     public void setBatchNo(String batchNo)
     {
         this.batchNo = batchNo;
+    }
+
+    public String getSnCodes()
+    {
+        return snCodes;
+    }
+
+    public void setSnCodes(String snCodes)
+    {
+        this.snCodes = snCodes;
     }
 }

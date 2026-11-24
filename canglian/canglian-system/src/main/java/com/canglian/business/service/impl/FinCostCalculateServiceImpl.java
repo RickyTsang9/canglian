@@ -3,6 +3,7 @@ package com.canglian.business.service.impl;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.Date;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -15,12 +16,14 @@ import com.canglian.business.domain.FinCostCalculate;
 import com.canglian.business.domain.FinCostLayer;
 import com.canglian.business.domain.FinCostLog;
 import com.canglian.business.domain.MdProduct;
+import com.canglian.business.domain.WmsOutbound;
 import com.canglian.business.domain.WmsStock;
 import com.canglian.business.domain.WmsStockLog;
 import com.canglian.business.mapper.FinCostAccountMapper;
 import com.canglian.business.mapper.FinCostLayerMapper;
 import com.canglian.business.mapper.FinCostLogMapper;
 import com.canglian.business.mapper.MdProductMapper;
+import com.canglian.business.mapper.WmsOutboundMapper;
 import com.canglian.business.mapper.WmsStockLogMapper;
 import com.canglian.business.mapper.WmsStockMapper;
 import com.canglian.business.service.IFinCostCalculateService;
@@ -63,6 +66,9 @@ public class FinCostCalculateServiceImpl implements IFinCostCalculateService
 
     @Autowired(required = false)
     private IFinVoucherEventService finVoucherEventService;
+
+    @Autowired(required = false)
+    private WmsOutboundMapper wmsOutboundMapper;
 
     @Override
     public String getGlobalCostMethod()
@@ -209,6 +215,10 @@ public class FinCostCalculateServiceImpl implements IFinCostCalculateService
         {
             throw new ServiceException("出入库标识仅支持1(入库)或2(出库)");
         }
+        if ("manual".equalsIgnoreCase(finCostCalculate.getBillType()) && finGeneralLedgerService != null)
+        {
+            finGeneralLedgerService.assertPeriodOpen(new Date());
+        }
 
         String configuredMethod = sysConfigService != null ? sysConfigService.selectConfigByKey(COST_METHOD_CONFIG_KEY) : null;
         String costMethod;
@@ -236,6 +246,99 @@ public class FinCostCalculateServiceImpl implements IFinCostCalculateService
             return handleInbound(finCostCalculate, finCostAccount, costMethod, operatorName);
         }
         return handleOutbound(finCostCalculate, finCostAccount, costMethod, operatorName);
+    }
+
+    @Override
+    public Map<String, Object> simulateCost(FinCostCalculate req)
+    {
+        if (req == null || req.getProductId() == null || req.getWarehouseId() == null)
+        {
+            throw new ServiceException("商品编号和仓库编号不能为空");
+        }
+        if (req.getQuantity() == null || req.getQuantity().compareTo(BigDecimal.ZERO) <= 0)
+        {
+            throw new ServiceException("测算数量必须大于0");
+        }
+        if (req.getPrice() != null && req.getPrice().compareTo(BigDecimal.ZERO) < 0)
+        {
+            throw new ServiceException("测算单价不能小于0");
+        }
+        if (!"1".equals(req.getInOut()) && !"2".equals(req.getInOut()))
+        {
+            throw new ServiceException("出入库标识仅支持1(入库)或2(出库)");
+        }
+        String costMethod = StringUtils.isEmpty(req.getCostMethod())
+            ? getGlobalCostMethod()
+            : normalizeCostMethod(req.getCostMethod());
+
+        FinCostAccount account = finCostAccountMapper.selectFinCostAccountByUnique(req.getProductId(), req.getWarehouseId(), costMethod);
+        BigDecimal beforeQty = account == null ? BigDecimal.ZERO : getSafeDecimal(account.getTotalQty());
+        BigDecimal beforeAmt = account == null ? BigDecimal.ZERO : getSafeDecimal(account.getTotalAmount());
+        BigDecimal beforeAvg = account == null ? BigDecimal.ZERO : getSafeDecimal(account.getAvgCost());
+        BigDecimal qty = req.getQuantity();
+
+        BigDecimal unitCost;
+        BigDecimal txAmount;
+        BigDecimal afterQty;
+        BigDecimal afterAmt;
+        if ("1".equals(req.getInOut()))
+        {
+            unitCost = getSafeDecimal(req.getPrice());
+            txAmount = unitCost.multiply(qty).setScale(2, RoundingMode.HALF_UP);
+            afterQty = beforeQty.add(qty);
+            afterAmt = beforeAmt.add(txAmount);
+        }
+        else
+        {
+            if ("fifo".equalsIgnoreCase(costMethod) && account != null && account.getCostAccountId() != null)
+            {
+                List<FinCostLayer> layers = finCostLayerMapper.selectAvailableCostLayers(account.getCostAccountId());
+                BigDecimal remain = qty;
+                BigDecimal fifoAmt = BigDecimal.ZERO;
+                if (layers != null)
+                {
+                    for (FinCostLayer layer : layers)
+                    {
+                        if (remain.compareTo(BigDecimal.ZERO) <= 0) break;
+                        BigDecimal lRem = getSafeDecimal(layer.getRemainingQty());
+                        if (lRem.compareTo(BigDecimal.ZERO) <= 0) continue;
+                        BigDecimal take = remain.min(lRem);
+                        fifoAmt = fifoAmt.add(take.multiply(getSafeDecimal(layer.getPrice())));
+                        remain = remain.subtract(take);
+                    }
+                }
+                if (remain.compareTo(BigDecimal.ZERO) > 0)
+                {
+                    BigDecimal fallback = beforeAvg.compareTo(BigDecimal.ZERO) > 0 ? beforeAvg : getSafeDecimal(req.getPrice());
+                    fifoAmt = fifoAmt.add(remain.multiply(fallback));
+                }
+                txAmount = fifoAmt.setScale(2, RoundingMode.HALF_UP);
+                unitCost = qty.compareTo(BigDecimal.ZERO) > 0 ? txAmount.divide(qty, 4, RoundingMode.HALF_UP) : BigDecimal.ZERO;
+            }
+            else
+            {
+                unitCost = beforeAvg.compareTo(BigDecimal.ZERO) > 0 ? beforeAvg : getSafeDecimal(req.getPrice());
+                txAmount = unitCost.multiply(qty).setScale(2, RoundingMode.HALF_UP);
+            }
+            afterQty = beforeQty.subtract(qty).max(BigDecimal.ZERO);
+            afterAmt = afterQty.compareTo(BigDecimal.ZERO) <= 0 ? BigDecimal.ZERO : beforeAmt.subtract(txAmount).max(BigDecimal.ZERO);
+        }
+        BigDecimal afterAvg = calculateAverageCost(afterQty, afterAmt);
+
+        Map<String, Object> res = new LinkedHashMap<String, Object>();
+        res.put("simulated", true);
+        res.put("costAccountId", account == null ? null : account.getCostAccountId());
+        res.put("costMethod", costMethod);
+        res.put("inOut", req.getInOut());
+        res.put("quantity", qty);
+        res.put("price", unitCost.setScale(4, RoundingMode.HALF_UP));
+        res.put("amount", txAmount);
+        res.put("beforeQty", beforeQty);
+        res.put("beforeAvgCost", beforeAvg);
+        res.put("afterQty", afterQty);
+        res.put("afterTotalAmount", afterAmt);
+        res.put("afterAvgCost", afterAvg);
+        return res;
     }
 
     @Override
@@ -307,15 +410,33 @@ public class FinCostCalculateServiceImpl implements IFinCostCalculateService
                 finCostAccountMapper.updateFinCostAccount(account);
             }
 
+            preservedAdjustLogs.sort(Comparator.comparing(
+                l -> l.getCreateTime() == null ? new Date(Long.MAX_VALUE) : l.getCreateTime()));
+            int adjCursor = 0;
+
             for (WmsStockLog stockLog : logs)
             {
+                // 按发生时间穿插重演期中历史受控调价，保证调价之后的出库结转成本与原始历史一致
+                Date stockLogTime = stockLog.getCreateTime();
+                while (adjCursor < preservedAdjustLogs.size())
+                {
+                    FinCostLog adjLog = preservedAdjustLogs.get(adjCursor);
+                    Date adjTime = adjLog.getCreateTime();
+                    if (stockLogTime != null && adjTime != null && adjTime.after(stockLogTime))
+                    {
+                        break;
+                    }
+                    replayHistoricalCostAdjust(whId, prodId, costMethod, adjLog, operator);
+                    adjCursor++;
+                }
+
                 BigDecimal qty = getSafeDecimal(stockLog.getQuantity());
                 if (qty.compareTo(BigDecimal.ZERO) <= 0)
                 {
                     continue;
                 }
                 String bt = stockLog.getBillType();
-                if ("inbound_unaudit".equals(bt) || "inbound_reverse".equals(bt))
+                if ("inbound_unaudit".equals(bt) || "inbound_reverse".equals(bt) || "purchase_return".equals(bt))
                 {
                     calculateExactInboundReversal(whId, prodId, stockLog.getBillId(), bt, qty, getSafeDecimal(stockLog.getPrice()));
                     replayedLogs++;
@@ -332,9 +453,19 @@ public class FinCostCalculateServiceImpl implements IFinCostCalculateService
                 if ("sale_return".equals(bt) || "outbound_return".equals(bt)
                     || "outbound_unaudit".equals(bt) || "outbound_reverse".equals(bt))
                 {
+                    Long originOutboundId = null;
+                    if ("outbound_unaudit".equals(bt) || "outbound_return".equals(bt))
+                    {
+                        originOutboundId = stockLog.getBillId();
+                    }
+                    else if ("outbound_reverse".equals(bt) && wmsOutboundMapper != null && stockLog.getBillId() != null)
+                    {
+                        WmsOutbound revOut = wmsOutboundMapper.selectWmsOutboundById(stockLog.getBillId());
+                        if (revOut != null) originOutboundId = revOut.getOriginBillId();
+                    }
                     BigDecimal retUnitCost = resolveReturnUnitCost(whId, prodId,
-                        "outbound_unaudit".equals(bt) ? "outbound" : null,
-                        "outbound_unaudit".equals(bt) ? stockLog.getBillId() : null,
+                        originOutboundId != null ? "outbound" : null,
+                        originOutboundId,
                         stockLog.getPrice());
                     req.setPrice(retUnitCost);
                 }
@@ -351,42 +482,11 @@ public class FinCostCalculateServiceImpl implements IFinCostCalculateService
                 replayedLogs++;
             }
 
-            // 按历史调价记录重演受控成本调价（不重复发出凭证事件）
-            if (!preservedAdjustLogs.isEmpty())
+            // 补演尾段历史受控调价（不重复发出凭证事件）
+            while (adjCursor < preservedAdjustLogs.size())
             {
-                FinCostAccount curAcc = finCostAccountMapper.selectFinCostAccountByUnique(prodId, whId, costMethod);
-                if (curAcc != null && getSafeDecimal(curAcc.getTotalQty()).compareTo(BigDecimal.ZERO) > 0)
-                {
-                    FinCostLog lastAdj = preservedAdjustLogs.get(preservedAdjustLogs.size() - 1);
-                    BigDecimal targetAvg = getSafeDecimal(lastAdj.getPrice()).setScale(2, RoundingMode.HALF_UP);
-                    BigDecimal curQty = getSafeDecimal(curAcc.getTotalQty());
-                    BigDecimal beforeAmt = getSafeDecimal(curAcc.getTotalAmount());
-                    BigDecimal afterAmt = curQty.multiply(targetAvg).setScale(2, RoundingMode.HALF_UP);
-                    BigDecimal delta = afterAmt.subtract(beforeAmt);
-                    curAcc.setTotalAmount(afterAmt);
-                    curAcc.setAvgCost(targetAvg);
-                    curAcc.setLastCostPrice(targetAvg);
-                    curAcc.setUpdateBy(operator);
-                    finCostAccountMapper.updateFinCostAccount(curAcc);
-                    if ("fifo".equalsIgnoreCase(costMethod))
-                    {
-                        adjustFifoLayersToTargetAvg(curAcc.getCostAccountId(), targetAvg);
-                    }
-                    FinCostLog replayLog = new FinCostLog();
-                    replayLog.setCostAccountId(curAcc.getCostAccountId());
-                    replayLog.setProductId(prodId);
-                    replayLog.setWarehouseId(whId);
-                    replayLog.setBillType("cost_adjust");
-                    replayLog.setBillId(curAcc.getCostAccountId());
-                    replayLog.setInOut(delta.compareTo(BigDecimal.ZERO) >= 0 ? "1" : "2");
-                    replayLog.setQuantity(curQty);
-                    replayLog.setPrice(targetAvg);
-                    replayLog.setAmount(delta.abs());
-                    replayLog.setCostMethod(costMethod);
-                    replayLog.setCreateBy(operator);
-                    replayLog.setRemark("重算保留历史调价：" + (lastAdj.getRemark() == null ? "" : lastAdj.getRemark()));
-                    finCostLogMapper.insertFinCostLog(replayLog);
-                }
+                replayHistoricalCostAdjust(whId, prodId, costMethod, preservedAdjustLogs.get(adjCursor), operator);
+                adjCursor++;
             }
 
             FinCostAccount afterAccount = finCostAccountMapper.selectFinCostAccountByUnique(prodId, whId, costMethod);
@@ -643,6 +743,43 @@ public class FinCostCalculateServiceImpl implements IFinCostCalculateService
         return total.setScale(2, RoundingMode.HALF_UP);
     }
 
+    private void replayHistoricalCostAdjust(Long whId, Long prodId, String costMethod, FinCostLog adjLog, String operator)
+    {
+        FinCostAccount curAcc = finCostAccountMapper.selectFinCostAccountByUnique(prodId, whId, costMethod);
+        if (curAcc == null || getSafeDecimal(curAcc.getTotalQty()).compareTo(BigDecimal.ZERO) <= 0)
+        {
+            return;
+        }
+        BigDecimal targetAvg = getSafeDecimal(adjLog.getPrice()).setScale(2, RoundingMode.HALF_UP);
+        BigDecimal curQty = getSafeDecimal(curAcc.getTotalQty());
+        BigDecimal beforeAmt = getSafeDecimal(curAcc.getTotalAmount());
+        BigDecimal afterAmt = curQty.multiply(targetAvg).setScale(2, RoundingMode.HALF_UP);
+        BigDecimal delta = afterAmt.subtract(beforeAmt);
+        curAcc.setTotalAmount(afterAmt);
+        curAcc.setAvgCost(targetAvg);
+        curAcc.setLastCostPrice(targetAvg);
+        curAcc.setUpdateBy(operator);
+        finCostAccountMapper.updateFinCostAccount(curAcc);
+        if ("fifo".equalsIgnoreCase(costMethod))
+        {
+            adjustFifoLayersToTargetAvg(curAcc.getCostAccountId(), targetAvg);
+        }
+        FinCostLog replayLog = new FinCostLog();
+        replayLog.setCostAccountId(curAcc.getCostAccountId());
+        replayLog.setProductId(prodId);
+        replayLog.setWarehouseId(whId);
+        replayLog.setBillType("cost_adjust");
+        replayLog.setBillId(curAcc.getCostAccountId());
+        replayLog.setInOut(delta.compareTo(BigDecimal.ZERO) >= 0 ? "1" : "2");
+        replayLog.setQuantity(curQty);
+        replayLog.setPrice(targetAvg);
+        replayLog.setAmount(delta.abs());
+        replayLog.setCostMethod(costMethod);
+        replayLog.setCreateBy(operator);
+        replayLog.setRemark("重算保留历史调价：" + (adjLog.getRemark() == null ? "" : adjLog.getRemark()));
+        finCostLogMapper.insertFinCostLog(replayLog);
+    }
+
     private void adjustFifoLayersToTargetAvg(Long costAccountId, BigDecimal targetAvg)
     {
         List<FinCostLayer> layers = finCostLayerMapper.selectAvailableCostLayers(costAccountId);
@@ -658,7 +795,8 @@ public class FinCostCalculateServiceImpl implements IFinCostCalculateService
                 continue;
             }
             layer.setPrice(targetAvg);
-            layer.setAmount(getSafeDecimal(layer.getQuantity()).multiply(targetAvg).setScale(2, RoundingMode.HALF_UP));
+            // 仅按剩余未消耗数量重估当前成本层余额，避免误乘原始总入库量
+            layer.setAmount(remQty.multiply(targetAvg).setScale(2, RoundingMode.HALF_UP));
             finCostLayerMapper.updateFinCostLayer(layer);
         }
     }

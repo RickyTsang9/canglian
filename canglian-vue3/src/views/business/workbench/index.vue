@@ -178,11 +178,18 @@
 
 <script setup name="Workbench">
 import { useRouter } from "vue-router"
+import { ElMessage } from "element-plus"
 import { getWorkbenchSummary } from "@/api/business/workbench"
 
 const router = useRouter()
 const loading = ref(false)
 const summaryData = ref({})
+
+function hasRouteAccess(path) {
+  if (!path) return false
+  const resolved = router.resolve(path)
+  return resolved && resolved.matched && resolved.matched.length > 0 && resolved.name !== "NotFound" && !resolved.matched.some(r => String(r.path || "").includes(":pathMatch"))
+}
 
 const summaryCardList = computed(() => [
   { label: "审批待办", value: summaryData.value.pendingApproveCount || 0, route: "/business/todoCenter", tone: "amber", icon: "Bell", hint: "全业务草稿单" },
@@ -198,12 +205,17 @@ const summaryCardList = computed(() => [
 ])
 
 function goTo(path) {
-  if (path) router.push(path)
+  if (!path) return
+  if (!hasRouteAccess(path)) {
+    ElMessage.warning("当前账号暂无访问该模块的菜单权限")
+    return
+  }
+  router.push(path)
 }
 
 function handlePendingRowClick(row) {
   if (row && row.route) {
-    router.push(row.route)
+    goTo(row.route)
   }
 }
 

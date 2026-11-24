@@ -52,6 +52,9 @@ public class FinWriteOffServiceImpl implements IFinWriteOffService
     @Autowired
     private IFinGeneralLedgerService finGeneralLedgerService;
 
+    @Autowired(required = false)
+    private BizScopeHelper bizScopeHelper;
+
     /**
      * 查询核销信息
      * 
@@ -61,7 +64,9 @@ public class FinWriteOffServiceImpl implements IFinWriteOffService
     @Override
     public FinWriteOff selectFinWriteOffById(Long writeOffId)
     {
-        return finWriteOffMapper.selectFinWriteOffById(writeOffId);
+        FinWriteOff wo = finWriteOffMapper.selectFinWriteOffById(writeOffId);
+        if (wo != null) assertWriteOffAccess(wo);
+        return wo;
     }
 
     /**
@@ -73,7 +78,52 @@ public class FinWriteOffServiceImpl implements IFinWriteOffService
     @Override
     public List<FinWriteOff> selectFinWriteOffList(FinWriteOff finWriteOff)
     {
-        return finWriteOffMapper.selectFinWriteOffList(finWriteOff);
+        List<FinWriteOff> list = finWriteOffMapper.selectFinWriteOffList(finWriteOff);
+        if (bizScopeHelper == null || list == null || list.isEmpty() || !bizScopeHelper.isRestrictedUser())
+        {
+            return list;
+        }
+        java.util.List<FinWriteOff> filtered = new java.util.ArrayList<FinWriteOff>();
+        for (FinWriteOff wo : list)
+        {
+            if (canAccessWriteOff(wo)) filtered.add(wo);
+        }
+        return filtered;
+    }
+
+    private void assertWriteOffAccess(FinWriteOff wo)
+    {
+        if (bizScopeHelper == null || wo == null || !bizScopeHelper.isRestrictedUser()) return;
+        if (!canAccessWriteOff(wo))
+        {
+            throw new ServiceException("没有权限访问或操作该核销单数据");
+        }
+    }
+
+    private boolean canAccessWriteOff(FinWriteOff wo)
+    {
+        if (bizScopeHelper == null || wo == null || !bizScopeHelper.isRestrictedUser()) return true;
+        if (wo.getReceivableId() != null)
+        {
+            FinReceivable ar = finReceivableMapper.selectFinReceivableById(wo.getReceivableId());
+            if (ar != null && !bizScopeHelper.canAccessRecord(ar.getDeptId(), ar.getOwnerUserId())) return false;
+        }
+        if (wo.getReceiptId() != null)
+        {
+            FinReceipt r = finReceiptMapper.selectFinReceiptById(wo.getReceiptId());
+            if (r != null && !bizScopeHelper.canAccessRecord(r.getDeptId(), r.getOwnerUserId())) return false;
+        }
+        if (wo.getPayableId() != null)
+        {
+            FinPayable ap = finPayableMapper.selectFinPayableById(wo.getPayableId());
+            if (ap != null && !bizScopeHelper.canAccessRecord(ap.getDeptId(), ap.getOwnerUserId())) return false;
+        }
+        if (wo.getPaymentId() != null)
+        {
+            FinPayment p = finPaymentMapper.selectFinPaymentById(wo.getPaymentId());
+            if (p != null && !bizScopeHelper.canAccessRecord(p.getDeptId(), p.getOwnerUserId())) return false;
+        }
+        return true;
     }
 
     /**
@@ -598,6 +648,7 @@ public class FinWriteOffServiceImpl implements IFinWriteOffService
         {
             throw new ServiceException("关联收款单不存在");
         }
+        if (bizScopeHelper != null) bizScopeHelper.assertRecordAccess(finReceipt.getDeptId(), finReceipt.getOwnerUserId());
         return finReceipt;
     }
 
@@ -614,6 +665,7 @@ public class FinWriteOffServiceImpl implements IFinWriteOffService
         {
             throw new ServiceException("关联应付单不存在");
         }
+        if (bizScopeHelper != null) bizScopeHelper.assertRecordAccess(finPayable.getDeptId(), finPayable.getOwnerUserId());
         return finPayable;
     }
 
@@ -630,6 +682,7 @@ public class FinWriteOffServiceImpl implements IFinWriteOffService
         {
             throw new ServiceException("关联付款单不存在");
         }
+        if (bizScopeHelper != null) bizScopeHelper.assertRecordAccess(finPayment.getDeptId(), finPayment.getOwnerUserId());
         return finPayment;
     }
 

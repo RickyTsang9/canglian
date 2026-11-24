@@ -18,6 +18,9 @@ public class FinCostLayerServiceImpl implements IFinCostLayerService
     @Autowired
     private FinCostLayerMapper finCostLayerMapper;
 
+    @Autowired(required = false)
+    private BizScopeHelper bizScopeHelper;
+
     /**
      * 查询成本分层信息
      * 
@@ -27,7 +30,9 @@ public class FinCostLayerServiceImpl implements IFinCostLayerService
     @Override
     public FinCostLayer selectFinCostLayerById(Long costLayerId)
     {
-        return finCostLayerMapper.selectFinCostLayerById(costLayerId);
+        FinCostLayer layer = finCostLayerMapper.selectFinCostLayerById(costLayerId);
+        if (layer != null && bizScopeHelper != null) bizScopeHelper.assertWarehouseAccess(layer.getWarehouseId());
+        return layer;
     }
 
     /**
@@ -39,7 +44,15 @@ public class FinCostLayerServiceImpl implements IFinCostLayerService
     @Override
     public List<FinCostLayer> selectFinCostLayerList(FinCostLayer finCostLayer)
     {
-        return finCostLayerMapper.selectFinCostLayerList(finCostLayer);
+        List<FinCostLayer> list = finCostLayerMapper.selectFinCostLayerList(finCostLayer);
+        java.util.Set<Long> allowed = bizScopeHelper == null ? null : bizScopeHelper.getRestrictedWarehouseIds();
+        if (allowed == null || list == null) return list;
+        java.util.List<FinCostLayer> filtered = new java.util.ArrayList<FinCostLayer>();
+        for (FinCostLayer l : list)
+        {
+            if (allowed.contains(l.getWarehouseId())) filtered.add(l);
+        }
+        return filtered;
     }
 
     /**
@@ -51,6 +64,7 @@ public class FinCostLayerServiceImpl implements IFinCostLayerService
     @Override
     public int insertFinCostLayer(FinCostLayer finCostLayer)
     {
+        if (bizScopeHelper != null && finCostLayer != null) bizScopeHelper.assertWarehouseAccess(finCostLayer.getWarehouseId());
         return finCostLayerMapper.insertFinCostLayer(finCostLayer);
     }
 
@@ -63,6 +77,7 @@ public class FinCostLayerServiceImpl implements IFinCostLayerService
     @Override
     public int updateFinCostLayer(FinCostLayer finCostLayer)
     {
+        if (bizScopeHelper != null && finCostLayer != null) bizScopeHelper.assertWarehouseAccess(finCostLayer.getWarehouseId());
         return finCostLayerMapper.updateFinCostLayer(finCostLayer);
     }
 
@@ -75,6 +90,11 @@ public class FinCostLayerServiceImpl implements IFinCostLayerService
     @Override
     public int deleteFinCostLayerById(Long costLayerId)
     {
+        if (bizScopeHelper != null && costLayerId != null)
+        {
+            FinCostLayer layer = finCostLayerMapper.selectFinCostLayerById(costLayerId);
+            if (layer != null) bizScopeHelper.assertWarehouseAccess(layer.getWarehouseId());
+        }
         return finCostLayerMapper.deleteFinCostLayerById(costLayerId);
     }
 
@@ -87,6 +107,14 @@ public class FinCostLayerServiceImpl implements IFinCostLayerService
     @Override
     public int deleteFinCostLayerByIds(Long[] costLayerIds)
     {
+        if (bizScopeHelper != null && costLayerIds != null)
+        {
+            for (Long id : costLayerIds)
+            {
+                FinCostLayer layer = finCostLayerMapper.selectFinCostLayerById(id);
+                if (layer != null) bizScopeHelper.assertWarehouseAccess(layer.getWarehouseId());
+            }
+        }
         return finCostLayerMapper.deleteFinCostLayerByIds(costLayerIds);
     }
 }

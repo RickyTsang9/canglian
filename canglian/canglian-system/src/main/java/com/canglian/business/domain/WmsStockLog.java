@@ -3,6 +3,7 @@ package com.canglian.business.domain;
 import java.math.BigDecimal;
 import org.apache.commons.lang3.builder.ToStringBuilder;
 import org.apache.commons.lang3.builder.ToStringStyle;
+import com.canglian.common.annotation.Excel;
 import com.canglian.common.core.domain.BaseEntity;
 
 /**
@@ -16,28 +17,40 @@ public class WmsStockLog extends BaseEntity
 
     private Long stockLogId;
 
+    @Excel(name = "仓库ID")
     private Long warehouseId;
 
+    @Excel(name = "商品ID")
     private Long productId;
 
+    @Excel(name = "库位ID")
     private Long locationId;
 
+    @Excel(name = "批次号")
     private String batchNo;
 
+    @Excel(name = "业务类型")
     private String billType;
 
+    @Excel(name = "单据ID")
     private Long billId;
 
+    @Excel(name = "方向", readConverterExp = "1=入库,2=出库")
     private String inOut;
 
+    @Excel(name = "变动数量")
     private BigDecimal quantity;
 
+    @Excel(name = "单价")
     private BigDecimal price;
 
+    @Excel(name = "金额")
     private BigDecimal amount;
 
+    @Excel(name = "变动前库存")
     private BigDecimal beforeQty;
 
+    @Excel(name = "变动后库存")
     private BigDecimal afterQty;
 
     /**

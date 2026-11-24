@@ -40,8 +40,28 @@ public class WmsInventoryCheckItemServiceImpl implements IWmsInventoryCheckItemS
     @Override
     public List<WmsInventoryCheckItem> selectWmsInventoryCheckItemList(WmsInventoryCheckItem wmsInventoryCheckItem)
     {
-        if (wmsInventoryCheckItem != null && wmsInventoryCheckItem.getCheckId() != null) assertCheckAccess(wmsInventoryCheckItem.getCheckId());
-        return wmsInventoryCheckItemMapper.selectWmsInventoryCheckItemList(wmsInventoryCheckItem);
+        if (wmsInventoryCheckItem != null && wmsInventoryCheckItem.getCheckId() != null)
+        {
+            assertCheckAccess(wmsInventoryCheckItem.getCheckId());
+            return wmsInventoryCheckItemMapper.selectWmsInventoryCheckItemList(wmsInventoryCheckItem);
+        }
+        List<WmsInventoryCheckItem> list = wmsInventoryCheckItemMapper.selectWmsInventoryCheckItemList(wmsInventoryCheckItem);
+        if (bizScopeHelper == null || list == null || list.isEmpty()) return list;
+        java.util.List<WmsInventoryCheckItem> filtered = new java.util.ArrayList<WmsInventoryCheckItem>();
+        java.util.Map<Long, Boolean> cache = new java.util.HashMap<Long, Boolean>();
+        for (WmsInventoryCheckItem it : list)
+        {
+            Long pid = it.getCheckId();
+            Boolean ok = cache.get(pid);
+            if (ok == null)
+            {
+                WmsInventoryCheck doc = pid == null ? null : wmsInventoryCheckMapper.selectWmsInventoryCheckById(pid);
+                ok = doc != null && bizScopeHelper.canAccessRecord(doc.getDeptId(), doc.getOwnerUserId(), doc.getWarehouseId());
+                cache.put(pid, ok);
+            }
+            if (Boolean.TRUE.equals(ok)) filtered.add(it);
+        }
+        return filtered;
     }
 
     @Override
@@ -62,6 +82,10 @@ public class WmsInventoryCheckItemServiceImpl implements IWmsInventoryCheckItemS
         WmsInventoryCheckItem existed = wmsInventoryCheckItemMapper.selectWmsInventoryCheckItemById(wmsInventoryCheckItem.getCheckItemId());
         if (existed == null) throw new ServiceException("盘点单明细不存在");
         WmsInventoryCheck doc = assertDraftCheck(existed.getCheckId());
+        if (wmsInventoryCheckItem.getCheckId() != null && !wmsInventoryCheckItem.getCheckId().equals(existed.getCheckId()))
+        {
+            assertDraftCheck(wmsInventoryCheckItem.getCheckId());
+        }
         autoFillDiff(wmsInventoryCheckItem);
         int rows = wmsInventoryCheckItemMapper.updateWmsInventoryCheckItem(wmsInventoryCheckItem);
         if (rows > 0) recalculateHeader(doc);

@@ -240,6 +240,14 @@ public class MdProductUnitServiceImpl implements IMdProductUnitService
         {
             throw new ServiceException("商品基准单位不允许停用");
         }
+        boolean unitNameChanged = StringUtils.isNotEmpty(unit.getUnitName()) && !unit.getUnitName().trim().equals(existing.getUnitName());
+        boolean ratioChanged = unit.getConvertRatio() != null && existing.getConvertRatio() != null
+            && unit.getConvertRatio().compareTo(existing.getConvertRatio()) != 0;
+        if ((unitNameChanged || ratioChanged)
+            && mdProductUnitMapper.countUnitReferences(existing.getProductId(), existing.getUnitName()) > 0)
+        {
+            throw new ServiceException("计量单位[" + existing.getUnitName() + "]已被历史业务单据引用，禁止修改单位名称或换算率，请停用后新建包装单位");
+        }
         validateUnit(unit, false);
         if ("1".equals(unit.getIsBaseUnit()))
         {

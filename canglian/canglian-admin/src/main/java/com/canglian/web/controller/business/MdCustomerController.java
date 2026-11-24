@@ -123,5 +123,18 @@ public class MdCustomerController extends BaseController
     {
         return toAjax(mdCustomerService.deleteMdCustomerByIds(customerIds));
     }
+
+    /**
+     * 导出客户档案
+     */
+    @Log(title = "客户档案", businessType = BusinessType.EXPORT)
+    @PreAuthorize("@ss.hasPermi('business:customer:export') or @ss.hasPermi('business:customer:list')")
+    @PostMapping("/export")
+    public void export(HttpServletResponse response, MdCustomer mdCustomer)
+    {
+        List<MdCustomer> list = mdCustomerService.selectMdCustomerList(mdCustomer);
+        ExcelUtil<MdCustomer> util = new ExcelUtil<MdCustomer>(MdCustomer.class);
+        util.exportExcel(response, list, "客户档案");
+    }
 }
 

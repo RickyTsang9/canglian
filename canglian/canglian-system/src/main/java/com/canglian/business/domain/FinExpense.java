@@ -4,6 +4,7 @@ import java.math.BigDecimal;
 import java.util.Date;
 import org.apache.commons.lang3.builder.ToStringBuilder;
 import org.apache.commons.lang3.builder.ToStringStyle;
+import com.canglian.common.annotation.Excel;
 import com.canglian.common.core.domain.BaseEntity;
 
 /**
@@ -19,25 +20,38 @@ public class FinExpense extends BaseEntity
     private Long expenseId;
 
     /** 费用单号 */
+    @Excel(name = "费用单号")
     private String expenseNo;
 
     /** 费用类型 */
+    @Excel(name = "费用类型")
     private String expenseType;
 
     /** 费用金额 */
+    @Excel(name = "费用金额")
     private BigDecimal amount;
 
     /** 费用日期 */
+    @Excel(name = "发生日期", dateFormat = "yyyy-MM-dd")
     private Date expenseDate;
 
     /** 支付方式 */
+    @Excel(name = "支付方式")
     private String payChannel;
 
     /** 资金账户id */
+    @Excel(name = "资金账户ID")
     private Long fundAccountId;
 
     /** 状态 */
+    @Excel(name = "状态", readConverterExp = "0=草稿,1=已确认")
     private String status;
+
+    /** 所属部门ID */
+    private Long deptId;
+
+    /** 责任人用户ID */
+    private Long ownerUserId;
 
     /**
      * 获取费用id
@@ -197,6 +211,26 @@ public class FinExpense extends BaseEntity
     public void setStatus(String status)
     {
         this.status = status;
+    }
+
+    public Long getDeptId()
+    {
+        return deptId;
+    }
+
+    public void setDeptId(Long deptId)
+    {
+        this.deptId = deptId;
+    }
+
+    public Long getOwnerUserId()
+    {
+        return ownerUserId;
+    }
+
+    public void setOwnerUserId(Long ownerUserId)
+    {
+        this.ownerUserId = ownerUserId;
     }
 
     @Override

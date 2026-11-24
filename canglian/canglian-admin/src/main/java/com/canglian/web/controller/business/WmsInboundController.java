@@ -2,6 +2,8 @@ package com.canglian.web.controller.business;
 
 import java.util.ArrayList;
 import java.util.List;
+import com.canglian.common.utils.poi.ExcelUtil;
+import javax.servlet.http.HttpServletResponse;
 import java.util.HashMap;
 import java.util.Map;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -138,7 +140,7 @@ public class WmsInboundController extends BaseController
     /**
      * 入库单反审核
      */
-    @PreAuthorize("@ss.hasPermi('business:inbound:unaudit') or @ss.hasPermi('business:inbound:audit')")
+    @PreAuthorize("@ss.hasPermi('business:inbound:unaudit')")
     @Log(title = "入库反审核", businessType = BusinessType.UPDATE)
     @PutMapping("/unaudit/{inboundId}")
     public AjaxResult unaudit(@PathVariable Long inboundId)
@@ -149,7 +151,7 @@ public class WmsInboundController extends BaseController
     /**
      * 入库单一键红冲
      */
-    @PreAuthorize("@ss.hasPermi('business:inbound:reverse') or @ss.hasPermi('business:inbound:audit')")
+    @PreAuthorize("@ss.hasPermi('business:inbound:reverse')")
     @Log(title = "入库红冲", businessType = BusinessType.INSERT)
     @PostMapping("/reverse/{inboundId}")
     public AjaxResult reverse(@PathVariable Long inboundId)
@@ -166,6 +168,19 @@ public class WmsInboundController extends BaseController
     public AjaxResult remove(@PathVariable Long[] inboundIds)
     {
         return toAjax(wmsInboundService.deleteWmsInboundByIds(inboundIds));
+    }
+
+    /**
+     * 导出采购入库单
+     */
+    @Log(title = "采购入库单", businessType = BusinessType.EXPORT)
+    @PreAuthorize("@ss.hasPermi('business:inbound:export') or @ss.hasPermi('business:inbound:list')")
+    @PostMapping("/export")
+    public void export(HttpServletResponse response, WmsInbound wmsInbound)
+    {
+        List<WmsInbound> list = wmsInboundService.selectWmsInboundList(wmsInbound);
+        ExcelUtil<WmsInbound> util = new ExcelUtil<WmsInbound>(WmsInbound.class);
+        util.exportExcel(response, list, "采购入库单");
     }
 }
 

@@ -19,6 +19,8 @@ import com.canglian.business.domain.PurOrder;
 import com.canglian.business.domain.PurOrderItem;
 import com.canglian.business.domain.WmsInbound;
 import com.canglian.business.domain.WmsInboundItem;
+import com.canglian.business.domain.WmsPurchaseReturn;
+import com.canglian.business.domain.WmsPurchaseReturnItem;
 import com.canglian.business.mapper.MdProductMapper;
 import com.canglian.business.mapper.MdSupplierMapper;
 import com.canglian.business.mapper.MdWarehouseMapper;
@@ -26,6 +28,8 @@ import com.canglian.business.mapper.PurOrderItemMapper;
 import com.canglian.business.mapper.PurOrderMapper;
 import com.canglian.business.mapper.WmsInboundItemMapper;
 import com.canglian.business.mapper.WmsInboundMapper;
+import com.canglian.business.mapper.WmsPurchaseReturnItemMapper;
+import com.canglian.business.mapper.WmsPurchaseReturnMapper;
 import com.canglian.business.service.IMdProductUnitService;
 import com.canglian.business.service.IPriceResolverService;
 import com.canglian.business.service.IPurOrderService;
@@ -55,6 +59,12 @@ public class PurOrderServiceImpl implements IPurOrderService
 
     @Autowired
     private WmsInboundItemMapper wmsInboundItemMapper;
+
+    @Autowired(required = false)
+    private WmsPurchaseReturnMapper wmsPurchaseReturnMapper;
+
+    @Autowired(required = false)
+    private WmsPurchaseReturnItemMapper wmsPurchaseReturnItemMapper;
 
     @Autowired
     private MdProductMapper mdProductMapper;
@@ -138,6 +148,7 @@ public class PurOrderServiceImpl implements IPurOrderService
         validateEditable(existingPurOrder);
         preserveReadonlyFields(existingPurOrder, purOrder);
         prepareOrderForSave(purOrder, false);
+        validateActiveMasterRefs(purOrder);
         int updateRows = purOrderMapper.updatePurOrder(purOrder);
         purOrderItemMapper.deletePurOrderItemByOrderId(purOrder.getPurchaseOrderId());
         saveOrderItemList(purOrder);
@@ -154,6 +165,7 @@ public class PurOrderServiceImpl implements IPurOrderService
             bizScopeHelper.assertRecordAccess(purOrder.getDeptId(), purOrder.getOwnerUserId(), purOrder.getWarehouseId());
         }
         validateEditable(purOrder);
+        validateActiveMasterRefs(purOrder);
         if (purOrder.getSupplierId() == null)
         {
             throw new ServiceException("购货订单供应商不能为空");
@@ -215,6 +227,18 @@ public class PurOrderServiceImpl implements IPurOrderService
         {
             throw new ServiceException("仅审批通过或执行中的购货订单允许强制关闭");
         }
+        List<WmsInbound> downstreamInbounds = findDownstreamInbounds(purOrder);
+        for (WmsInbound inb : downstreamInbounds)
+        {
+            if ("1".equals(inb.getIsReversal()) || "1".equals(inb.getReversedFlag()))
+            {
+                continue;
+            }
+            if (!"1".equals(inb.getStatus()))
+            {
+                throw new ServiceException("该购货订单存在未审核的草稿入库单(" + inb.getInboundNo() + ")，请先删除或审核后再强制关闭");
+            }
+        }
         purOrder.setStatus("2");
         purOrder.setBizStatus("closed");
         purOrder.setCloseReason(StringUtils.isNotEmpty(closeReason) ? closeReason.trim() : "业务手动强制关闭");
@@ -250,6 +274,7 @@ public class PurOrderServiceImpl implements IPurOrderService
         {
             throw new ServiceException("购货订单供应商不能为空");
         }
+        validateActiveMasterRefs(purOrder);
         List<PurOrderItem> purOrderItemList = purOrderItemMapper.selectPurOrderItemListByOrderId(purchaseOrderId);
         if (purOrderItemList == null || purOrderItemList.isEmpty())
         {
@@ -449,8 +474,9 @@ public class PurOrderServiceImpl implements IPurOrderService
             return;
         }
         List<WmsInbound> inbounds = findDownstreamInbounds(purOrder);
-        Map<Long, BigDecimal> pushedByItemId = new HashMap<Long, BigDecimal>();
-        Map<Long, BigDecimal> pushedByProductId = new HashMap<Long, BigDecimal>();
+        Map<Long, BigDecimal> pushedBaseByItemId = new HashMap<Long, BigDecimal>();
+        Map<Long, BigDecimal> pushedBaseByProductId = new HashMap<Long, BigDecimal>();
+        Map<Long, BigDecimal> returnedBaseByProductId = new HashMap<Long, BigDecimal>();
         boolean hasDraftInbound = false;
         boolean hasAnyActiveInbound = false;
 
@@ -472,15 +498,55 @@ public class PurOrderServiceImpl implements IPurOrderService
             {
                 for (WmsInboundItem inbItem : inbItems)
                 {
+                    BigDecimal inbBaseQty = inbItem.getBaseQuantity() != null && inbItem.getBaseQuantity().compareTo(BigDecimal.ZERO) > 0
+                        ? inbItem.getBaseQuantity()
+                        : defaultAmount(inbItem.getQuantity()).multiply(
+                            inbItem.getConvertRatio() != null && inbItem.getConvertRatio().compareTo(BigDecimal.ZERO) > 0
+                                ? inbItem.getConvertRatio() : BigDecimal.ONE).setScale(4, RoundingMode.HALF_UP);
                     if (inbItem.getSourceItemId() != null)
                     {
-                        pushedByItemId.put(inbItem.getSourceItemId(),
-                            defaultAmount(pushedByItemId.get(inbItem.getSourceItemId())).add(defaultAmount(inbItem.getQuantity())));
+                        pushedBaseByItemId.put(inbItem.getSourceItemId(),
+                            defaultAmount(pushedBaseByItemId.get(inbItem.getSourceItemId())).add(inbBaseQty));
                     }
                     else if (inbItem.getProductId() != null)
                     {
-                        pushedByProductId.put(inbItem.getProductId(),
-                            defaultAmount(pushedByProductId.get(inbItem.getProductId())).add(defaultAmount(inbItem.getQuantity())));
+                        pushedBaseByProductId.put(inbItem.getProductId(),
+                            defaultAmount(pushedBaseByProductId.get(inbItem.getProductId())).add(inbBaseQty));
+                    }
+                }
+            }
+            if (wmsPurchaseReturnMapper != null && wmsPurchaseReturnItemMapper != null)
+            {
+                WmsPurchaseReturn prQ = new WmsPurchaseReturn();
+                prQ.setSourceBillType("inbound");
+                prQ.setSourceBillId(inb.getInboundId());
+                prQ.setStatus("1");
+                List<WmsPurchaseReturn> returns = wmsPurchaseReturnMapper.selectWmsPurchaseReturnList(prQ);
+                if (returns != null)
+                {
+                    for (WmsPurchaseReturn pr : returns)
+                    {
+                        if ("1".equals(pr.getIsReversal()) || "1".equals(pr.getReversedFlag()))
+                        {
+                            continue;
+                        }
+                        WmsPurchaseReturnItem priQ = new WmsPurchaseReturnItem();
+                        priQ.setPurchaseReturnId(pr.getPurchaseReturnId());
+                        List<WmsPurchaseReturnItem> prItems = wmsPurchaseReturnItemMapper.selectWmsPurchaseReturnItemList(priQ);
+                        if (prItems != null)
+                        {
+                            for (WmsPurchaseReturnItem pri : prItems)
+                            {
+                                if (pri.getProductId() == null) continue;
+                                BigDecimal retBase = pri.getBaseQuantity() != null && pri.getBaseQuantity().compareTo(BigDecimal.ZERO) != 0
+                                    ? pri.getBaseQuantity().abs()
+                                    : defaultAmount(pri.getQuantity()).abs().multiply(
+                                        pri.getConvertRatio() != null && pri.getConvertRatio().compareTo(BigDecimal.ZERO) > 0
+                                            ? pri.getConvertRatio() : BigDecimal.ONE).setScale(4, RoundingMode.HALF_UP);
+                                returnedBaseByProductId.put(pri.getProductId(),
+                                    defaultAmount(returnedBaseByProductId.get(pri.getProductId())).add(retBase));
+                            }
+                        }
                     }
                 }
             }
@@ -489,13 +555,30 @@ public class PurOrderServiceImpl implements IPurOrderService
         boolean allFulfilled = true;
         for (PurOrderItem item : orderItems)
         {
-            BigDecimal rec = defaultAmount(pushedByItemId.get(item.getPurchaseOrderItemId()));
-            if (rec.compareTo(BigDecimal.ZERO) == 0 && pushedByProductId.containsKey(item.getProductId()))
+            BigDecimal itemRatio = item.getConvertRatio() != null && item.getConvertRatio().compareTo(BigDecimal.ZERO) > 0
+                ? item.getConvertRatio() : BigDecimal.ONE;
+            BigDecimal orderedQty = defaultAmount(item.getQuantity());
+            BigDecimal recBase = defaultAmount(pushedBaseByItemId.get(item.getPurchaseOrderItemId()));
+            if (recBase.compareTo(BigDecimal.ZERO) == 0 && pushedBaseByProductId.containsKey(item.getProductId()))
             {
-                rec = defaultAmount(pushedByProductId.get(item.getProductId())).min(defaultAmount(item.getQuantity()));
+                BigDecimal availBase = defaultAmount(pushedBaseByProductId.get(item.getProductId()));
+                BigDecimal orderBase = orderedQty.multiply(itemRatio).setScale(4, RoundingMode.HALF_UP);
+                recBase = availBase.min(orderBase);
+                pushedBaseByProductId.put(item.getProductId(), availBase.subtract(recBase));
             }
+            BigDecimal remRetBase = defaultAmount(returnedBaseByProductId.get(item.getProductId()));
+            if (remRetBase.compareTo(BigDecimal.ZERO) > 0 && recBase.compareTo(BigDecimal.ZERO) > 0)
+            {
+                BigDecimal deductRet = recBase.min(remRetBase);
+                recBase = recBase.subtract(deductRet);
+                returnedBaseByProductId.put(item.getProductId(), remRetBase.subtract(deductRet));
+            }
+            BigDecimal rec = itemRatio.compareTo(BigDecimal.ONE) == 0
+                ? recBase
+                : recBase.divide(itemRatio, 4, RoundingMode.HALF_UP);
+            if (rec.compareTo(BigDecimal.ZERO) < 0) rec = BigDecimal.ZERO;
             purOrderItemMapper.updateReceivedQty(item.getPurchaseOrderItemId(), rec);
-            if (rec.compareTo(defaultAmount(item.getQuantity())) < 0)
+            if (rec.compareTo(orderedQty) < 0)
             {
                 allFulfilled = false;
             }
@@ -666,7 +749,7 @@ public class PurOrderServiceImpl implements IPurOrderService
                 }
             }
             BigDecimal discountRate = purOrderItem.getDiscountRate() == null ? HUNDRED : purOrderItem.getDiscountRate();
-            if (discountRate.compareTo(BigDecimal.ZERO) <= 0 || discountRate.compareTo(HUNDRED) > 0)
+            if (discountRate.compareTo(BigDecimal.ZERO) < 0 || discountRate.compareTo(HUNDRED) > 0)
             {
                 throw new ServiceException("明细折扣率必须在 0 到 100 之间");
             }

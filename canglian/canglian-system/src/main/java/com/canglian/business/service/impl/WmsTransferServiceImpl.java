@@ -12,6 +12,8 @@ import java.util.Set;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import com.canglian.business.domain.FinCostCalculate;
+import com.canglian.business.domain.FinCostLog;
 import com.canglian.business.domain.MdLocation;
 import com.canglian.business.domain.MdProduct;
 import com.canglian.business.domain.MdWarehouse;
@@ -19,6 +21,7 @@ import com.canglian.business.domain.WmsStock;
 import com.canglian.business.domain.WmsStockLog;
 import com.canglian.business.domain.WmsTransfer;
 import com.canglian.business.domain.WmsTransferItem;
+import com.canglian.business.mapper.FinCostLogMapper;
 import com.canglian.business.mapper.MdLocationMapper;
 import com.canglian.business.mapper.MdProductMapper;
 import com.canglian.business.mapper.MdWarehouseMapper;
@@ -79,6 +82,9 @@ public class WmsTransferServiceImpl implements IWmsTransferService
 
     @Autowired(required = false)
     private IWmsSerialNoService wmsSerialNoService;
+
+    @Autowired(required = false)
+    private FinCostLogMapper finCostLogMapper;
 
     @Override
     public WmsTransfer selectWmsTransferById(Long transferId)
@@ -248,7 +254,7 @@ public class WmsTransferServiceImpl implements IWmsTransferService
         if (itemList == null || itemList.isEmpty()) throw new ServiceException("调拨单明细不能为空");
 
         BigDecimal[] totals = moveStockItems(transfer.getOutWarehouseId(), transfer.getInWarehouseId(), itemList,
-            "transfer", transferId, transfer.getTransferNo(), operator, false);
+            "transfer", transferId, transferId, transfer.getTransferNo(), operator, false);
         transfer.setStatus("1");
         transfer.setUpdateBy(operator);
         transfer.setUpdateTime(new Date());
@@ -275,7 +281,7 @@ public class WmsTransferServiceImpl implements IWmsTransferService
         if (itemList != null && !itemList.isEmpty())
         {
             moveStockItems(transfer.getInWarehouseId(), transfer.getOutWarehouseId(), itemList,
-                "transfer_unaudit", transferId, transfer.getTransferNo(), operator, true);
+                "transfer_unaudit", transferId, transferId, transfer.getTransferNo(), operator, true);
         }
         transfer.setStatus("0");
         transfer.setUnauditBy(operator);
@@ -294,6 +300,7 @@ public class WmsTransferServiceImpl implements IWmsTransferService
         if (!"1".equals(origin.getStatus())) throw new ServiceException("仅已审核调拨单允许红冲");
         if ("1".equals(origin.getIsReversal())) throw new ServiceException("红冲单据不允许再次红冲");
         if ("1".equals(origin.getReversedFlag())) throw new ServiceException("该调拨单已被红冲，请勿重复红冲");
+        finGeneralLedgerService.assertPeriodOpen(resolveBusinessDate(origin));
         finGeneralLedgerService.assertPeriodOpen(new Date());
 
         WmsTransferItem q = new WmsTransferItem();
@@ -319,7 +326,7 @@ public class WmsTransferServiceImpl implements IWmsTransferService
         wmsTransferMapper.insertWmsTransfer(reversal);
 
         moveStockItems(origin.getInWarehouseId(), origin.getOutWarehouseId(), originItems,
-            "transfer_reverse", reversal.getTransferId(), reversal.getTransferNo(), operator, true);
+            "transfer_reverse", reversal.getTransferId(), origin.getTransferId(), reversal.getTransferNo(), operator, true);
         for (WmsTransferItem oi : originItems)
         {
             WmsTransferItem ri = new WmsTransferItem();
@@ -345,7 +352,7 @@ public class WmsTransferServiceImpl implements IWmsTransferService
     }
 
     private BigDecimal[] moveStockItems(Long fromWhId, Long toWhId, List<WmsTransferItem> items,
-                                        String billType, Long billId, String billNo, String operator, boolean swapLocations)
+                                        String billType, Long billId, Long originTransferId, String billNo, String operator, boolean swapLocations)
     {
         boolean sameWarehouse = fromWhId.equals(toWhId);
         Date todayStart = startOfToday();
@@ -368,6 +375,10 @@ public class WmsTransferServiceImpl implements IWmsTransferService
             validateLocationBelongsToWarehouse(inLocId, toWhId, "调入");
             if (sameWarehouse && outLocId.equals(inLocId)) throw new ServiceException("同仓调拨时调出库位与调入库位不能相同");
             String batchNo = defaultBatchNo(item.getBatchNo());
+            if (!swapLocations && product != null && "1".equals(product.getEnableBatch()) && StringUtils.isEmpty(batchNo))
+            {
+                throw new ServiceException("商品[" + product.getProductName() + "]已启用批次管理，调拨明细必须填写批次号");
+            }
             BigDecimal baseQty = resolveBaseQuantity(item).abs();
             if (baseQty.compareTo(BigDecimal.ZERO) <= 0) baseQty = qty;
 
@@ -403,19 +414,37 @@ public class WmsTransferServiceImpl implements IWmsTransferService
             outStock.setUpdateBy(operator);
             wmsStockMapper.updateWmsStock(outStock);
 
-            // 序列号强管控：启用序列号的商品必须核验足额在库 SN 并变更所在仓库/库位
+            // 序列号强管控：启用序列号的商品必须核验足额在库 SN（含库位批次）并变更所在仓库/库位
             if (wmsSerialNoService != null)
             {
-                wmsSerialNoService.handleTransferSerials(product, fromWhId, toWhId, inLocId, billId, billNo,
+                wmsSerialNoService.handleTransferSerials(product, fromWhId, outLocId, batchNo, toWhId, inLocId, billId, billNo,
                     item.getSnCodes(), baseQty, operator);
             }
 
-            // 跨仓调拨同步结转真实库存成本（调出仓出库成本 -> 调入仓入库成本）
+            // 跨仓调拨同步结转真实库存成本；反审核/红冲时按原调拨成本精确冲回，避免两仓加权单价串味漂移
             BigDecimal unitCost;
             if (!sameWarehouse && finCostCalculateService != null)
             {
-                unitCost = finCostCalculateService.calculateTransferCost(fromWhId, toWhId, item.getProductId(),
-                    billId, billType + "_out", billType + "_in", baseQty);
+                if (swapLocations)
+                {
+                    unitCost = resolveOriginalTransferUnitCost(toWhId, item.getProductId(), originTransferId, item, baseQty);
+                    finCostCalculateService.calculateExactInboundReversal(fromWhId, item.getProductId(),
+                        billId, billType + "_out", baseQty, unitCost);
+                    FinCostCalculate restoreInReq = new FinCostCalculate();
+                    restoreInReq.setWarehouseId(toWhId);
+                    restoreInReq.setProductId(item.getProductId());
+                    restoreInReq.setBillType(billType + "_in");
+                    restoreInReq.setBillId(billId);
+                    restoreInReq.setInOut("1");
+                    restoreInReq.setQuantity(baseQty);
+                    restoreInReq.setPrice(unitCost);
+                    finCostCalculateService.calculateCost(restoreInReq);
+                }
+                else
+                {
+                    unitCost = finCostCalculateService.calculateTransferCost(fromWhId, toWhId, item.getProductId(),
+                        billId, billType + "_out", billType + "_in", baseQty);
+                }
             }
             else if (finCostCalculateService != null)
             {
@@ -546,11 +575,36 @@ public class WmsTransferServiceImpl implements IWmsTransferService
         }
     }
 
+    private BigDecimal resolveOriginalTransferUnitCost(Long origOutWhId, Long productId, Long originTransferId, WmsTransferItem item, BigDecimal baseQty)
+    {
+        if (finCostLogMapper != null && originTransferId != null)
+        {
+            FinCostLog q = new FinCostLog();
+            q.setWarehouseId(origOutWhId);
+            q.setProductId(productId);
+            q.setBillType("transfer_out");
+            q.setBillId(originTransferId);
+            List<FinCostLog> logs = finCostLogMapper.selectFinCostLogList(q);
+            if (logs != null && !logs.isEmpty() && defaultBigDecimal(logs.get(0).getPrice()).compareTo(BigDecimal.ZERO) > 0)
+            {
+                return logs.get(0).getPrice();
+            }
+        }
+        if (finCostCalculateService != null)
+        {
+            BigDecimal fallback = baseQty.compareTo(BigDecimal.ZERO) > 0 && item.getAmount() != null && item.getAmount().abs().compareTo(BigDecimal.ZERO) > 0
+                ? item.getAmount().abs().divide(baseQty, 4, RoundingMode.HALF_UP) : defaultBigDecimal(item.getPrice());
+            return finCostCalculateService.resolveReturnUnitCost(origOutWhId, productId, "transfer_out", originTransferId, fallback);
+        }
+        return defaultBigDecimal(item.getPrice());
+    }
+
     private void validateLocationBelongsToWarehouse(Long locationId, Long warehouseId, String side)
     {
         if (locationId == null || locationId <= 0L || warehouseId == null || mdLocationMapper == null) return;
         MdLocation loc = mdLocationMapper.selectMdLocationByLocationId(locationId);
         if (loc == null) throw new ServiceException(side + "库位(#" + locationId + ")不存在");
+        if ("1".equals(loc.getStatus())) throw new ServiceException(side + "库位[" + loc.getLocationName() + "]已停用，禁止调拨");
         if (!warehouseId.equals(loc.getWarehouseId()))
         {
             throw new ServiceException(side + "库位[" + loc.getLocationName() + "]不属于对应仓库，禁止跨仓混用");

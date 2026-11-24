@@ -2,6 +2,8 @@ package com.canglian.web.controller.business;
 
 import java.util.ArrayList;
 import java.util.List;
+import com.canglian.common.utils.poi.ExcelUtil;
+import javax.servlet.http.HttpServletResponse;
 import java.util.HashMap;
 import java.util.Map;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -142,6 +144,19 @@ public class WmsTransferController extends BaseController
     public AjaxResult reverse(@PathVariable Long transferId)
     {
         return success(wmsTransferService.reverseWmsTransfer(transferId, getUsername()));
+    }
+
+    /**
+     * 导出库存调拨单
+     */
+    @Log(title = "库存调拨单", businessType = BusinessType.EXPORT)
+    @PreAuthorize("@ss.hasPermi('business:transfer:export') or @ss.hasPermi('business:transfer:list')")
+    @PostMapping("/export")
+    public void export(HttpServletResponse response, WmsTransfer wmsTransfer)
+    {
+        List<WmsTransfer> list = wmsTransferService.selectWmsTransferList(wmsTransfer);
+        ExcelUtil<WmsTransfer> util = new ExcelUtil<WmsTransfer>(WmsTransfer.class);
+        util.exportExcel(response, list, "库存调拨单");
     }
 }
 

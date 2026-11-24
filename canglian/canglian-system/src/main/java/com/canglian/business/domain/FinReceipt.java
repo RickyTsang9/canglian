@@ -5,6 +5,7 @@ import java.util.Date;
 import com.fasterxml.jackson.annotation.JsonFormat;
 import org.apache.commons.lang3.builder.ToStringBuilder;
 import org.apache.commons.lang3.builder.ToStringStyle;
+import com.canglian.common.annotation.Excel;
 import com.canglian.common.core.domain.BaseEntity;
 
 public class FinReceipt extends BaseEntity
@@ -13,31 +14,40 @@ public class FinReceipt extends BaseEntity
 
     private Long receiptId;
 
+    @Excel(name = "收款单号")
     private String receiptNo;
 
+    @Excel(name = "客户ID")
     private Long customerId;
 
+    @Excel(name = "应收单ID")
     private Long receivableId;
 
+    @Excel(name = "资金账户ID")
     private Long fundAccountId;
 
     private Long deptId;
 
     private Long ownerUserId;
 
+    @Excel(name = "收款金额")
     private BigDecimal amount;
 
     @JsonFormat(pattern = "yyyy-MM-dd")
+    @Excel(name = "收款日期", dateFormat = "yyyy-MM-dd")
     private Date receiptDate;
 
+    @Excel(name = "结算方式")
     private String payChannel;
 
     /** 0草稿 1已确认 */
+    @Excel(name = "状态", readConverterExp = "0=草稿,1=已确认")
     private String status;
 
     /** draft/confirmed */
     private String bizStatus;
 
+    @Excel(name = "确认人")
     private String auditBy;
 
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")

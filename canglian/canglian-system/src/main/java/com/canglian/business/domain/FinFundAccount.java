@@ -3,6 +3,7 @@ package com.canglian.business.domain;
 import java.math.BigDecimal;
 import org.apache.commons.lang3.builder.ToStringBuilder;
 import org.apache.commons.lang3.builder.ToStringStyle;
+import com.canglian.common.annotation.Excel;
 import com.canglian.common.core.domain.BaseEntity;
 
 /**
@@ -18,27 +19,35 @@ public class FinFundAccount extends BaseEntity
     private Long accountId;
 
     /** 账户编号 */
+    @Excel(name = "账户编号")
     private String accountNo;
 
     /** 账户名称 */
+    @Excel(name = "账户名称")
     private String accountName;
 
     /** 账户类型 */
+    @Excel(name = "账户类型")
     private String accountType;
 
     /** 开户行 */
+    @Excel(name = "开户行")
     private String bankName;
 
     /** 银行账号 */
+    @Excel(name = "银行账号")
     private String bankAccount;
 
     /** 币种 */
+    @Excel(name = "币种")
     private String currency;
 
     /** 余额 */
+    @Excel(name = "当前余额")
     private BigDecimal balance;
 
     /** 状态 */
+    @Excel(name = "状态", readConverterExp = "0=启用,1=停用")
     private String status;
 
     /**

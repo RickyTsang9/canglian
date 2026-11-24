@@ -2,6 +2,8 @@ package com.canglian.web.controller.business;
 
 import java.math.BigDecimal;
 import java.util.List;
+import com.canglian.common.utils.poi.ExcelUtil;
+import javax.servlet.http.HttpServletResponse;
 import java.util.Map;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -120,7 +122,7 @@ public class FinReceivableController extends BaseController
         return success(finReceivableService.selectOffsetLogs(receivableId));
     }
 
-    @PreAuthorize("@ss.hasPermi('business:receivable:edit')")
+    @PreAuthorize("@ss.hasPermi('business:receivable:unoffset')")
     @Log(title = "撤销应收红蓝对冲", businessType = BusinessType.UPDATE)
     @PostMapping("/unoffset/{offsetId}")
     public AjaxResult unoffset(@PathVariable Long offsetId)
@@ -137,6 +139,19 @@ public class FinReceivableController extends BaseController
     public AjaxResult remove(@PathVariable Long[] receivableIds)
     {
         return toAjax(finReceivableService.deleteFinReceivableByIds(receivableIds));
+    }
+
+    /**
+     * 导出应收账款
+     */
+    @Log(title = "应收账款", businessType = BusinessType.EXPORT)
+    @PreAuthorize("@ss.hasPermi('business:receivable:export') or @ss.hasPermi('business:receivable:list')")
+    @PostMapping("/export")
+    public void export(HttpServletResponse response, FinReceivable finReceivable)
+    {
+        List<FinReceivable> list = finReceivableService.selectFinReceivableList(finReceivable);
+        ExcelUtil<FinReceivable> util = new ExcelUtil<FinReceivable>(FinReceivable.class);
+        util.exportExcel(response, list, "应收账款");
     }
 }
 

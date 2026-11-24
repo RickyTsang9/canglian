@@ -123,6 +123,10 @@ public class FinFundLogServiceImpl implements IFinFundLogService
         {
             transfer.setTransferDate(new Date());
         }
+        if (finGeneralLedgerService != null)
+        {
+            finGeneralLedgerService.assertPeriodOpen(transfer.getTransferDate());
+        }
         if (transfer.getFeeAmount() == null)
         {
             transfer.setFeeAmount(BigDecimal.ZERO);
@@ -196,15 +200,70 @@ public class FinFundLogServiceImpl implements IFinFundLogService
         finFundAccountMapper.selectFinFundAccountByIdForUpdate(secondId);
 
         recordBalanceChange(transfer.getInAccountId(), "unconfirm", transfer.getTransferId(), transfer.getTransferNo(),
-            transfer.getAmount().negate(), new Date(), "互转反确认扣回", "反确认资金互转单：" + transfer.getTransferNo(), operator);
+            transfer.getAmount().negate(), bizDate, "互转反确认扣回", "反确认资金互转单：" + transfer.getTransferNo(), operator);
         recordBalanceChange(transfer.getOutAccountId(), "unconfirm", transfer.getTransferId(), transfer.getTransferNo(),
-            totalOut, new Date(), "互转反确认退回", "反确认资金互转单：" + transfer.getTransferNo(), operator);
+            totalOut, bizDate, "互转反确认退回", "反确认资金互转单：" + transfer.getTransferNo(), operator);
 
         transfer.setStatus("0");
         transfer.setAuditBy("");
         transfer.setAuditTime(null);
         transfer.setUpdateBy(operator);
         return finFundLogMapper.updateFinFundTransfer(transfer);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public FinFundTransfer reverseFinFundTransfer(Long transferId, String operator)
+    {
+        FinFundTransfer origin = finFundLogMapper.selectFinFundTransferById(transferId);
+        if (origin == null) throw new ServiceException("资金互转单不存在");
+        if (!"1".equals(origin.getStatus())) throw new ServiceException("仅已确认状态的资金互转单允许红冲");
+        if (origin.getRemark() != null && origin.getRemark().contains("[已红冲]"))
+        {
+            throw new ServiceException("该资金互转单已红冲，请勿重复操作");
+        }
+        Date now = new Date();
+        finGeneralLedgerService.assertPeriodOpen(origin.getTransferDate() == null ? now : origin.getTransferDate());
+        finGeneralLedgerService.assertPeriodOpen(now);
+
+        BigDecimal fee = origin.getFeeAmount() == null ? BigDecimal.ZERO : origin.getFeeAmount();
+        BigDecimal totalOut = origin.getAmount().add(fee);
+        Long firstId = Math.min(origin.getOutAccountId(), origin.getInAccountId());
+        Long secondId = Math.max(origin.getOutAccountId(), origin.getInAccountId());
+        finFundAccountMapper.selectFinFundAccountByIdForUpdate(firstId);
+        finFundAccountMapper.selectFinFundAccountByIdForUpdate(secondId);
+
+        FinFundTransfer rev = new FinFundTransfer();
+        rev.setTransferNo(generateTransferNo());
+        rev.setOutAccountId(origin.getInAccountId());
+        rev.setInAccountId(origin.getOutAccountId());
+        rev.setAmount(origin.getAmount().negate());
+        rev.setFeeAmount(fee.negate());
+        rev.setTransferDate(now);
+        rev.setStatus("1");
+        rev.setAuditBy(operator);
+        rev.setAuditTime(now);
+        rev.setCreateBy(operator);
+        rev.setRemark("红冲原资金互转单：" + origin.getTransferNo());
+        finFundLogMapper.insertFinFundTransfer(rev);
+
+        recordBalanceChange(origin.getInAccountId(), "transfer_reverse", rev.getTransferId(), rev.getTransferNo(),
+            origin.getAmount().negate(), now, "互转红冲转出", "红冲原互转单：" + origin.getTransferNo(), operator);
+        recordBalanceChange(origin.getOutAccountId(), "transfer_reverse", rev.getTransferId(), rev.getTransferNo(),
+            totalOut, now, "互转红冲退回", "红冲原互转单：" + origin.getTransferNo(), operator);
+
+        origin.setRemark((StringUtils.isEmpty(origin.getRemark()) ? "" : origin.getRemark() + " ") + "[已红冲:" + rev.getTransferNo() + "]");
+        origin.setUpdateBy(operator);
+        finFundLogMapper.updateFinFundTransfer(origin);
+
+        finVoucherEventService.recordVoucherEvent("fund_transfer", rev.getTransferId(), rev.getTransferNo(),
+            "fund_transfer", now, origin.getAmount().negate(), operator, "资金内部互转红冲待生成凭证");
+        if (fee.compareTo(BigDecimal.ZERO) > 0)
+        {
+            finVoucherEventService.recordVoucherEvent("fund_transfer_fee", rev.getTransferId(), rev.getTransferNo(),
+                "fund_transfer_fee", now, fee.negate(), operator, "资金互转手续费红冲待生成凭证");
+        }
+        return rev;
     }
 
     @Override

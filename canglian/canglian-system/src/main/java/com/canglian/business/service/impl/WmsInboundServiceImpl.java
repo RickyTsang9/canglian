@@ -204,6 +204,7 @@ public class WmsInboundServiceImpl implements IWmsInboundService
         if (rows > 0 && wmsInbound.getItemList() != null && !wmsInbound.getItemList().isEmpty())
         {
             saveInboundItemsAndRecalculate(wmsInbound);
+            validateInboundItemsWithinPurchaseOrder(wmsInbound);
         }
         return rows;
     }
@@ -230,6 +231,18 @@ public class WmsInboundServiceImpl implements IWmsInboundService
         if (wmsInbound.getWarehouseId() == null)
         {
             wmsInbound.setWarehouseId(inbound.getWarehouseId());
+        }
+        if ("pur_order".equals(inbound.getSourceBillType()) && inbound.getSourceBillId() != null)
+        {
+            if (inbound.getSupplierId() != null && wmsInbound.getSupplierId() != null
+                && !inbound.getSupplierId().equals(wmsInbound.getSupplierId()))
+            {
+                throw new ServiceException("采购订单下推的入库单禁止修改供应商");
+            }
+            if (inbound.getWarehouseId() != null && !inbound.getWarehouseId().equals(wmsInbound.getWarehouseId()))
+            {
+                throw new ServiceException("采购订单下推的入库单禁止修改仓库");
+            }
         }
         validateActiveMasterRefs(wmsInbound);
         wmsInbound.setSourceBillType(inbound.getSourceBillType());
@@ -386,6 +399,15 @@ public class WmsInboundServiceImpl implements IWmsInboundService
         }
         finGeneralLedgerService.assertPeriodOpen(inbound.getBusinessDate());
         validateActiveMasterRefs(inbound);
+        if ("pur_order".equals(inbound.getSourceBillType()) && inbound.getSourceBillId() != null && purOrderMapper != null)
+        {
+            PurOrder parentOrder = purOrderMapper.selectPurOrderById(inbound.getSourceBillId());
+            if (parentOrder != null && "closed".equals(parentOrder.getBizStatus()))
+            {
+                throw new ServiceException("关联采购订单(" + parentOrder.getPurchaseOrderNo() + ")已强制关闭，禁止审核入库单");
+            }
+            validateInboundItemsWithinPurchaseOrder(inbound);
+        }
         WmsInboundItem inboundItemQuery = new WmsInboundItem();
         inboundItemQuery.setInboundId(inboundId);
         List<WmsInboundItem> inboundItemList = wmsInboundItemMapper.selectWmsInboundItemList(inboundItemQuery);
@@ -426,6 +448,10 @@ public class WmsInboundServiceImpl implements IWmsInboundService
 
             Long locationId = defaultLocationId(inboundItem.getLocationId());
             String batchNo = defaultBatchNo(inboundItem.getBatchNo());
+            if (product != null && "1".equals(product.getEnableBatch()) && StringUtils.isEmpty(batchNo))
+            {
+                throw new ServiceException("商品[" + product.getProductName() + "]已启用批次管理，入库明细必须填写批次号");
+            }
             // 序列号强管控：启用序列号的商品必须录入足额唯一 SN 并自动建档入库
             if (wmsSerialNoService != null)
             {
@@ -460,12 +486,17 @@ public class WmsInboundServiceImpl implements IWmsInboundService
             else
             {
                 beforeQuantity = defaultBigDecimal(stock.getQuantity());
+                if (beforeQuantity.compareTo(BigDecimal.ZERO) > 0 && stock.getExpiryDate() != null
+                    && inboundItem.getExpiryDate() != null && !isSameCalendarDay(stock.getExpiryDate(), inboundItem.getExpiryDate()))
+                {
+                    throw new ServiceException("商品 #" + inboundItem.getProductId() + " 批次[" + batchNo + "]已存在不同有效期的在库库存，请使用新批次号避免覆盖原效期");
+                }
                 stock.setQuantity(beforeQuantity.add(baseQuantity));
-                if (inboundItem.getProductionDate() != null)
+                if (inboundItem.getProductionDate() != null && (stock.getProductionDate() == null || beforeQuantity.compareTo(BigDecimal.ZERO) <= 0))
                 {
                     stock.setProductionDate(inboundItem.getProductionDate());
                 }
-                if (inboundItem.getExpiryDate() != null)
+                if (inboundItem.getExpiryDate() != null && (stock.getExpiryDate() == null || beforeQuantity.compareTo(BigDecimal.ZERO) <= 0))
                 {
                     stock.setExpiryDate(inboundItem.getExpiryDate());
                 }
@@ -479,8 +510,12 @@ public class WmsInboundServiceImpl implements IWmsInboundService
             {
                 itemAmount = itemPrice.multiply(itemQuantity).setScale(2, RoundingMode.HALF_UP);
             }
+            // 一般纳税人价税分离口径：含税采购订单下推的入库单剥离进项税后再计入存货成本，避免税费资本化
+            BigDecimal itemTaxAmount = defaultBigDecimal(inboundItem.getTaxAmount());
+            BigDecimal costAmount = (itemTaxAmount.compareTo(BigDecimal.ZERO) > 0 && itemAmount.compareTo(itemTaxAmount) > 0)
+                ? itemAmount.subtract(itemTaxAmount) : itemAmount;
             BigDecimal baseUnitCost = baseQuantity.compareTo(BigDecimal.ZERO) > 0
-                ? itemAmount.divide(baseQuantity, 4, RoundingMode.HALF_UP) : itemPrice;
+                ? costAmount.divide(baseQuantity, 4, RoundingMode.HALF_UP) : itemPrice;
 
             WmsStockLog stockLog = new WmsStockLog();
             stockLog.setWarehouseId(inbound.getWarehouseId());
@@ -492,7 +527,7 @@ public class WmsInboundServiceImpl implements IWmsInboundService
             stockLog.setInOut("1");
             stockLog.setQuantity(baseQuantity);
             stockLog.setPrice(baseUnitCost);
-            stockLog.setAmount(itemAmount);
+            stockLog.setAmount(costAmount);
             stockLog.setBeforeQty(beforeQuantity);
             stockLog.setAfterQty(afterQuantity);
             stockLog.setCreateBy(operator);
@@ -620,6 +655,7 @@ public class WmsInboundServiceImpl implements IWmsInboundService
         {
             throw new ServiceException("该入库单已被红冲，请勿重复红冲");
         }
+        finGeneralLedgerService.assertPeriodOpen(origin.getBusinessDate());
         finGeneralLedgerService.assertPeriodOpen(new Date());
         assertNoAuditedPurchaseReturn(origin);
 
@@ -770,6 +806,17 @@ public class WmsInboundServiceImpl implements IWmsInboundService
         }
     }
 
+    private boolean isSameCalendarDay(Date d1, Date d2)
+    {
+        if (d1 == null || d2 == null) return false;
+        Calendar c1 = Calendar.getInstance();
+        c1.setTime(d1);
+        Calendar c2 = Calendar.getInstance();
+        c2.setTime(d2);
+        return c1.get(Calendar.YEAR) == c2.get(Calendar.YEAR)
+            && c1.get(Calendar.DAY_OF_YEAR) == c2.get(Calendar.DAY_OF_YEAR);
+    }
+
     private void autoFillExpiryDate(WmsInboundItem item, MdProduct product)
     {
         if (item.getProductionDate() != null && item.getExpiryDate() == null
@@ -865,6 +912,10 @@ public class WmsInboundServiceImpl implements IWmsInboundService
         if (location == null)
         {
             throw new ServiceException("指定库位(#" + locationId + ")不存在");
+        }
+        if ("1".equals(location.getStatus()))
+        {
+            throw new ServiceException("库位[" + location.getLocationName() + "]已停用，禁止入库");
         }
         if (!warehouseId.equals(location.getWarehouseId()))
         {
@@ -971,25 +1022,31 @@ public class WmsInboundServiceImpl implements IWmsInboundService
             }
             if (finInvoiceMapper != null)
             {
-                FinInvoice invQ = new FinInvoice();
-                invQ.setSourceBillType("fin_payable");
-                invQ.setSourceBillId(linkedPayable.getPayableId());
-                List<FinInvoice> invs = finInvoiceMapper.selectFinInvoiceList(invQ);
-                if (invs != null && !invs.isEmpty())
+                for (String apType : new String[] { "payable", "fin_payable" })
                 {
-                    throw new ServiceException("关联应付单已登记进项发票(" + invs.get(0).getInvoiceNo() + ")，禁止反审核");
+                    FinInvoice invQ = new FinInvoice();
+                    invQ.setSourceBillType(apType);
+                    invQ.setSourceBillId(linkedPayable.getPayableId());
+                    List<FinInvoice> invs = finInvoiceMapper.selectFinInvoiceList(invQ);
+                    if (invs != null && !invs.isEmpty())
+                    {
+                        throw new ServiceException("关联应付单已登记进项发票(" + invs.get(0).getInvoiceNo() + ")，禁止反审核");
+                    }
                 }
             }
         }
         if (finInvoiceMapper != null)
         {
-            FinInvoice invQ = new FinInvoice();
-            invQ.setSourceBillType("wms_inbound");
-            invQ.setSourceBillId(inbound.getInboundId());
-            List<FinInvoice> invs = finInvoiceMapper.selectFinInvoiceList(invQ);
-            if (invs != null && !invs.isEmpty())
+            for (String inbType : new String[] { "inbound", "wms_inbound" })
             {
-                throw new ServiceException("该入库单已登记进项发票(" + invs.get(0).getInvoiceNo() + ")，禁止反审核");
+                FinInvoice invQ = new FinInvoice();
+                invQ.setSourceBillType(inbType);
+                invQ.setSourceBillId(inbound.getInboundId());
+                List<FinInvoice> invs = finInvoiceMapper.selectFinInvoiceList(invQ);
+                if (invs != null && !invs.isEmpty())
+                {
+                    throw new ServiceException("该入库单已登记进项发票(" + invs.get(0).getInvoiceNo() + ")，禁止反审核");
+                }
             }
         }
     }

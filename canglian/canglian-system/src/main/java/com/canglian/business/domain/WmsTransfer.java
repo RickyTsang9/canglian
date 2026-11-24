@@ -6,6 +6,7 @@ import java.util.List;
 import com.fasterxml.jackson.annotation.JsonFormat;
 import org.apache.commons.lang3.builder.ToStringBuilder;
 import org.apache.commons.lang3.builder.ToStringStyle;
+import com.canglian.common.annotation.Excel;
 import com.canglian.common.core.domain.BaseEntity;
 
 /**
@@ -19,13 +20,17 @@ public class WmsTransfer extends BaseEntity
 
     private Long transferId;
 
+    @Excel(name = "调拨单号")
     private String transferNo;
 
+    @Excel(name = "调出仓库ID")
     private Long outWarehouseId;
 
+    @Excel(name = "调入仓库ID")
     private Long inWarehouseId;
 
     @JsonFormat(pattern = "yyyy-MM-dd")
+    @Excel(name = "业务日期", dateFormat = "yyyy-MM-dd")
     private Date businessDate;
 
     public Date getBusinessDate() { return businessDate; }
@@ -35,10 +40,13 @@ public class WmsTransfer extends BaseEntity
 
     private Long ownerUserId;
 
+    @Excel(name = "调拨数量")
     private BigDecimal totalQty;
 
+    @Excel(name = "调拨金额")
     private BigDecimal totalAmount;
 
+    @Excel(name = "状态", readConverterExp = "0=草稿,1=已审核")
     private String status;
 
     private String isReversal;

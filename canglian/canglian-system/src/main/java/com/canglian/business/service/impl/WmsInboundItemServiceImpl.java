@@ -46,8 +46,25 @@ public class WmsInboundItemServiceImpl implements IWmsInboundItemService
         if (wmsInboundItem != null && wmsInboundItem.getInboundId() != null)
         {
             assertInboundAccess(wmsInboundItem.getInboundId());
+            return wmsInboundItemMapper.selectWmsInboundItemList(wmsInboundItem);
         }
-        return wmsInboundItemMapper.selectWmsInboundItemList(wmsInboundItem);
+        List<WmsInboundItem> list = wmsInboundItemMapper.selectWmsInboundItemList(wmsInboundItem);
+        if (bizScopeHelper == null || list == null || list.isEmpty()) return list;
+        java.util.List<WmsInboundItem> filtered = new java.util.ArrayList<WmsInboundItem>();
+        java.util.Map<Long, Boolean> cache = new java.util.HashMap<Long, Boolean>();
+        for (WmsInboundItem it : list)
+        {
+            Long pid = it.getInboundId();
+            Boolean ok = cache.get(pid);
+            if (ok == null)
+            {
+                WmsInbound doc = pid == null ? null : wmsInboundMapper.selectWmsInboundById(pid);
+                ok = doc != null && bizScopeHelper.canAccessRecord(doc.getDeptId(), doc.getOwnerUserId(), doc.getWarehouseId());
+                cache.put(pid, ok);
+            }
+            if (Boolean.TRUE.equals(ok)) filtered.add(it);
+        }
+        return filtered;
     }
 
     @Override

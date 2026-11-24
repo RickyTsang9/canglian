@@ -2,6 +2,7 @@ package com.canglian.business.domain;
 
 import org.apache.commons.lang3.builder.ToStringBuilder;
 import org.apache.commons.lang3.builder.ToStringStyle;
+import com.canglian.common.annotation.Excel;
 import com.canglian.common.core.domain.BaseEntity;
 
 public class MdWarehouse extends BaseEntity
@@ -10,16 +11,22 @@ public class MdWarehouse extends BaseEntity
 
     private Long warehouseId;
 
+    @Excel(name = "仓库编码")
     private String warehouseCode;
 
+    @Excel(name = "仓库名称")
     private String warehouseName;
 
+    @Excel(name = "联系人")
     private String contactPerson;
 
+    @Excel(name = "联系电话")
     private String contactPhone;
 
+    @Excel(name = "仓库地址")
     private String address;
 
+    @Excel(name = "状态", readConverterExp = "0=启用,1=停用")
     private String status;
 
     private String delFlag;

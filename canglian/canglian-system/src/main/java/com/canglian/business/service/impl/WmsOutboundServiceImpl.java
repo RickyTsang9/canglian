@@ -235,6 +235,7 @@ public class WmsOutboundServiceImpl implements IWmsOutboundService
         if (rows > 0 && wmsOutbound.getItemList() != null && !wmsOutbound.getItemList().isEmpty())
         {
             saveOutboundItemsAndRecalculate(wmsOutbound);
+            validateOutboundItemsWithinSaleOrder(wmsOutbound);
         }
         return rows;
     }
@@ -262,6 +263,18 @@ public class WmsOutboundServiceImpl implements IWmsOutboundService
         {
             wmsOutbound.setWarehouseId(outbound.getWarehouseId());
         }
+        if ("sale_order".equals(outbound.getSourceBillType()) && outbound.getSourceBillId() != null)
+        {
+            if (outbound.getCustomerId() != null && wmsOutbound.getCustomerId() != null
+                && !outbound.getCustomerId().equals(wmsOutbound.getCustomerId()))
+            {
+                throw new ServiceException("销售订单下推的出库单禁止修改客户");
+            }
+            if (outbound.getWarehouseId() != null && !outbound.getWarehouseId().equals(wmsOutbound.getWarehouseId()))
+            {
+                throw new ServiceException("销售订单下推的出库单禁止修改仓库");
+            }
+        }
         validateActiveMasterRefs(wmsOutbound);
         wmsOutbound.setSourceBillType(outbound.getSourceBillType());
         wmsOutbound.setSourceBillId(outbound.getSourceBillId());
@@ -271,6 +284,9 @@ public class WmsOutboundServiceImpl implements IWmsOutboundService
         wmsOutbound.setStatus(outbound.getStatus());
         wmsOutbound.setBizStatus(outbound.getBizStatus());
         wmsOutbound.setDeliveryStatus(outbound.getDeliveryStatus());
+        wmsOutbound.setVerifiedFlag("0");
+        wmsOutbound.setVerifiedBy("");
+        wmsOutbound.setVerifiedTime(null);
         wmsOutbound.setAuditBy(outbound.getAuditBy());
         wmsOutbound.setAuditTime(outbound.getAuditTime());
         int rows = wmsOutboundMapper.updateWmsOutbound(wmsOutbound);
@@ -419,6 +435,15 @@ public class WmsOutboundServiceImpl implements IWmsOutboundService
         }
         finGeneralLedgerService.assertPeriodOpen(outbound.getBusinessDate());
         validateActiveMasterRefs(outbound);
+        if ("sale_order".equals(outbound.getSourceBillType()) && outbound.getSourceBillId() != null && salOrderMapper != null)
+        {
+            SalOrder parentOrder = salOrderMapper.selectSalOrderById(outbound.getSourceBillId());
+            if (parentOrder != null && "closed".equals(parentOrder.getBizStatus()))
+            {
+                throw new ServiceException("关联销售订单(" + parentOrder.getOrderNo() + ")已强制关闭，禁止审核出库单");
+            }
+            validateOutboundItemsWithinSaleOrder(outbound);
+        }
         WmsOutboundItem outboundItemQuery = new WmsOutboundItem();
         outboundItemQuery.setOutboundId(outboundId);
         List<WmsOutboundItem> outboundItemList = wmsOutboundItemMapper.selectWmsOutboundItemList(outboundItemQuery);
@@ -471,6 +496,10 @@ public class WmsOutboundServiceImpl implements IWmsOutboundService
             BigDecimal baseQuantity = resolveBaseQuantity(outboundItem);
             Long locationId = defaultLocationId(outboundItem.getLocationId());
             String batchNo = defaultBatchNo(outboundItem.getBatchNo());
+            if (product != null && "1".equals(product.getEnableBatch()) && StringUtils.isEmpty(batchNo))
+            {
+                throw new ServiceException("商品[" + product.getProductName() + "]已启用批次管理，出库明细必须填写批次号");
+            }
             // 按单+库位+批次精准释放该订单自有锁库，杜绝跨单窃锁与跨批次死锁
             if (releaseOrderLock)
             {
@@ -529,11 +558,11 @@ public class WmsOutboundServiceImpl implements IWmsOutboundService
                 stock.setUpdateBy(operator);
                 wmsStockMapper.updateWmsStock(stock);
             }
-            // 序列号强管控：启用序列号的商品必须录入足额在库 SN 并核销出库
+            // 序列号强管控：启用序列号的商品必须录入足额在库 SN（含库位批次一致性校验）并核销出库
             if (wmsSerialNoService != null)
             {
-                wmsSerialNoService.handleOutboundSerials(product, outbound.getWarehouseId(), outboundId,
-                    outbound.getOutboundNo(), outbound.getCustomerId(), outboundItem.getSnCodes(), baseQuantity, operator);
+                wmsSerialNoService.handleOutboundSerials(product, outbound.getWarehouseId(), locationId, batchNo,
+                    outboundId, outbound.getOutboundNo(), outbound.getCustomerId(), outboundItem.getSnCodes(), baseQuantity, operator);
             }
 
             BigDecimal itemPrice = defaultBigDecimal(outboundItem.getPrice());
@@ -598,6 +627,14 @@ public class WmsOutboundServiceImpl implements IWmsOutboundService
         if ("1".equals(outbound.getReversedFlag()))
         {
             throw new ServiceException("该出库单已被红冲，禁止反审核");
+        }
+        if ("1".equals(outbound.getDeliveryStatus()))
+        {
+            throw new ServiceException("该出库单已发货，禁止反审核，请使用红冲或退货处理");
+        }
+        if ("2".equals(outbound.getDeliveryStatus()))
+        {
+            throw new ServiceException("该出库单已客户签收确认，禁止反审核，请使用红冲或退货处理");
         }
         if ("3".equals(outbound.getDeliveryStatus()))
         {
@@ -693,6 +730,7 @@ public class WmsOutboundServiceImpl implements IWmsOutboundService
         {
             throw new ServiceException("该出库单已办理退货，请勿重复红冲");
         }
+        finGeneralLedgerService.assertPeriodOpen(origin.getBusinessDate());
         finGeneralLedgerService.assertPeriodOpen(new Date());
         assertNoAuditedSaleReturn(origin);
         List<WmsOutboundItem> originItems = getOutboundItemList(outboundId);
@@ -779,6 +817,10 @@ public class WmsOutboundServiceImpl implements IWmsOutboundService
                 finVoucherEventService.recordVoucherEvent("outbound_cogs", reversal.getOutboundId(), reversal.getOutboundNo(), "outbound_cogs_return",
                     new Date(), cogsAmt, operator, "已签收出库单红冲冲回销售成本凭证");
             }
+        }
+        if (priceResolverService != null)
+        {
+            priceResolverService.rollbackRecentSalePrice("outbound", origin.getOutboundId());
         }
         syncSourceSaleOrderProgress(origin, operator);
         return selectWmsOutboundById(reversal.getOutboundId());
@@ -867,22 +909,38 @@ public class WmsOutboundServiceImpl implements IWmsOutboundService
             bizScopeHelper.assertRecordAccess(outbound.getDeptId(), outbound.getOwnerUserId(), outbound.getWarehouseId());
         }
         validateOutboundReturnable(outbound);
+        finGeneralLedgerService.assertPeriodOpen(outbound.getBusinessDate());
         finGeneralLedgerService.assertPeriodOpen(new Date());
         assertNoAuditedSaleReturn(outbound);
-        validateRefundRequest(outbound, refundAmount);
         boolean wasSigned = "2".equals(outbound.getDeliveryStatus());
+        validateRefundRequest(outbound, refundAmount, receivableId, wasSigned);
         restoreReturnedStock(outbound, operator);
+        boolean relockOrder = shouldRelockParentSaleOrder(outbound) && wmsStockService != null;
+        if (relockOrder)
+        {
+            List<WmsOutboundItem> returnItems = getOutboundItemList(outboundId);
+            for (WmsOutboundItem item : returnItems)
+            {
+                BigDecimal baseQty = resolveBaseQuantity(item);
+                if (baseQty.compareTo(BigDecimal.ZERO) > 0)
+                {
+                    wmsStockService.lockStockForSaleOrder(outbound.getWarehouseId(), item.getProductId(),
+                        baseQty, outbound.getSourceBillId(), operator);
+                }
+            }
+        }
         outbound.setDeliveryStatus("3");
         outbound.setBizStatus("closed");
         outbound.setUpdateBy(operator);
         int rows = wmsOutboundMapper.updateWmsOutbound(outbound);
         if (rows > 0)
         {
+            FinReceivable redAr = null;
             if (wasSigned)
             {
                 if (outbound.getCustomerId() != null && defaultBigDecimal(outbound.getTotalAmount()).compareTo(BigDecimal.ZERO) > 0)
                 {
-                    finReceivableService.createRedReceivableForReturn(
+                    redAr = finReceivableService.createRedReceivableForReturn(
                         outbound.getCustomerId(), "outbound_return", outbound.getOutboundId(), outbound.getOutboundNo(),
                         new Date(), outbound.getTotalAmount(), operator, "已签收出库整单退货自动生成红字应收冲减单");
                 }
@@ -897,12 +955,28 @@ public class WmsOutboundServiceImpl implements IWmsOutboundService
             }
             if (refundAmount != null && refundAmount.compareTo(BigDecimal.ZERO) > 0 && outbound.getCustomerId() != null)
             {
-                FinReceipt refundReceipt = buildRefundReceipt(outbound, refundAmount, receivableId, fundAccountId, operator);
+                // 现金退款已实际退回客户，自动核销红字应收对应额度，杜绝“既退现金又留全额红字抵扣”的双重赔付
+                Long refundTargetReceivableId = receivableId;
+                if (redAr != null && redAr.getReceivableId() != null && finReceivableMapper != null)
+                {
+                    BigDecimal redTotalAbs = defaultBigDecimal(redAr.getAmount()).abs();
+                    BigDecimal settledRefund = refundAmount.abs().min(redTotalAbs);
+                    redAr.setReceivedAmount(settledRefund.negate());
+                    redAr.setStatus(settledRefund.compareTo(redTotalAbs) >= 0 ? "2" : "1");
+                    redAr.setUpdateBy(operator);
+                    finReceivableMapper.updateFinReceivable(redAr);
+                    refundTargetReceivableId = null;
+                }
+                FinReceipt refundReceipt = buildRefundReceipt(outbound, refundAmount, refundTargetReceivableId, fundAccountId, operator);
                 int receiptRows = finReceiptService.insertRefundReceipt(refundReceipt);
                 if (receiptRows <= 0)
                 {
                     throw new ServiceException("退货退款单生成失败");
                 }
+            }
+            if (priceResolverService != null)
+            {
+                priceResolverService.rollbackRecentSalePrice("outbound", outbound.getOutboundId());
             }
             syncSourceSaleOrderProgress(outbound, operator);
         }
@@ -1056,7 +1130,7 @@ public class WmsOutboundServiceImpl implements IWmsOutboundService
         }
     }
 
-    private void validateRefundRequest(WmsOutbound outbound, BigDecimal refundAmount)
+    private void validateRefundRequest(WmsOutbound outbound, BigDecimal refundAmount, Long receivableId, boolean wasSigned)
     {
         if (refundAmount == null)
         {
@@ -1066,6 +1140,10 @@ public class WmsOutboundServiceImpl implements IWmsOutboundService
         {
             throw new ServiceException("退款金额不能小于0");
         }
+        if (refundAmount.compareTo(BigDecimal.ZERO) > 0 && !wasSigned)
+        {
+            throw new ServiceException("未签收确认的出库单未形成应收与收款，禁止直接退出现金");
+        }
         if (refundAmount.compareTo(defaultBigDecimal(outbound.getTotalAmount())) > 0)
         {
             throw new ServiceException("退款金额不能超过出库单总金额");
@@ -1073,6 +1151,20 @@ public class WmsOutboundServiceImpl implements IWmsOutboundService
         if (refundAmount.compareTo(BigDecimal.ZERO) > 0 && outbound.getCustomerId() == null)
         {
             throw new ServiceException("存在退款金额时客户编号不能为空");
+        }
+        if (refundAmount.compareTo(BigDecimal.ZERO) > 0 && finReceivableMapper != null)
+        {
+            FinReceivable refAr = receivableId != null
+                ? finReceivableMapper.selectFinReceivableById(receivableId)
+                : selectLinkedReceivable(outbound);
+            if (refAr != null)
+            {
+                BigDecimal collected = defaultBigDecimal(refAr.getReceivedAmount());
+                if (refundAmount.compareTo(collected) > 0)
+                {
+                    throw new ServiceException("现金退款金额(" + refundAmount + ")不能超过该单实际已收款金额(" + collected + ")，未收款部分请直接通过红字应收冲减");
+                }
+            }
         }
     }
 
@@ -1211,6 +1303,10 @@ public class WmsOutboundServiceImpl implements IWmsOutboundService
         {
             throw new ServiceException("指定库位(#" + locationId + ")不存在");
         }
+        if ("1".equals(location.getStatus()))
+        {
+            throw new ServiceException("库位[" + location.getLocationName() + "]已停用，禁止出库");
+        }
         if (!warehouseId.equals(location.getWarehouseId()))
         {
             throw new ServiceException("库位[" + location.getLocationName() + "]不属于当前出库仓库，禁止跨仓混用库位");
@@ -1246,11 +1342,67 @@ public class WmsOutboundServiceImpl implements IWmsOutboundService
                     .subtract(defaultBigDecimal(r.getBadDebtAmount()));
                 if ("2".equals(r.getBillDirection()))
                 {
-                    unpaid = unpaid.subtract(rem.max(BigDecimal.ZERO));
+                    // 红字应收为负数，剩余红字额度直接冲减客户敞口
+                    if (rem.compareTo(BigDecimal.ZERO) < 0)
+                    {
+                        unpaid = unpaid.add(rem);
+                    }
                 }
                 else
                 {
                     unpaid = unpaid.add(rem.max(BigDecimal.ZERO));
+                }
+            }
+        }
+        // 计入已审核但尚未签收的在途直接出库单，防止未签收前绕过授信额度
+        WmsOutbound obQuery = new WmsOutbound();
+        obQuery.setCustomerId(customerId);
+        List<WmsOutbound> openOutbounds = wmsOutboundMapper.selectWmsOutboundList(obQuery);
+        if (openOutbounds != null)
+        {
+            for (WmsOutbound ob : openOutbounds)
+            {
+                if ("1".equals(ob.getStatus()) && !"1".equals(ob.getIsReversal()) && !"1".equals(ob.getReversedFlag())
+                    && ("0".equals(ob.getDeliveryStatus()) || "1".equals(ob.getDeliveryStatus())))
+                {
+                    unpaid = unpaid.add(defaultBigDecimal(ob.getTotalAmount()));
+                }
+            }
+        }
+        // 扣除该客户已确认且尚未核销的预收款余额
+        if (finReceiptMapper != null)
+        {
+            FinReceipt rcQuery = new FinReceipt();
+            rcQuery.setCustomerId(customerId);
+            rcQuery.setStatus("1");
+            List<FinReceipt> receipts = finReceiptMapper.selectFinReceiptList(rcQuery);
+            if (receipts != null)
+            {
+                for (FinReceipt rc : receipts)
+                {
+                    if (rc.getReceivableId() == null && defaultBigDecimal(rc.getAmount()).compareTo(BigDecimal.ZERO) > 0)
+                    {
+                        BigDecimal usedWo = BigDecimal.ZERO;
+                        if (finWriteOffMapper != null)
+                        {
+                            FinWriteOff woQ = new FinWriteOff();
+                            woQ.setReceiptId(rc.getReceiptId());
+                            woQ.setStatus("1");
+                            List<FinWriteOff> wos = finWriteOffMapper.selectFinWriteOffList(woQ);
+                            if (wos != null)
+                            {
+                                for (FinWriteOff wo : wos)
+                                {
+                                    usedWo = usedWo.add(defaultBigDecimal(wo.getAmount()));
+                                }
+                            }
+                        }
+                        BigDecimal unapplied = defaultBigDecimal(rc.getAmount()).subtract(usedWo);
+                        if (unapplied.compareTo(BigDecimal.ZERO) > 0)
+                        {
+                            unpaid = unpaid.subtract(unapplied);
+                        }
+                    }
                 }
             }
         }
@@ -1375,25 +1527,31 @@ public class WmsOutboundServiceImpl implements IWmsOutboundService
             }
             if (finInvoiceMapper != null)
             {
-                FinInvoice invQ = new FinInvoice();
-                invQ.setSourceBillType("fin_receivable");
-                invQ.setSourceBillId(linkedReceivable.getReceivableId());
-                List<FinInvoice> invs = finInvoiceMapper.selectFinInvoiceList(invQ);
-                if (invs != null && !invs.isEmpty())
+                for (String arType : new String[] { "receivable", "fin_receivable" })
                 {
-                    throw new ServiceException("关联应收单已开具销项发票(" + invs.get(0).getInvoiceNo() + ")，禁止反审核");
+                    FinInvoice invQ = new FinInvoice();
+                    invQ.setSourceBillType(arType);
+                    invQ.setSourceBillId(linkedReceivable.getReceivableId());
+                    List<FinInvoice> invs = finInvoiceMapper.selectFinInvoiceList(invQ);
+                    if (invs != null && !invs.isEmpty())
+                    {
+                        throw new ServiceException("关联应收单已开具销项发票(" + invs.get(0).getInvoiceNo() + ")，禁止反审核");
+                    }
                 }
             }
         }
         if (finInvoiceMapper != null)
         {
-            FinInvoice invQ = new FinInvoice();
-            invQ.setSourceBillType("wms_outbound");
-            invQ.setSourceBillId(outbound.getOutboundId());
-            List<FinInvoice> invs = finInvoiceMapper.selectFinInvoiceList(invQ);
-            if (invs != null && !invs.isEmpty())
+            for (String outType : new String[] { "outbound", "wms_outbound" })
             {
-                throw new ServiceException("该出库单已开具销项发票(" + invs.get(0).getInvoiceNo() + ")，禁止反审核");
+                FinInvoice invQ = new FinInvoice();
+                invQ.setSourceBillType(outType);
+                invQ.setSourceBillId(outbound.getOutboundId());
+                List<FinInvoice> invs = finInvoiceMapper.selectFinInvoiceList(invQ);
+                if (invs != null && !invs.isEmpty())
+                {
+                    throw new ServiceException("该出库单已开具销项发票(" + invs.get(0).getInvoiceNo() + ")，禁止反审核");
+                }
             }
         }
     }
@@ -1518,14 +1676,23 @@ public class WmsOutboundServiceImpl implements IWmsOutboundService
                     ? mdProductUnitService.resolveConvertRatio(outboundItem.getProductId(), outboundItem.getUnitName())
                     : BigDecimal.ONE;
             }
+            BigDecimal recentUnitPrice = defaultBigDecimal(outboundItem.getPrice());
+            BigDecimal itemQty = defaultBigDecimal(outboundItem.getQuantity());
+            BigDecimal itemAmt = defaultBigDecimal(outboundItem.getAmount());
+            BigDecimal itemTax = defaultBigDecimal(outboundItem.getTaxAmount());
+            if (itemTax.compareTo(BigDecimal.ZERO) > 0 && itemQty.compareTo(BigDecimal.ZERO) > 0 && itemAmt.compareTo(itemTax) > 0)
+            {
+                // 含税订单下推的出库单剥离增值税后再写入最近成交价，避免复单时按 (1+税率)^N 指数膨胀
+                recentUnitPrice = itemAmt.subtract(itemTax).divide(itemQty, 4, RoundingMode.HALF_UP);
+            }
             if (priceResolverService != null)
             {
                 priceResolverService.saveRecentSalePrice(outbound.getCustomerId(), outboundItem.getProductId(),
-                    outboundItem.getPrice(), ratio, "outbound", outbound.getOutboundId(), outbound.getBusinessDate(), operator);
+                    recentUnitPrice, ratio, "outbound", outbound.getOutboundId(), outbound.getBusinessDate(), operator);
                 continue;
             }
             BigDecimal baseUnitPrice = ratio.compareTo(BigDecimal.ONE) > 0
-                ? outboundItem.getPrice().divide(ratio, 4, RoundingMode.HALF_UP) : outboundItem.getPrice();
+                ? recentUnitPrice.divide(ratio, 4, RoundingMode.HALF_UP) : recentUnitPrice;
             PriceRecentTransaction priceRecentTransactionQuery = new PriceRecentTransaction();
             priceRecentTransactionQuery.setCustomerId(outbound.getCustomerId());
             priceRecentTransactionQuery.setProductId(outboundItem.getProductId());

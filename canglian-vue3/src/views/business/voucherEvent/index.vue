@@ -30,7 +30,7 @@
           icon="RefreshRight"
           :loading="regenerating"
           @click="handleRegenerate"
-          v-hasPermi="['business:voucherEvent:generate']"
+          v-hasPermi="['business:voucherEvent:regenerate']"
         >一键补生成凭证</el-button>
       </el-col>
       <el-col :span="1.5">

@@ -47,6 +47,11 @@ public class BizScopeHelper
         }
     }
 
+    public Long getCurrentDeptId()
+    {
+        return currentDeptId();
+    }
+
     public Long currentUserId()
     {
         try
@@ -57,6 +62,27 @@ public class BizScopeHelper
         {
             return null;
         }
+    }
+
+    public Long getCurrentUserId()
+    {
+        return currentUserId();
+    }
+
+    public boolean isRestrictedUser()
+    {
+        SysUser user = currentUser();
+        return user != null && !user.isAdmin() && user.getRoles() != null && !user.getRoles().isEmpty();
+    }
+
+    public void assertRecordAccess(Long deptId, Long ownerUserId)
+    {
+        assertRecordAccess(deptId, ownerUserId, null);
+    }
+
+    public boolean canAccessRecord(Long deptId, Long ownerUserId)
+    {
+        return canAccessRecord(deptId, ownerUserId, null);
     }
 
     public SysUser currentUser()
@@ -161,6 +187,7 @@ public class BizScopeHelper
         {
             StringBuilder sql = new StringBuilder();
             List<String> seen = new ArrayList<String>();
+            boolean hasDeptScope = false;
             for (SysRole role : user.getRoles())
             {
                 if ("1".equals(role.getStatus()))
@@ -182,15 +209,18 @@ public class BizScopeHelper
                 }
                 else if ("2".equals(ds))
                 {
+                    hasDeptScope = true;
                     sql.append(" OR ").append(prefix).append("dept_id IN (SELECT dept_id FROM sys_role_dept WHERE role_id = ")
                         .append(role.getRoleId()).append(")");
                 }
                 else if ("3".equals(ds))
                 {
+                    hasDeptScope = true;
                     sql.append(" OR ").append(prefix).append("dept_id = ").append(user.getDeptId());
                 }
                 else if ("4".equals(ds))
                 {
+                    hasDeptScope = true;
                     sql.append(" OR ").append(prefix).append("dept_id IN (SELECT dept_id FROM sys_dept WHERE dept_id = ")
                         .append(user.getDeptId()).append(" OR find_in_set(").append(user.getDeptId()).append(", ancestors))");
                 }
@@ -201,7 +231,15 @@ public class BizScopeHelper
             }
             if (sql.length() > 0)
             {
-                query.getParams().put("dataScope", " AND (" + sql.substring(4) + " OR " + prefix + "dept_id IS NULL)");
+                // 仅本人数据权限(5)严格按 owner_user_id 隔离，杜绝 OR dept_id IS NULL 越权泄漏历史/其他单据
+                if (hasDeptScope)
+                {
+                    query.getParams().put("dataScope", " AND (" + sql.substring(4) + " OR (" + prefix + "dept_id IS NULL AND " + prefix + "owner_user_id IS NULL))");
+                }
+                else
+                {
+                    query.getParams().put("dataScope", " AND (" + sql.substring(4) + ")");
+                }
             }
         }
         if (filterWarehouse)

@@ -158,9 +158,16 @@ import {
   delDataBackup
 } from "@/api/business/dataBackup"
 import { useRouter } from "vue-router"
+import { blobValidate } from "@/utils/canglian"
 
 const { proxy } = getCurrentInstance()
 const router = useRouter()
+
+function hasRouteAccess(path) {
+  if (!path) return false
+  const resolved = router.resolve(path)
+  return resolved && resolved.matched && resolved.matched.length > 0 && resolved.name !== "NotFound" && !resolved.matched.some(r => String(r.path || "").includes(":pathMatch"))
+}
 
 const loading = ref(false)
 const creating = ref(false)
@@ -202,6 +209,10 @@ function refreshAll() {
 }
 
 function goScheduleConfig() {
+  if (!hasRouteAccess("/monitor/job")) {
+    proxy.$modal.msgWarning("当前账号暂无访问定时任务管理模块的菜单权限")
+    return
+  }
   router.push("/monitor/job")
 }
 
@@ -249,9 +260,17 @@ function submitRestore() {
   })
 }
 
-function handleDownload(row) {
-  downloadDataBackup(row.fileName).then(blob => {
-    const url = window.URL.createObjectURL(new Blob([blob]))
+async function handleDownload(row) {
+  try {
+    const data = await downloadDataBackup(row.fileName)
+    const isBlob = blobValidate(data)
+    if (!isBlob) {
+      const resText = await data.text()
+      const rspObj = JSON.parse(resText)
+      proxy.$modal.msgError(rspObj.msg || "备份文件下载失败")
+      return
+    }
+    const url = window.URL.createObjectURL(new Blob([data]))
     const link = document.createElement("a")
     link.href = url
     link.setAttribute("download", row.fileName)
@@ -259,9 +278,9 @@ function handleDownload(row) {
     link.click()
     document.body.removeChild(link)
     window.URL.revokeObjectURL(url)
-  }).catch(() => {
+  } catch (e) {
     proxy.$modal.msgError("备份文件下载失败")
-  })
+  }
 }
 
 function handleDelete(row) {

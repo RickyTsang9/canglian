@@ -2,6 +2,8 @@ package com.canglian.web.controller.business;
 
 import java.math.BigDecimal;
 import java.util.List;
+import com.canglian.common.utils.poi.ExcelUtil;
+import javax.servlet.http.HttpServletResponse;
 import java.util.Map;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -76,7 +78,7 @@ public class FinBadDebtController extends BaseController
         return toAjax(finBadDebtService.confirmFinBadDebt(badDebtId, getUsername()));
     }
 
-    @PreAuthorize("@ss.hasPermi('business:badDebt:confirm')")
+    @PreAuthorize("@ss.hasPermi('business:badDebt:unconfirm')")
     @Log(title = "坏账反确认", businessType = BusinessType.UPDATE)
     @PostMapping("/unconfirm/{badDebtId}")
     public AjaxResult unconfirm(@PathVariable Long badDebtId)
@@ -103,5 +105,18 @@ public class FinBadDebtController extends BaseController
     public AjaxResult remove(@PathVariable Long[] badDebtIds)
     {
         return toAjax(finBadDebtService.deleteFinBadDebtByIds(badDebtIds));
+    }
+
+    /**
+     * 导出坏账单
+     */
+    @Log(title = "坏账单", businessType = BusinessType.EXPORT)
+    @PreAuthorize("@ss.hasPermi('business:badDebt:export') or @ss.hasPermi('business:badDebt:list')")
+    @PostMapping("/export")
+    public void export(HttpServletResponse response, FinBadDebt finBadDebt)
+    {
+        List<FinBadDebt> list = finBadDebtService.selectFinBadDebtList(finBadDebt);
+        ExcelUtil<FinBadDebt> util = new ExcelUtil<FinBadDebt>(FinBadDebt.class);
+        util.exportExcel(response, list, "坏账单");
     }
 }

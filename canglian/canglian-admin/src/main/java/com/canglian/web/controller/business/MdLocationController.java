@@ -1,6 +1,8 @@
 package com.canglian.web.controller.business;
 
 import java.util.List;
+import com.canglian.common.utils.poi.ExcelUtil;
+import javax.servlet.http.HttpServletResponse;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
@@ -87,6 +89,19 @@ public class MdLocationController extends BaseController
     public AjaxResult remove(@PathVariable Long[] locationIds)
     {
         return toAjax(mdLocationService.deleteMdLocationByLocationIds(locationIds));
+    }
+
+    /**
+     * 导出库位档案
+     */
+    @Log(title = "库位档案", businessType = BusinessType.EXPORT)
+    @PreAuthorize("@ss.hasPermi('business:location:export') or @ss.hasPermi('business:location:list')")
+    @PostMapping("/export")
+    public void export(HttpServletResponse response, MdLocation mdLocation)
+    {
+        List<MdLocation> list = mdLocationService.selectMdLocationList(mdLocation);
+        ExcelUtil<MdLocation> util = new ExcelUtil<MdLocation>(MdLocation.class);
+        util.exportExcel(response, list, "库位档案");
     }
 }
 

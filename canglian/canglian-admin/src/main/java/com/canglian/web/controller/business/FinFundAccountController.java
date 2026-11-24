@@ -126,12 +126,20 @@ public class FinFundAccountController extends BaseController
         return toAjax(finFundLogService.confirmFinFundTransfer(transferId, getUsername()));
     }
 
-    @PreAuthorize("@ss.hasPermi('business:fundAccount:transfer') or @ss.hasPermi('business:fundAccount:edit')")
+    @PreAuthorize("@ss.hasPermi('business:fundAccount:transferUnconfirm')")
     @Log(title = "资金内部互转反确认", businessType = BusinessType.UPDATE)
     @PutMapping("/transfer/unconfirm/{transferId}")
     public AjaxResult unconfirmTransfer(@PathVariable Long transferId)
     {
         return toAjax(finFundLogService.unconfirmFinFundTransfer(transferId, getUsername()));
+    }
+
+    @PreAuthorize("@ss.hasPermi('business:fundAccount:transferUnconfirm')")
+    @Log(title = "资金内部互转红冲", businessType = BusinessType.INSERT)
+    @PostMapping("/transfer/reverse/{transferId}")
+    public AjaxResult reverseTransfer(@PathVariable Long transferId)
+    {
+        return success(finFundLogService.reverseFinFundTransfer(transferId, getUsername()));
     }
 
     @PreAuthorize("@ss.hasPermi('business:fundAccount:transfer') or @ss.hasPermi('business:fundAccount:edit')")
@@ -140,5 +148,18 @@ public class FinFundAccountController extends BaseController
     public AjaxResult removeTransfer(@PathVariable Long transferId)
     {
         return toAjax(finFundLogService.deleteFinFundTransferById(transferId));
+    }
+
+    /**
+     * 导出资金账户
+     */
+    @Log(title = "资金账户", businessType = BusinessType.EXPORT)
+    @PreAuthorize("@ss.hasPermi('business:fundAccount:export') or @ss.hasPermi('business:fundAccount:list')")
+    @PostMapping("/export")
+    public void export(HttpServletResponse response, FinFundAccount finFundAccount)
+    {
+        List<FinFundAccount> list = finFundAccountService.selectFinFundAccountList(finFundAccount);
+        ExcelUtil<FinFundAccount> util = new ExcelUtil<FinFundAccount>(FinFundAccount.class);
+        util.exportExcel(response, list, "资金账户");
     }
 }

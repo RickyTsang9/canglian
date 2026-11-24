@@ -40,6 +40,10 @@ export function unconfirmFundTransfer(transferId) {
   return request({ url: '/business/fundAccount/transfer/unconfirm/' + transferId, method: 'put' })
 }
 
+export function reverseFundTransfer(transferId) {
+  return request({ url: '/business/fundAccount/transfer/reverse/' + transferId, method: 'post' })
+}
+
 export function delFundTransfer(transferId) {
   return request({ url: '/business/fundAccount/transfer/' + transferId, method: 'delete' })
 }

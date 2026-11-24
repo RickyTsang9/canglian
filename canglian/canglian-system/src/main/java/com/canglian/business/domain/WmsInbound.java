@@ -5,6 +5,7 @@ import java.util.Date;
 import java.util.List;
 import org.apache.commons.lang3.builder.ToStringBuilder;
 import org.apache.commons.lang3.builder.ToStringStyle;
+import com.canglian.common.annotation.Excel;
 import com.canglian.common.core.domain.BaseEntity;
 
 public class WmsInbound extends BaseEntity
@@ -13,12 +14,16 @@ public class WmsInbound extends BaseEntity
 
     private Long inboundId;
 
+    @Excel(name = "入库单号")
     private String inboundNo;
 
+    @Excel(name = "入库类型", readConverterExp = "purchase=采购入库,return=退货入库,other=其他入库")
     private String inboundType;
 
+    @Excel(name = "供应商ID")
     private Long supplierId;
 
+    @Excel(name = "仓库ID")
     private Long warehouseId;
 
     private Long deptId;
@@ -29,18 +34,24 @@ public class WmsInbound extends BaseEntity
 
     private Long sourceBillId;
 
+    @Excel(name = "来源单号")
     private String sourceBillNo;
 
+    @Excel(name = "业务日期", dateFormat = "yyyy-MM-dd")
     private Date businessDate;
 
+    @Excel(name = "入库总数")
     private BigDecimal totalQty;
 
+    @Excel(name = "入库总额")
     private BigDecimal totalAmount;
 
     private BigDecimal discountAmount;
 
+    @Excel(name = "税额")
     private BigDecimal taxTotalAmount;
 
+    @Excel(name = "审核状态", readConverterExp = "0=草稿,1=已审核")
     private String status;
 
     public BigDecimal getDiscountAmount() { return discountAmount; }
@@ -50,6 +61,7 @@ public class WmsInbound extends BaseEntity
 
     private String bizStatus;
 
+    @Excel(name = "审核人")
     private String auditBy;
 
     private Date auditTime;

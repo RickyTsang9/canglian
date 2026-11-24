@@ -12,27 +12,46 @@ public class WmsStock extends BaseEntity
 
     private Long stockId;
 
-    @Excel(name = "仓库编号")
     private Long warehouseId;
 
-    @Excel(name = "商品编号")
+    @Excel(name = "仓库编码", prompt = "必填，填写仓库档案中的仓库编码")
+    private String warehouseCode;
+
+    @Excel(name = "仓库名称", type = Excel.Type.EXPORT)
+    private String warehouseName;
+
     private Long productId;
 
-    @Excel(name = "库位编号")
+    @Excel(name = "商品编码", prompt = "必填，填写商品档案中的商品编码")
+    private String productCode;
+
+    @Excel(name = "商品名称", type = Excel.Type.EXPORT)
+    private String productName;
+
     private Long locationId;
 
-    @Excel(name = "批次号")
+    @Excel(name = "库位编码", prompt = "选填，留空为默认库位")
+    private String locationCode;
+
+    @Excel(name = "库位名称", type = Excel.Type.EXPORT)
+    private String locationName;
+
+    @Excel(name = "批次号", prompt = "启用批次管理的商品必填")
     private String batchNo;
 
     @Excel(name = "库存数量")
     private BigDecimal quantity;
 
-    @Excel(name = "锁定数量")
+    @Excel(name = "期初单位成本", prompt = "选填，留空则取商品档案参考进价")
+    private BigDecimal costPrice;
+
+    @Excel(name = "锁定数量", type = Excel.Type.EXPORT)
     private BigDecimal lockedQuantity;
 
-    @Excel(name = "冻结数量")
+    @Excel(name = "冻结数量", type = Excel.Type.EXPORT)
     private BigDecimal frozenQuantity;
 
+    @Excel(name = "可用数量", type = Excel.Type.EXPORT)
     private BigDecimal availableQuantity;
 
     @Excel(name = "最小预警")
@@ -52,9 +71,11 @@ public class WmsStock extends BaseEntity
     private java.util.Date lastOutboundTime;
 
     /** 生产日期 */
+    @Excel(name = "生产日期", dateFormat = "yyyy-MM-dd", prompt = "选填，格式 yyyy-MM-dd")
     private java.util.Date productionDate;
 
     /** 有效期至 */
+    @Excel(name = "有效期至", dateFormat = "yyyy-MM-dd", prompt = "选填，格式 yyyy-MM-dd")
     private java.util.Date expiryDate;
 
     /** 效期状态(expired已过期 / expiring临期 / normal正常) */
@@ -334,6 +355,21 @@ public class WmsStock extends BaseEntity
     {
         this.version = version;
     }
+
+    public String getWarehouseCode() { return warehouseCode; }
+    public void setWarehouseCode(String warehouseCode) { this.warehouseCode = warehouseCode; }
+    public String getWarehouseName() { return warehouseName; }
+    public void setWarehouseName(String warehouseName) { this.warehouseName = warehouseName; }
+    public String getProductCode() { return productCode; }
+    public void setProductCode(String productCode) { this.productCode = productCode; }
+    public String getProductName() { return productName; }
+    public void setProductName(String productName) { this.productName = productName; }
+    public String getLocationCode() { return locationCode; }
+    public void setLocationCode(String locationCode) { this.locationCode = locationCode; }
+    public String getLocationName() { return locationName; }
+    public void setLocationName(String locationName) { this.locationName = locationName; }
+    public BigDecimal getCostPrice() { return costPrice; }
+    public void setCostPrice(BigDecimal costPrice) { this.costPrice = costPrice; }
 
     @Override
     public String toString()

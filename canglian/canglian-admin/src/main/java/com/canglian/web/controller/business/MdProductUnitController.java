@@ -31,7 +31,7 @@ public class MdProductUnitController extends BaseController
     @Autowired
     private IMdProductUnitService mdProductUnitService;
 
-    @PreAuthorize("@ss.hasPermi('business:product:list') or @ss.hasPermi('business:purOrder:add') or @ss.hasPermi('business:purOrder:edit') or @ss.hasPermi('business:saleOrder:add') or @ss.hasPermi('business:saleOrder:edit') or @ss.hasPermi('business:inbound:add') or @ss.hasPermi('business:inbound:edit') or @ss.hasPermi('business:outbound:add') or @ss.hasPermi('business:outbound:edit') or @ss.hasPermi('business:transfer:add') or @ss.hasPermi('business:purchaseReturn:add') or @ss.hasPermi('business:saleReturn:add')")
+    @PreAuthorize("@ss.hasPermi('business:product:list') or @ss.hasPermi('business:product:edit') or @ss.hasPermi('business:purOrder:add') or @ss.hasPermi('business:purOrder:edit') or @ss.hasPermi('business:saleOrder:add') or @ss.hasPermi('business:saleOrder:edit') or @ss.hasPermi('business:inbound:add') or @ss.hasPermi('business:inbound:edit') or @ss.hasPermi('business:outbound:add') or @ss.hasPermi('business:outbound:edit') or @ss.hasPermi('business:transfer:add') or @ss.hasPermi('business:transfer:edit') or @ss.hasPermi('business:inventoryCheck:add') or @ss.hasPermi('business:inventoryCheck:edit') or @ss.hasPermi('business:purchaseReturn:add') or @ss.hasPermi('business:purchaseReturn:edit') or @ss.hasPermi('business:saleReturn:add') or @ss.hasPermi('business:saleReturn:edit')")
     @GetMapping("/list")
     public TableDataInfo list(MdProductUnit query)
     {
@@ -40,7 +40,7 @@ public class MdProductUnitController extends BaseController
         return getDataTable(list);
     }
 
-    @PreAuthorize("@ss.hasPermi('business:product:list') or @ss.hasPermi('business:purOrder:add') or @ss.hasPermi('business:purOrder:edit') or @ss.hasPermi('business:saleOrder:add') or @ss.hasPermi('business:saleOrder:edit') or @ss.hasPermi('business:inbound:add') or @ss.hasPermi('business:inbound:edit') or @ss.hasPermi('business:outbound:add') or @ss.hasPermi('business:outbound:edit') or @ss.hasPermi('business:transfer:add') or @ss.hasPermi('business:purchaseReturn:add') or @ss.hasPermi('business:saleReturn:add')")
+    @PreAuthorize("isAuthenticated()")
     @GetMapping("/byProduct/{productId}")
     public AjaxResult byProduct(@PathVariable Long productId)
     {

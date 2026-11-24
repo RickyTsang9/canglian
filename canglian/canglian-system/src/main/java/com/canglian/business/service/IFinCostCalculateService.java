@@ -18,6 +18,11 @@ public interface IFinCostCalculateService
     public FinCostLog calculateCost(FinCostCalculate finCostCalculate);
 
     /**
+     * 纯内存沙箱模拟测算单笔出入库成本（只读，不修改成本台账、成本层或审计流水）
+     */
+    public Map<String, Object> simulateCost(FinCostCalculate finCostCalculate);
+
+    /**
      * 查询当前全局成本核算算法配置与历史流水状态
      */
     public Map<String, Object> getGlobalCostConfig();

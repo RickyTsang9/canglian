@@ -40,8 +40,29 @@ public class WmsTransferItemServiceImpl implements IWmsTransferItemService
     @Override
     public List<WmsTransferItem> selectWmsTransferItemList(WmsTransferItem wmsTransferItem)
     {
-        if (wmsTransferItem != null && wmsTransferItem.getTransferId() != null) assertTransferAccess(wmsTransferItem.getTransferId());
-        return wmsTransferItemMapper.selectWmsTransferItemList(wmsTransferItem);
+        if (wmsTransferItem != null && wmsTransferItem.getTransferId() != null)
+        {
+            assertTransferAccess(wmsTransferItem.getTransferId());
+            return wmsTransferItemMapper.selectWmsTransferItemList(wmsTransferItem);
+        }
+        List<WmsTransferItem> list = wmsTransferItemMapper.selectWmsTransferItemList(wmsTransferItem);
+        if (bizScopeHelper == null || list == null || list.isEmpty()) return list;
+        java.util.List<WmsTransferItem> filtered = new java.util.ArrayList<WmsTransferItem>();
+        java.util.Map<Long, Boolean> cache = new java.util.HashMap<Long, Boolean>();
+        for (WmsTransferItem it : list)
+        {
+            Long pid = it.getTransferId();
+            Boolean ok = cache.get(pid);
+            if (ok == null)
+            {
+                WmsTransfer doc = pid == null ? null : wmsTransferMapper.selectWmsTransferById(pid);
+                ok = doc != null && (bizScopeHelper.canAccessRecord(doc.getDeptId(), doc.getOwnerUserId(), doc.getOutWarehouseId())
+                    || bizScopeHelper.canAccessRecord(doc.getDeptId(), doc.getOwnerUserId(), doc.getInWarehouseId()));
+                cache.put(pid, ok);
+            }
+            if (Boolean.TRUE.equals(ok)) filtered.add(it);
+        }
+        return filtered;
     }
 
     @Override
@@ -62,6 +83,10 @@ public class WmsTransferItemServiceImpl implements IWmsTransferItemService
         WmsTransferItem existed = wmsTransferItemMapper.selectWmsTransferItemById(wmsTransferItem.getTransferItemId());
         if (existed == null) throw new ServiceException("调拨单明细不存在");
         WmsTransfer doc = assertDraftTransfer(existed.getTransferId());
+        if (wmsTransferItem.getTransferId() != null && !wmsTransferItem.getTransferId().equals(existed.getTransferId()))
+        {
+            assertDraftTransfer(wmsTransferItem.getTransferId());
+        }
         normalizeItem(wmsTransferItem);
         int rows = wmsTransferItemMapper.updateWmsTransferItem(wmsTransferItem);
         if (rows > 0) recalculateHeader(doc);

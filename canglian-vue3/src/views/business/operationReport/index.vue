@@ -8,13 +8,13 @@
         <el-date-picker v-model="queryParams.endDate" type="date" value-format="YYYY-MM-DD" placeholder="请选择结束日期" />
       </el-form-item>
       <el-form-item>
-        <el-button type="primary" icon="Search" @click="getAllReports">查询</el-button>
+        <el-button type="primary" icon="Search" @click="loadActiveTab(true)">查询</el-button>
         <el-button icon="Refresh" @click="resetQuery">重置</el-button>
         <el-button type="warning" plain icon="Download" @click="handleExportActive" v-hasPermi="['business:report:export']">导出当前报表 Excel</el-button>
       </el-form-item>
     </el-form>
 
-    <el-tabs v-model="activeTab">
+    <el-tabs v-model="activeTab" @tab-change="handleTabChange">
       <el-tab-pane label="销售毛利（真实成本）" name="grossProfit">
         <el-alert
           title="统计口径：严格按客户签收确认的销售出库单与有效销售退货单汇总（数量统一换算为基础计量单位），结转成本取自历史真实成本流水。"
@@ -113,6 +113,7 @@
 
 <script setup name="OperationReport">
 import { salesGrossProfit, customerContribution, productTurnover, stockBalance, fundAnalysis, exportReport } from "@/api/business/report"
+import { blobValidate } from "@/utils/canglian"
 
 const { proxy } = getCurrentInstance()
 
@@ -158,11 +159,19 @@ const tabExportMap = {
   fundAnalysis: { type: "fundAnalysis", file: "资金分析报表.xlsx" }
 }
 
-function handleExportActive() {
+async function handleExportActive() {
   const cfg = tabExportMap[activeTab.value]
   if (!cfg) return
-  exportReport({ reportType: cfg.type, ...queryParams }).then(blob => {
-    const url = window.URL.createObjectURL(new Blob([blob]))
+  try {
+    const data = await exportReport({ reportType: cfg.type, ...queryParams })
+    const isBlob = blobValidate(data)
+    if (!isBlob) {
+      const resText = await data.text()
+      const rspObj = JSON.parse(resText)
+      proxy.$modal.msgError(rspObj.msg || "报表导出失败")
+      return
+    }
+    const url = window.URL.createObjectURL(new Blob([data]))
     const link = document.createElement("a")
     link.href = url
     link.setAttribute("download", cfg.file)
@@ -170,17 +179,28 @@ function handleExportActive() {
     link.click()
     document.body.removeChild(link)
     window.URL.revokeObjectURL(url)
-  }).catch(() => {
+  } catch (e) {
     proxy.$modal.msgError("报表导出失败")
-  })
+  }
 }
 
-function getAllReports() {
-  getGrossProfitList()
-  getCustomerContributionList()
-  getTurnoverList()
-  getStockBalanceList()
-  getFundAnalysisList()
+const loadedTabs = reactive({})
+function loadActiveTab(force = false) {
+  const tab = activeTab.value
+  if (force) {
+    Object.keys(loadedTabs).forEach(k => { loadedTabs[k] = false })
+  }
+  if (!force && loadedTabs[tab]) return
+  loadedTabs[tab] = true
+  if (tab === "grossProfit") getGrossProfitList()
+  else if (tab === "customerContribution") getCustomerContributionList()
+  else if (tab === "turnover") getTurnoverList()
+  else if (tab === "stockBalance") getStockBalanceList()
+  else if (tab === "fundAnalysis") getFundAnalysisList()
+}
+
+function handleTabChange() {
+  loadActiveTab(false)
 }
 
 function getGrossProfitList() {
@@ -232,8 +252,8 @@ function resetQuery() {
   proxy.resetForm("queryRef")
   queryParams.startDate = `${currentYear}-01-01`
   queryParams.endDate = `${currentYear}-12-31`
-  getAllReports()
+  loadActiveTab(true)
 }
 
-getAllReports()
+loadActiveTab(true)
 </script>

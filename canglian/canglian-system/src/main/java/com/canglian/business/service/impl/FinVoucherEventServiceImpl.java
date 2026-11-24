@@ -12,7 +12,10 @@ import java.util.Map;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import com.canglian.business.domain.FinBadDebt;
+import com.canglian.business.domain.FinCostAccount;
 import com.canglian.business.domain.FinExpense;
+import com.canglian.business.domain.FinFundTransfer;
 import com.canglian.business.domain.FinInvoice;
 import com.canglian.business.domain.FinPayable;
 import com.canglian.business.domain.FinPayment;
@@ -25,10 +28,14 @@ import com.canglian.business.domain.MdCustomer;
 import com.canglian.business.domain.MdSupplier;
 import com.canglian.business.domain.MdWarehouse;
 import com.canglian.business.domain.WmsInbound;
+import com.canglian.business.domain.WmsInventoryCheck;
 import com.canglian.business.domain.WmsOutbound;
 import com.canglian.business.domain.WmsPurchaseReturn;
 import com.canglian.business.domain.WmsSaleReturn;
+import com.canglian.business.mapper.FinBadDebtMapper;
+import com.canglian.business.mapper.FinCostAccountMapper;
 import com.canglian.business.mapper.FinExpenseMapper;
+import com.canglian.business.mapper.FinFundLogMapper;
 import com.canglian.business.mapper.FinInvoiceMapper;
 import com.canglian.business.mapper.FinPayableMapper;
 import com.canglian.business.mapper.FinPaymentMapper;
@@ -40,6 +47,7 @@ import com.canglian.business.mapper.MdCustomerMapper;
 import com.canglian.business.mapper.MdSupplierMapper;
 import com.canglian.business.mapper.MdWarehouseMapper;
 import com.canglian.business.mapper.WmsInboundMapper;
+import com.canglian.business.mapper.WmsInventoryCheckMapper;
 import com.canglian.business.mapper.WmsOutboundMapper;
 import com.canglian.business.mapper.WmsPurchaseReturnMapper;
 import com.canglian.business.mapper.WmsSaleReturnMapper;
@@ -106,6 +114,18 @@ public class FinVoucherEventServiceImpl implements IFinVoucherEventService
 
     @Autowired(required = false)
     private FinInvoiceMapper finInvoiceMapper;
+
+    @Autowired(required = false)
+    private FinBadDebtMapper finBadDebtMapper;
+
+    @Autowired(required = false)
+    private FinFundLogMapper finFundLogMapper;
+
+    @Autowired(required = false)
+    private WmsInventoryCheckMapper wmsInventoryCheckMapper;
+
+    @Autowired(required = false)
+    private FinCostAccountMapper finCostAccountMapper;
 
     @Autowired(required = false)
     private IFinCostCalculateService finCostCalculateService;
@@ -316,6 +336,7 @@ public class FinVoucherEventServiceImpl implements IFinVoucherEventService
         {
             throw new ServiceException("凭证已冲销，请勿重复操作");
         }
+        finGeneralLedgerService.assertPeriodOpen(finVoucherEvent.getEventDate());
         finGeneralLedgerService.assertPeriodOpen(new Date());
         String reverseNo = generateReverseVoucherNo();
 
@@ -398,7 +419,7 @@ public class FinVoucherEventServiceImpl implements IFinVoucherEventService
         List<FinVoucherTemplate> templates = finVoucherEntryMapper.selectEnabledTemplatesByEventType(event.getEventType());
         if (templates == null || templates.size() < 2)
         {
-            templates = buildFallbackTemplates(event);
+            throw new ServiceException("事件类型[" + StringUtils.defaultString(event.getEventType()) + "]未配置有效的借贷凭证模板，请先在总账管理中完善模板后再生成凭证");
         }
         BigDecimal rawAmount = event.getEventAmount() == null ? BigDecimal.ZERO : event.getEventAmount().setScale(2, RoundingMode.HALF_UP);
         boolean negative = rawAmount.compareTo(BigDecimal.ZERO) < 0;
@@ -574,6 +595,7 @@ public class FinVoucherEventServiceImpl implements IFinVoucherEventService
                 for (FinExpense doc : list)
                 {
                     if (doc.getAmount() == null || doc.getAmount().compareTo(BigDecimal.ZERO) <= 0) continue;
+                    if (isPeriodClosedSafely(doc.getExpenseDate())) continue;
                     if (!hasVoucherEvent("expense", doc.getExpenseId(), "expense_confirm"))
                     {
                         recordVoucherEvent("expense", doc.getExpenseId(), doc.getExpenseNo(), "expense_confirm",
@@ -583,9 +605,175 @@ public class FinVoucherEventServiceImpl implements IFinVoucherEventService
                 }
             }
         }
+        if (wmsSaleReturnMapper != null)
+        {
+            WmsSaleReturn q = new WmsSaleReturn();
+            q.setStatus("1");
+            List<WmsSaleReturn> list = wmsSaleReturnMapper.selectWmsSaleReturnList(q);
+            if (list != null)
+            {
+                for (WmsSaleReturn doc : list)
+                {
+                    if ("1".equals(doc.getIsReversal()) || "1".equals(doc.getReversedFlag())) continue;
+                    if (doc.getTotalAmount() == null || doc.getTotalAmount().compareTo(BigDecimal.ZERO) <= 0) continue;
+                    if (isPeriodClosedSafely(doc.getBusinessDate())) continue;
+                    if (!hasVoucherEvent("sale_return", doc.getSaleReturnId(), "sale_return_complete"))
+                    {
+                        recordVoucherEvent("sale_return", doc.getSaleReturnId(), doc.getReturnNo(), "sale_return_complete",
+                            doc.getBusinessDate(), doc.getTotalAmount(), op, "系统补生成销售退货凭证事件");
+                        createdCount++;
+                    }
+                }
+            }
+        }
+        if (wmsPurchaseReturnMapper != null)
+        {
+            WmsPurchaseReturn q = new WmsPurchaseReturn();
+            q.setStatus("1");
+            List<WmsPurchaseReturn> list = wmsPurchaseReturnMapper.selectWmsPurchaseReturnList(q);
+            if (list != null)
+            {
+                for (WmsPurchaseReturn doc : list)
+                {
+                    if ("1".equals(doc.getIsReversal()) || "1".equals(doc.getReversedFlag())) continue;
+                    if (doc.getTotalAmount() == null || doc.getTotalAmount().compareTo(BigDecimal.ZERO) <= 0) continue;
+                    if (isPeriodClosedSafely(doc.getBusinessDate())) continue;
+                    if (!hasVoucherEvent("purchase_return", doc.getPurchaseReturnId(), "purchase_return_complete"))
+                    {
+                        recordVoucherEvent("purchase_return", doc.getPurchaseReturnId(), doc.getReturnNo(), "purchase_return_complete",
+                            doc.getBusinessDate(), doc.getTotalAmount(), op, "系统补生成采购退货凭证事件");
+                        createdCount++;
+                    }
+                }
+            }
+        }
+        if (finInvoiceMapper != null)
+        {
+            FinInvoice q = new FinInvoice();
+            q.setStatus("1");
+            List<FinInvoice> list = finInvoiceMapper.selectFinInvoiceList(q);
+            if (list != null)
+            {
+                for (FinInvoice doc : list)
+                {
+                    if (doc.getTaxAmount() == null || doc.getTaxAmount().compareTo(BigDecimal.ZERO) == 0) continue;
+                    if (isPeriodClosedSafely(doc.getBusinessDate())) continue;
+                    String evType = "purchase".equals(doc.getInvoiceType()) ? "purchase_invoice_confirm" : "sale_invoice_confirm";
+                    if (!hasVoucherEvent("invoice", doc.getInvoiceId(), evType))
+                    {
+                        recordVoucherEvent("invoice", doc.getInvoiceId(), doc.getInvoiceNo(), evType,
+                            doc.getBusinessDate(), doc.getTaxAmount(), op, "系统补生成发票税额凭证事件");
+                        createdCount++;
+                    }
+                }
+            }
+        }
+        if (finBadDebtMapper != null)
+        {
+            FinBadDebt q = new FinBadDebt();
+            List<FinBadDebt> list = finBadDebtMapper.selectFinBadDebtList(q);
+            if (list != null)
+            {
+                for (FinBadDebt doc : list)
+                {
+                    if (!"1".equals(doc.getStatus()) && !"2".equals(doc.getStatus())) continue;
+                    if (doc.getAmount() == null || doc.getAmount().compareTo(BigDecimal.ZERO) <= 0) continue;
+                    if (isPeriodClosedSafely(doc.getBadDebtDate())) continue;
+                    if (!hasVoucherEvent("bad_debt", doc.getBadDebtId(), "bad_debt_confirm"))
+                    {
+                        recordVoucherEvent("bad_debt", doc.getBadDebtId(), doc.getBadDebtNo(), "bad_debt_confirm",
+                            doc.getBadDebtDate(), doc.getAmount(), op, "系统补生成坏账计提凭证事件");
+                        createdCount++;
+                    }
+                }
+            }
+        }
+        if (finFundLogMapper != null)
+        {
+            FinFundTransfer q = new FinFundTransfer();
+            q.setStatus("1");
+            List<FinFundTransfer> list = finFundLogMapper.selectFinFundTransferList(q);
+            if (list != null)
+            {
+                for (FinFundTransfer doc : list)
+                {
+                    if (doc.getAmount() == null || doc.getAmount().compareTo(BigDecimal.ZERO) <= 0) continue;
+                    if (isPeriodClosedSafely(doc.getTransferDate())) continue;
+                    if (!hasVoucherEvent("fund_transfer", doc.getTransferId(), "fund_transfer"))
+                    {
+                        recordVoucherEvent("fund_transfer", doc.getTransferId(), doc.getTransferNo(), "fund_transfer",
+                            doc.getTransferDate(), doc.getAmount(), op, "系统补生成资金互转凭证事件");
+                        createdCount++;
+                    }
+                    if (doc.getFeeAmount() != null && doc.getFeeAmount().compareTo(BigDecimal.ZERO) > 0
+                        && !hasVoucherEvent("fund_transfer_fee", doc.getTransferId(), "fund_transfer_fee"))
+                    {
+                        recordVoucherEvent("fund_transfer_fee", doc.getTransferId(), doc.getTransferNo(), "fund_transfer_fee",
+                            doc.getTransferDate(), doc.getFeeAmount(), op, "系统补生成资金互转手续费凭证事件");
+                        createdCount++;
+                    }
+                }
+            }
+        }
+        if (finReceivableMapper != null)
+        {
+            FinReceivable q = new FinReceivable();
+            q.setBizStatus("confirmed");
+            List<FinReceivable> list = finReceivableMapper.selectFinReceivableList(q);
+            if (list != null)
+            {
+                for (FinReceivable doc : list)
+                {
+                    if (!"manual".equals(doc.getBillType()) && !"invoice".equals(doc.getBillType())) continue;
+                    if (doc.getAmount() == null || doc.getAmount().compareTo(BigDecimal.ZERO) <= 0) continue;
+                    if (isPeriodClosedSafely(doc.getBusinessDate())) continue;
+                    if (!hasVoucherEvent("receivable", doc.getReceivableId(), "manual_receivable"))
+                    {
+                        recordVoucherEvent("receivable", doc.getReceivableId(), doc.getReceivableNo(), "manual_receivable",
+                            doc.getBusinessDate(), doc.getAmount(), op, "系统补生成手工应收凭证事件");
+                        createdCount++;
+                    }
+                }
+            }
+        }
+        if (finPayableMapper != null)
+        {
+            FinPayable q = new FinPayable();
+            q.setBizStatus("confirmed");
+            List<FinPayable> list = finPayableMapper.selectFinPayableList(q);
+            if (list != null)
+            {
+                for (FinPayable doc : list)
+                {
+                    if (!"manual".equals(doc.getBillType()) && !"invoice".equals(doc.getBillType())) continue;
+                    if (doc.getAmount() == null || doc.getAmount().compareTo(BigDecimal.ZERO) <= 0) continue;
+                    if (isPeriodClosedSafely(doc.getBusinessDate())) continue;
+                    if (!hasVoucherEvent("payable", doc.getPayableId(), "manual_payable"))
+                    {
+                        recordVoucherEvent("payable", doc.getPayableId(), doc.getPayableNo(), "manual_payable",
+                            doc.getBusinessDate(), doc.getAmount(), op, "系统补生成手工应付凭证事件");
+                        createdCount++;
+                    }
+                }
+            }
+        }
         Map<String, Object> result = new LinkedHashMap<String, Object>();
         result.put("createdCount", createdCount);
         return result;
+    }
+
+    private boolean isPeriodClosedSafely(Date targetDate)
+    {
+        if (finGeneralLedgerService == null) return false;
+        try
+        {
+            finGeneralLedgerService.assertPeriodOpen(targetDate);
+            return false;
+        }
+        catch (ServiceException ex)
+        {
+            return true;
+        }
     }
 
     private boolean hasVoucherEvent(String billType, Long billId, String eventType)
@@ -676,6 +864,11 @@ public class FinVoucherEventServiceImpl implements IFinVoucherEventService
             FinInvoice d = finInvoiceMapper.selectFinInvoiceById(bid);
             return d == null ? null : d.getCustomerId();
         }
+        if ("bad_debt".equals(bt) && finBadDebtMapper != null)
+        {
+            FinBadDebt d = finBadDebtMapper.selectFinBadDebtById(bid);
+            return d == null ? null : d.getCustomerId();
+        }
         return null;
     }
 
@@ -731,6 +924,16 @@ public class FinVoucherEventServiceImpl implements IFinVoucherEventService
         if (("sale_return".equals(bt) || "sale_return_cogs".equals(bt)) && wmsSaleReturnMapper != null)
         {
             WmsSaleReturn d = wmsSaleReturnMapper.selectWmsSaleReturnById(bid);
+            return d == null ? null : d.getWarehouseId();
+        }
+        if ("inventory_check".equals(bt) && wmsInventoryCheckMapper != null)
+        {
+            WmsInventoryCheck d = wmsInventoryCheckMapper.selectWmsInventoryCheckById(bid);
+            return d == null ? null : d.getWarehouseId();
+        }
+        if ("cost_adjust".equals(bt) && finCostAccountMapper != null)
+        {
+            FinCostAccount d = finCostAccountMapper.selectFinCostAccountById(bid);
             return d == null ? null : d.getWarehouseId();
         }
         return null;

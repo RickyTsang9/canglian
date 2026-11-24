@@ -1,6 +1,8 @@
 package com.canglian.web.controller.business;
 
 import java.util.List;
+import com.canglian.common.utils.poi.ExcelUtil;
+import javax.servlet.http.HttpServletResponse;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
@@ -66,6 +68,19 @@ public class WmsStockLogController extends BaseController
     public AjaxResult remove(@PathVariable Long[] stockLogIds)
     {
         throw new ServiceException("库存流水为系统审计台账，不允许删除");
+    }
+
+    /**
+     * 导出库存流水
+     */
+    @Log(title = "库存流水", businessType = BusinessType.EXPORT)
+    @PreAuthorize("@ss.hasPermi('business:stockLog:export') or @ss.hasPermi('business:stockLog:list')")
+    @PostMapping("/export")
+    public void export(HttpServletResponse response, WmsStockLog wmsStockLog)
+    {
+        List<WmsStockLog> list = wmsStockLogService.selectWmsStockLogList(wmsStockLog);
+        ExcelUtil<WmsStockLog> util = new ExcelUtil<WmsStockLog>(WmsStockLog.class);
+        util.exportExcel(response, list, "库存流水");
     }
 }
 

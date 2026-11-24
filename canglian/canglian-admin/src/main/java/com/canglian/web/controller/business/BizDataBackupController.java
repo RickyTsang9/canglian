@@ -98,10 +98,6 @@ public class BizDataBackupController extends BaseController
     @PostMapping("/restore")
     public AjaxResult restore(@RequestBody Map<String, String> payload)
     {
-        if (!SecurityUtils.isAdmin(getUserId()))
-        {
-            throw new ServiceException("仅超级管理员允许执行数据库在线受控恢复");
-        }
         String fileName = payload == null ? null : payload.get("fileName");
         String confirmPhrase = payload == null ? null : payload.get("confirmPhrase");
         return success(bizDataBackupService.restoreBackup(fileName, confirmPhrase, getUsername()));

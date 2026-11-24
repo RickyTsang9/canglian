@@ -43,6 +43,19 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         ${params.warehouseScope}
     </sql>
 
+    <sql id="queryWarehouseAndBizDateCondition">
+        <if test="warehouseId != null">
+            and warehouse_id = #{warehouseId}
+        </if>
+        <if test="startTime != null">
+            and coalesce(business_date, create_time) &gt;= #{startTime}
+        </if>
+        <if test="endTime != null">
+            and coalesce(business_date, create_time) &lt;= #{endTime}
+        </if>
+        ${params.warehouseScope}
+    </sql>
+
     <select id="selectInboundCardData" parameterType="WarehouseStatisticsQuery" resultMap="WarehouseStatisticsCardDataResult">
         select
             count(1) as bill_count,
@@ -52,7 +65,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         where status = '1'
           and ifnull(is_reversal, '0') = '0'
           and ifnull(reversed_flag, '0') = '0'
-        <include refid="queryWarehouseAndTimeCondition"/>
+        <include refid="queryWarehouseAndBizDateCondition"/>
     </select>
 
     <select id="selectOutboundCardData" parameterType="WarehouseStatisticsQuery" resultMap="WarehouseStatisticsCardDataResult">
@@ -65,28 +78,38 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
           and ifnull(is_reversal, '0') = '0'
           and ifnull(reversed_flag, '0') = '0'
           and ifnull(delivery_status, '0') != '3'
-        <include refid="queryWarehouseAndTimeCondition"/>
+        <include refid="queryWarehouseAndBizDateCondition"/>
     </select>
 
     <select id="selectInventoryInboundCardData" parameterType="WarehouseStatisticsQuery" resultMap="WarehouseStatisticsCardDataResult">
         select
-            count(distinct concat(bill_type, '_', bill_id)) as bill_count,
-            ifnull(sum(quantity), 0) as total_quantity,
-            ifnull(sum(amount), 0) as total_amount
+            count(distinct case when bill_type in ('transfer', 'transfer_in', 'inventory_check') and in_out = '1' then concat(bill_type, '_', bill_id) end) as bill_count,
+            ifnull(sum(case
+                when bill_type in ('transfer', 'transfer_in', 'inventory_check') and in_out = '1' then quantity
+                when bill_type in ('transfer_unaudit_in', 'transfer_reverse_in', 'inventory_check_unaudit', 'inventory_check_reverse') and in_out = '2' then -quantity
+                else 0 end), 0) as total_quantity,
+            ifnull(sum(case
+                when bill_type in ('transfer', 'transfer_in', 'inventory_check') and in_out = '1' then amount
+                when bill_type in ('transfer_unaudit_in', 'transfer_reverse_in', 'inventory_check_unaudit', 'inventory_check_reverse') and in_out = '2' then -amount
+                else 0 end), 0) as total_amount
         from wms_stock_log
-        where bill_type in ('transfer', 'transfer_in', 'inventory_check')
-          and in_out = '1'
+        where bill_type in ('transfer', 'transfer_in', 'inventory_check', 'transfer_unaudit_in', 'transfer_reverse_in', 'inventory_check_unaudit', 'inventory_check_reverse')
         <include refid="queryWarehouseAndTimeCondition"/>
     </select>
 
     <select id="selectInventoryOutboundCardData" parameterType="WarehouseStatisticsQuery" resultMap="WarehouseStatisticsCardDataResult">
         select
-            count(distinct concat(bill_type, '_', bill_id)) as bill_count,
-            ifnull(sum(quantity), 0) as total_quantity,
-            ifnull(sum(amount), 0) as total_amount
+            count(distinct case when bill_type in ('transfer', 'transfer_out', 'inventory_check') and in_out = '2' then concat(bill_type, '_', bill_id) end) as bill_count,
+            ifnull(sum(case
+                when bill_type in ('transfer', 'transfer_out', 'inventory_check') and in_out = '2' then quantity
+                when bill_type in ('transfer_unaudit_out', 'transfer_reverse_out', 'inventory_check_unaudit', 'inventory_check_reverse') and in_out = '1' then -quantity
+                else 0 end), 0) as total_quantity,
+            ifnull(sum(case
+                when bill_type in ('transfer', 'transfer_out', 'inventory_check') and in_out = '2' then amount
+                when bill_type in ('transfer_unaudit_out', 'transfer_reverse_out', 'inventory_check_unaudit', 'inventory_check_reverse') and in_out = '1' then -amount
+                else 0 end), 0) as total_amount
         from wms_stock_log
-        where bill_type in ('transfer', 'transfer_out', 'inventory_check')
-          and in_out = '2'
+        where bill_type in ('transfer', 'transfer_out', 'inventory_check', 'transfer_unaudit_out', 'transfer_reverse_out', 'inventory_check_unaudit', 'inventory_check_reverse')
         <include refid="queryWarehouseAndTimeCondition"/>
     </select>
 
@@ -97,7 +120,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             'inbound' as business_type,
             total_qty as total_quantity,
             total_amount as total_amount,
-            create_time as business_time,
+            coalesce(business_date, create_time) as business_time,
             concat('入库类型:',
                 case ifnull(inbound_type, '')
                     when 'purchase' then '采购入库'
@@ -109,8 +132,8 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         where status = '1'
           and ifnull(is_reversal, '0') = '0'
           and ifnull(reversed_flag, '0') = '0'
-        <include refid="queryWarehouseAndTimeCondition"/>
-        order by create_time desc
+        <include refid="queryWarehouseAndBizDateCondition"/>
+        order by coalesce(business_date, create_time) desc
         limit #{operationLimit}
     </select>
 
@@ -121,7 +144,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             'outbound' as business_type,
             total_qty as total_quantity,
             total_amount as total_amount,
-            create_time as business_time,
+            coalesce(business_date, create_time) as business_time,
             concat('出库类型:',
                 case ifnull(outbound_type, '')
                     when 'sale' then '销售出库'
@@ -134,8 +157,8 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
           and ifnull(is_reversal, '0') = '0'
           and ifnull(reversed_flag, '0') = '0'
           and ifnull(delivery_status, '0') != '3'
-        <include refid="queryWarehouseAndTimeCondition"/>
-        order by create_time desc
+        <include refid="queryWarehouseAndBizDateCondition"/>
+        order by coalesce(business_date, create_time) desc
         limit #{operationLimit}
     </select>
 

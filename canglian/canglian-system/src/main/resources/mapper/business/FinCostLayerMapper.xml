@@ -49,6 +49,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         where cost_account_id = #{costAccountId}
           and remaining_qty > 0
         order by cost_layer_id asc
+        for update
     </select>
 
     <insert id="insertFinCostLayer" parameterType="FinCostLayer" useGeneratedKeys="true" keyProperty="costLayerId">

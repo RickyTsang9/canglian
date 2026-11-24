@@ -1,14 +1,17 @@
 package com.canglian.business.service.impl;
 
+import java.math.BigDecimal;
 import java.util.List;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import com.canglian.business.domain.FinPayable;
 import com.canglian.business.domain.MdSupplier;
 import com.canglian.business.domain.PurOrder;
 import com.canglian.business.mapper.FinPayableMapper;
 import com.canglian.business.mapper.MdSupplierMapper;
 import com.canglian.business.mapper.PurOrderMapper;
+import com.canglian.business.service.IFinPayableService;
 import com.canglian.business.service.IMdSupplierService;
 import com.canglian.common.exception.ServiceException;
 import com.canglian.common.utils.StringUtils;
@@ -29,6 +32,9 @@ public class MdSupplierServiceImpl implements IMdSupplierService
 
     @Autowired
     private FinPayableMapper finPayableMapper;
+
+    @Autowired(required = false)
+    private IFinPayableService finPayableService;
 
     /**
      * 查询供应商档案信息
@@ -111,10 +117,18 @@ public class MdSupplierServiceImpl implements IMdSupplierService
      * @return 结果
      */
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public int insertMdSupplier(MdSupplier mdSupplier)
     {
         validateSupplierCodeUnique(mdSupplier);
-        return mdSupplierMapper.insertMdSupplier(mdSupplier);
+        int rows = mdSupplierMapper.insertMdSupplier(mdSupplier);
+        if (rows > 0 && finPayableService != null && mdSupplier.getSupplierId() != null
+            && mdSupplier.getOpeningPayable() != null && mdSupplier.getOpeningPayable().compareTo(BigDecimal.ZERO) > 0)
+        {
+            finPayableService.syncOpeningPayable(mdSupplier.getSupplierId(), mdSupplier.getSupplierCode(),
+                mdSupplier.getOpeningPayable(), mdSupplier.getPayableDays(), mdSupplier.getCreateBy());
+        }
+        return rows;
     }
 
     /**
@@ -124,9 +138,15 @@ public class MdSupplierServiceImpl implements IMdSupplierService
      * @return 结果
      */
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public int updateMdSupplier(MdSupplier mdSupplier)
     {
         validateSupplierCodeUnique(mdSupplier);
+        if (finPayableService != null && mdSupplier.getSupplierId() != null && mdSupplier.getOpeningPayable() != null)
+        {
+            finPayableService.syncOpeningPayable(mdSupplier.getSupplierId(), mdSupplier.getSupplierCode(),
+                mdSupplier.getOpeningPayable(), mdSupplier.getPayableDays(), mdSupplier.getUpdateBy());
+        }
         return mdSupplierMapper.updateMdSupplier(mdSupplier);
     }
 
@@ -164,10 +184,11 @@ public class MdSupplierServiceImpl implements IMdSupplierService
 
     private void validateSupplierCodeUnique(MdSupplier mdSupplier)
     {
-        if (mdSupplier == null || StringUtils.isEmpty(mdSupplier.getSupplierCode()))
+        if (mdSupplier == null || StringUtils.isEmpty(mdSupplier.getSupplierCode()) || mdSupplier.getSupplierCode().trim().isEmpty())
         {
             throw new ServiceException("供应商编码不能为空");
         }
+        mdSupplier.setSupplierCode(mdSupplier.getSupplierCode().trim());
         MdSupplier existing = mdSupplierMapper.selectMdSupplierByCode(mdSupplier.getSupplierCode());
         if (existing != null && !existing.getSupplierId().equals(mdSupplier.getSupplierId()))
         {
@@ -180,6 +201,11 @@ public class MdSupplierServiceImpl implements IMdSupplierService
         if (supplierId == null)
         {
             return;
+        }
+        MdSupplier existing = mdSupplierMapper.selectMdSupplierById(supplierId);
+        if (existing != null && existing.getOpeningPayable() != null && existing.getOpeningPayable().compareTo(BigDecimal.ZERO) != 0)
+        {
+            throw new ServiceException("供应商[" + existing.getSupplierName() + "]存在非零期初应付余额，不允许删除，请先清零或停用");
         }
         if (mdSupplierMapper.countSupplierReferences(supplierId) > 0)
         {

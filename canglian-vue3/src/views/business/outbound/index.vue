@@ -35,6 +35,9 @@
       <el-col :span="1.5">
         <el-button type="danger" plain icon="Delete" :disabled="isMultipleDisabled" @click="handleDelete" v-hasPermi="['business:outbound:remove']">删除</el-button>
       </el-col>
+      <el-col :span="1.5">
+        <el-button type="warning" plain icon="Download" @click="handleExport" v-hasPermi="['business:outbound:export', 'business:outbound:list']">导出</el-button>
+      </el-col>
       <right-toolbar v-model:showSearch="showSearch" @queryTable="getList" />
     </el-row>
 
@@ -272,21 +275,29 @@
 
     <!-- 退货处理弹窗 -->
     <el-dialog title="整单退货处理" v-model="returnOpen" width="520px" append-to-body>
+      <el-alert
+        v-if="!currentOutboundSigned"
+        title="该出库单尚未签收确认（未生成应收与收款），退货仅回补库存与释放订单进度，不产生现金退款。"
+        type="info"
+        :closable="false"
+        show-icon
+        style="margin-bottom: 12px"
+      />
       <el-form ref="returnRef" :model="returnForm" label-width="100px">
-        <el-form-item label="退款金额">
-          <el-input-number v-model="returnForm.refundAmount" :min="0" :precision="2" controls-position="right" style="width: 100%" placeholder="可选，大于0将生成红字退款单并扣减资金账户" />
+        <el-form-item label="退款金额" v-if="currentOutboundSigned">
+          <el-input-number v-model="returnForm.refundAmount" :min="0" :precision="2" controls-position="right" style="width: 100%" placeholder="可选，仅可退实际已收款金额，自动核销红字应收" />
         </el-form-item>
-        <el-form-item label="退款账户" v-if="Number(returnForm.refundAmount || 0) > 0">
+        <el-form-item label="退款账户" v-if="currentOutboundSigned && Number(returnForm.refundAmount || 0) > 0">
           <el-select v-model="returnForm.fundAccountId" placeholder="请选择退款资金账户（空则取默认账户）" clearable filterable style="width: 100%">
-            <el-option v-for="a in activeFundAccountOptions" :key="a.accountId" :label="`${a.accountName} (余额￥${Number(a.currentBalance || 0).toFixed(2)})`" :value="a.accountId" />
+            <el-option v-for="a in activeFundAccountOptions" :key="a.accountId" :label="`${a.accountName} (余额￥${Number(a.balance || 0).toFixed(2)})`" :value="a.accountId" />
           </el-select>
         </el-form-item>
-        <el-form-item label="关联应收单">
-          <el-select v-model="returnForm.receivableId" placeholder="可选，自动冲减选定应收单" clearable filterable style="width: 100%">
+        <el-form-item label="关联应收单" v-if="currentOutboundSigned">
+          <el-select v-model="returnForm.receivableId" placeholder="可选，校验该笔收款的可退上限" clearable filterable style="width: 100%">
             <el-option
               v-for="r in customerReceivables"
               :key="r.receivableId"
-              :label="`${r.receivableNo} | 未收￥${Number(r.unreceivedAmount || 0).toFixed(2)}`"
+              :label="`${r.receivableNo} | 已收￥${Number(r.receivedAmount || 0).toFixed(2)} | 未收￥${Number(r.unreceivedAmount || 0).toFixed(2)}`"
               :value="r.receivableId"
             />
           </el-select>
@@ -482,10 +493,13 @@ async function handleProductChange(row) {
   const prod = productOptions.value.find(p => Number(p.productId) === Number(row.productId))
   const units = await ensureUnitsLoaded(row.productId)
   if (units.length) {
-    row.unitName = units[0].unitName
-    row.convertRatio = Number(units[0].convertRatio || 1)
+    const preferred = (prod && prod.saleUnit)
+      ? (units.find(u => u.unitName === prod.saleUnit) || units[0])
+      : units[0]
+    row.unitName = preferred.unitName
+    row.convertRatio = Number(preferred.convertRatio || 1)
   } else if (prod) {
-    row.unitName = prod.unitName || "件"
+    row.unitName = prod.saleUnit || prod.unitName || "件"
     row.convertRatio = 1
   }
   await applyLivePrice(row)
@@ -530,7 +544,7 @@ function handleSelectionChange(selection) {
 function canEditRow(r) { return !!r && r.status === "0" }
 function canDeleteRow(r) { return canEditRow(r) }
 function canAuditRow(r) { return !!r && r.status === "0" }
-function canUnauditRow(r) { return !!r && r.status === "1" && r.isReversal !== "1" && r.reversedFlag !== "1" }
+function canUnauditRow(r) { return !!r && r.status === "1" && r.deliveryStatus === "0" && r.isReversal !== "1" && r.reversedFlag !== "1" }
 function canReverseRow(r) { return !!r && r.status === "1" && r.isReversal !== "1" && r.reversedFlag !== "1" }
 function canShipRow(r) { return !!r && r.status === "1" && r.deliveryStatus === "0" && r.isReversal !== "1" && r.reversedFlag !== "1" }
 function canSignRow(r) { return !!r && r.status === "1" && r.deliveryStatus === "1" && r.isReversal !== "1" && r.reversedFlag !== "1" }
@@ -677,10 +691,12 @@ function handleSign(row) {
   }).catch(() => {})
 }
 
+const currentOutboundSigned = ref(false)
 async function handleReturn(row) {
   currentOutboundId.value = row.outboundId
+  currentOutboundSigned.value = row.deliveryStatus === "2"
   returnForm.value = { refundAmount: undefined, receivableId: undefined, fundAccountId: undefined }
-  customerReceivables.value = await fetchOpenReceivables(row.customerId)
+  customerReceivables.value = currentOutboundSigned.value ? await fetchOpenReceivables(row.customerId, true) : []
   returnOpen.value = true
 }
 
@@ -708,4 +724,8 @@ loadProducts()
 loadLocations()
 loadFundAccounts()
 getList()
+
+function handleExport() {
+  proxy.download("business/outbound/export", { ...queryParams.value }, `销售出库单_${new Date().getTime()}.xlsx`)
+}
 </script>

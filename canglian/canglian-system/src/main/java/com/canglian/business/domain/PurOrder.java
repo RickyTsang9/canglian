@@ -5,6 +5,7 @@ import java.util.Date;
 import java.util.List;
 import org.apache.commons.lang3.builder.ToStringBuilder;
 import org.apache.commons.lang3.builder.ToStringStyle;
+import com.canglian.common.annotation.Excel;
 import com.canglian.common.core.domain.BaseEntity;
 
 /**
@@ -18,10 +19,13 @@ public class PurOrder extends BaseEntity
 
     private Long purchaseOrderId;
 
+    @Excel(name = "采购订单号")
     private String purchaseOrderNo;
 
+    @Excel(name = "供应商ID")
     private Long supplierId;
 
+    @Excel(name = "仓库ID")
     private Long warehouseId;
 
     private Long deptId;
@@ -34,29 +38,38 @@ public class PurOrder extends BaseEntity
 
     private String sourceBillNo;
 
+    @Excel(name = "业务日期", dateFormat = "yyyy-MM-dd")
     private Date businessDate;
 
+    @Excel(name = "预计到货日", dateFormat = "yyyy-MM-dd")
     private Date expectedDate;
 
+    @Excel(name = "订单数量")
     private BigDecimal totalQty;
 
+    @Excel(name = "含税总额")
     private BigDecimal totalAmount;
 
+    @Excel(name = "折扣金额")
     private BigDecimal discountAmount;
 
+    @Excel(name = "税额")
     private BigDecimal taxTotalAmount;
 
     private String closeReason;
 
     private String status;
 
+    @Excel(name = "业务状态", readConverterExp = "draft=草稿,approved=已审核,partial_received=部分入库,received=已入库,closed=已关闭")
     private String bizStatus;
 
+    @Excel(name = "审核人")
     private String approveBy;
 
     private Date approveTime;
 
     /** 汇总已下推/已入库数量（列表进度展示，非持久化计算字段） */
+    @Excel(name = "已入库数")
     private BigDecimal receivedTotalQty;
 
     private List<PurOrderItem> orderItemList;

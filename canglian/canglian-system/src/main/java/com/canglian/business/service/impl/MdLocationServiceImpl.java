@@ -58,17 +58,26 @@ public class MdLocationServiceImpl implements IMdLocationService
     @Override
     public int updateMdLocation(MdLocation mdLocation)
     {
-        if (mdLocation != null && bizScopeHelper != null)
+        if (mdLocation != null && mdLocation.getLocationId() != null)
         {
-            bizScopeHelper.assertWarehouseAccess(mdLocation.getWarehouseId());
-            if (mdLocation.getLocationId() != null)
+            MdLocation old = mdLocationMapper.selectMdLocationByLocationId(mdLocation.getLocationId());
+            if (old != null)
             {
-                MdLocation old = mdLocationMapper.selectMdLocationByLocationId(mdLocation.getLocationId());
-                if (old != null)
+                if (bizScopeHelper != null)
                 {
                     bizScopeHelper.assertWarehouseAccess(old.getWarehouseId());
                 }
+                if (mdLocation.getWarehouseId() != null && old.getWarehouseId() != null
+                    && !old.getWarehouseId().equals(mdLocation.getWarehouseId())
+                    && mdLocationMapper.countLocationReferences(mdLocation.getLocationId()) > 0)
+                {
+                    throw new ServiceException("库位[" + old.getLocationName() + "]已被库存、单据明细或序列号引用，禁止修改所属仓库");
+                }
             }
+        }
+        if (mdLocation != null && bizScopeHelper != null)
+        {
+            bizScopeHelper.assertWarehouseAccess(mdLocation.getWarehouseId());
         }
         validateLocationCodeUnique(mdLocation);
         mdLocation.setUpdateTime(DateUtils.getNowDate());

@@ -43,6 +43,9 @@
       <el-col v-if="viewMode === 'normal'" :span="1.5">
         <el-tag type="info" effect="plain" style="line-height: 30px; height: 32px">库存数量由入/出/调/盘业务单据自动维护，仅支持预警阈值设置与质检冻结</el-tag>
       </el-col>
+      <el-col :span="1.5">
+        <el-button type="warning" plain icon="Download" @click="handleExport" v-hasPermi="['business:stock:export', 'business:stock:list']">导出</el-button>
+      </el-col>
       <right-toolbar v-model:showSearch="showSearch" @queryTable="getList" />
     </el-row>
 
@@ -316,7 +319,8 @@ const handleFileRemove = () => { upload.selectedFile = null }
 const handleFileSuccess = (res, file) => {
   upload.open = false; upload.isUploading = false
   proxy.$refs["uploadRef"].handleRemove(file)
-  proxy.$alert(`<div style="overflow:auto;max-height:70vh;padding:10px 20px 0;">${res.msg}</div>`, "导入结果", { dangerouslyUseHTMLString: true })
+  const plainMsg = String(res.msg || "导入完成").replace(/<br\s*\/?>/gi, "\n").replace(/<[^>]+>/g, "")
+  proxy.$alert(plainMsg, "导入结果", { dangerouslyUseHTMLString: false })
   getList()
 }
 const handleFileError = () => { upload.isUploading = false; proxy.$modal.msgError("文件导入失败") }
@@ -335,4 +339,8 @@ watch(() => route.query.warningMode, (val) => {
 })
 
 loadWarehouses(); loadProducts(); loadLocations(); getList()
+
+function handleExport() {
+  proxy.download("business/stock/export", { ...queryParams.value }, `实时库存台账_${new Date().getTime()}.xlsx`)
+}
 </script>

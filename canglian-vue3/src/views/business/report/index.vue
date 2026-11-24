@@ -297,6 +297,7 @@ import { useRoute } from "vue-router"
 import * as echarts from "echarts"
 import { receivableAging, payableAging, receivableReconciliation, payableReconciliation, profitLoss, revenueExpense, costStructure, exportReport } from "@/api/business/report"
 import { useBusinessOptions } from "@/utils/businessOptions"
+import { blobValidate } from "@/utils/canglian"
 
 const route = useRoute()
 const { proxy } = getCurrentInstance()
@@ -420,9 +421,17 @@ const displayCostStructureList = computed(() => {
   }))
 })
 
-function handleExport(reportType, query, fileName) {
-  exportReport({ reportType, ...query }).then(blob => {
-    const url = window.URL.createObjectURL(new Blob([blob]))
+async function handleExport(reportType, query, fileName) {
+  try {
+    const data = await exportReport({ reportType, ...query })
+    const isBlob = blobValidate(data)
+    if (!isBlob) {
+      const resText = await data.text()
+      const rspObj = JSON.parse(resText)
+      proxy.$modal.msgError(rspObj.msg || "报表导出失败")
+      return
+    }
+    const url = window.URL.createObjectURL(new Blob([data]))
     const link = document.createElement("a")
     link.href = url
     link.setAttribute("download", fileName)
@@ -430,9 +439,9 @@ function handleExport(reportType, query, fileName) {
     link.click()
     document.body.removeChild(link)
     window.URL.revokeObjectURL(url)
-  }).catch(() => {
+  } catch (e) {
     proxy.$modal.msgError("报表导出失败")
-  })
+  }
 }
 
 function getReceivableAging() {

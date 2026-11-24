@@ -32,5 +32,8 @@ public interface IFinFundLogService
 
     public int unconfirmFinFundTransfer(Long transferId, String operator);
 
+    /** 红冲已确认资金互转单（生成反向资金流水与冲销凭证事件，解决已生成凭证后无法反确认的闭环问题） */
+    public FinFundTransfer reverseFinFundTransfer(Long transferId, String operator);
+
     public int deleteFinFundTransferById(Long transferId);
 }

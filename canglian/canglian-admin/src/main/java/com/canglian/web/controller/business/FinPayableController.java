@@ -2,6 +2,8 @@ package com.canglian.web.controller.business;
 
 import java.math.BigDecimal;
 import java.util.List;
+import com.canglian.common.utils.poi.ExcelUtil;
+import javax.servlet.http.HttpServletResponse;
 import java.util.Map;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -120,7 +122,7 @@ public class FinPayableController extends BaseController
         return success(finPayableService.selectOffsetLogs(payableId));
     }
 
-    @PreAuthorize("@ss.hasPermi('business:payable:edit')")
+    @PreAuthorize("@ss.hasPermi('business:payable:unoffset')")
     @Log(title = "撤销应付红蓝对冲", businessType = BusinessType.UPDATE)
     @PostMapping("/unoffset/{offsetId}")
     public AjaxResult unoffset(@PathVariable Long offsetId)
@@ -137,6 +139,19 @@ public class FinPayableController extends BaseController
     public AjaxResult remove(@PathVariable Long[] payableIds)
     {
         return toAjax(finPayableService.deleteFinPayableByIds(payableIds));
+    }
+
+    /**
+     * 导出应付账款
+     */
+    @Log(title = "应付账款", businessType = BusinessType.EXPORT)
+    @PreAuthorize("@ss.hasPermi('business:payable:export') or @ss.hasPermi('business:payable:list')")
+    @PostMapping("/export")
+    public void export(HttpServletResponse response, FinPayable finPayable)
+    {
+        List<FinPayable> list = finPayableService.selectFinPayableList(finPayable);
+        ExcelUtil<FinPayable> util = new ExcelUtil<FinPayable>(FinPayable.class);
+        util.exportExcel(response, list, "应付账款");
     }
 }
 

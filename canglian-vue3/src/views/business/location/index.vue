@@ -75,6 +75,9 @@
           v-hasPermi="['business:location:remove']"
         >删除</el-button>
       </el-col>
+      <el-col :span="1.5">
+        <el-button type="warning" plain icon="Download" @click="handleExport" v-hasPermi="['business:location:export', 'business:location:list']">导出</el-button>
+      </el-col>
       <right-toolbar v-model:showSearch="showSearch" @queryTable="getList"></right-toolbar>
     </el-row>
 
@@ -120,7 +123,7 @@
         <el-form-item label="所属仓库" prop="warehouseId">
           <el-select v-model="form.warehouseId" placeholder="请选择仓库" style="width: 100%">
             <el-option
-              v-for="warehouseItem in warehouseOptions"
+              v-for="warehouseItem in activeWarehouseOptions"
               :key="warehouseItem.warehouseId"
               :label="warehouseItem.warehouseName"
               :value="warehouseItem.warehouseId"
@@ -165,6 +168,7 @@ const { sys_normal_disable } = proxy.useDict("sys_normal_disable")
 
 const locationList = ref([])
 const warehouseOptions = ref([])
+const activeWarehouseOptions = computed(() => warehouseOptions.value.filter(w => String(w.status ?? "0") !== "1"))
 const open = ref(false)
 const loading = ref(true)
 const showSearch = ref(true)
@@ -205,9 +209,9 @@ function getList() {
   })
 }
 
-// 查询仓库下拉选项
+// 查询仓库下拉选项（包含停用仓库用于列表名称反显，表单下拉仅展示启用仓库）
 function getWarehouseOptions() {
-  listWarehouse({ pageNum: 1, pageSize: 1000, status: "0" }).then(response => {
+  listWarehouse({ pageNum: 1, pageSize: 1000 }).then(response => {
     warehouseOptions.value = response.rows || []
   })
 }
@@ -308,4 +312,8 @@ function handleDelete(row) {
 
 getWarehouseOptions()
 getList()
+
+function handleExport() {
+  proxy.download("business/location/export", { ...queryParams.value }, `库位档案_${new Date().getTime()}.xlsx`)
+}
 </script>

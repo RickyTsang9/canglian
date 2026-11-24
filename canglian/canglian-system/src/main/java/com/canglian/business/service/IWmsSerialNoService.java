@@ -44,6 +44,11 @@ public interface IWmsSerialNoService
     public void handleOutboundSerials(MdProduct product, Long warehouseId, Long outboundId, String billNo,
                                       Long customerId, String rawSnCodes, BigDecimal baseQty, String operator);
 
+    /** 出库审核强管控（含库位与批次一致性校验） */
+    public void handleOutboundSerials(MdProduct product, Long warehouseId, Long locationId, String batchNo,
+                                      Long outboundId, String billNo, Long customerId, String rawSnCodes,
+                                      BigDecimal baseQty, String operator);
+
     /** 出库反审核/红冲/整单退货回滚序列号至在库 */
     public void rollbackOutboundSerials(MdProduct product, Long warehouseId, Long locationId, Long outboundId,
                                         String billNo, String rawSnCodes, String remark, String operator);
@@ -52,9 +57,18 @@ public interface IWmsSerialNoService
     public void handleTransferSerials(MdProduct product, Long outWarehouseId, Long inWarehouseId, Long inLocationId,
                                       Long transferId, String billNo, String rawSnCodes, BigDecimal baseQty, String operator);
 
+    /** 调拨审核强管控（含调出库位与批次一致性校验） */
+    public void handleTransferSerials(MdProduct product, Long outWarehouseId, Long outLocationId, String batchNo,
+                                      Long inWarehouseId, Long inLocationId, Long transferId, String billNo,
+                                      String rawSnCodes, BigDecimal baseQty, String operator);
+
     /** 采购退货审核强管控：核验足额在库 SN 并置为 returned（已退供应商） */
     public void handlePurchaseReturnSerials(MdProduct product, Long warehouseId, Long returnId, String billNo,
                                             String rawSnCodes, BigDecimal baseQty, String operator);
+
+    /** 采购退货审核强管控（含库位与批次一致性校验） */
+    public void handlePurchaseReturnSerials(MdProduct product, Long warehouseId, Long locationId, String batchNo,
+                                            Long returnId, String billNo, String rawSnCodes, BigDecimal baseQty, String operator);
 
     /** 采购退货反审/红冲回滚 SN 至在库 */
     public void rollbackPurchaseReturnSerials(MdProduct product, Long warehouseId, Long locationId, Long returnId,
@@ -64,7 +78,22 @@ public interface IWmsSerialNoService
     public void handleSaleReturnSerials(MdProduct product, Long warehouseId, Long locationId, Long saleReturnId,
                                         String billNo, String rawSnCodes, BigDecimal baseQty, String operator);
 
+    /** 销售退货审核强管控（含来源出库单与客户归属校验） */
+    public void handleSaleReturnSerials(MdProduct product, Long warehouseId, Long locationId, Long sourceOutboundId,
+                                        Long customerId, Long saleReturnId, String billNo, String rawSnCodes,
+                                        BigDecimal baseQty, String operator);
+
     /** 销售退货反审/红冲回滚 SN 至已出库 */
     public void rollbackSaleReturnSerials(MdProduct product, Long saleReturnId, String billNo, Long customerId,
                                           String rawSnCodes, String operator);
+
+    /** 盘点审核强管控：盘盈登记足额唯一 SN，盘亏核销足额在库 SN */
+    public void handleInventoryCheckSerials(MdProduct product, Long warehouseId, Long locationId, String batchNo,
+                                            Long checkId, String billNo, Date expiryDate, String rawSnCodes,
+                                            BigDecimal baseDiffQty, String operator);
+
+    /** 盘点反审/红冲回滚 SN */
+    public void rollbackInventoryCheckSerials(MdProduct product, Long warehouseId, Long locationId, Long checkId,
+                                              String billNo, String rawSnCodes, BigDecimal originalBaseDiffQty,
+                                              boolean deleteRecord, String operator);
 }

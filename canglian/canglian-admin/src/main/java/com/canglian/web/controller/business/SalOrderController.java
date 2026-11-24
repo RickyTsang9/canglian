@@ -3,6 +3,8 @@ package com.canglian.web.controller.business;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import com.canglian.common.utils.poi.ExcelUtil;
+import javax.servlet.http.HttpServletResponse;
 import java.util.Map;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -154,5 +156,18 @@ public class SalOrderController extends BaseController
     public AjaxResult remove(@PathVariable Long[] orderIds)
     {
         return toAjax(salOrderService.deleteSalOrderByIds(orderIds));
+    }
+
+    /**
+     * 导出销售订单
+     */
+    @Log(title = "销售订单", businessType = BusinessType.EXPORT)
+    @PreAuthorize("@ss.hasPermi('business:saleOrder:export') or @ss.hasPermi('business:saleOrder:list')")
+    @PostMapping("/export")
+    public void export(HttpServletResponse response, SalOrder salOrder)
+    {
+        List<SalOrder> list = salOrderService.selectSalOrderList(salOrder);
+        ExcelUtil<SalOrder> util = new ExcelUtil<SalOrder>(SalOrder.class);
+        util.exportExcel(response, list, "销售订单");
     }
 }

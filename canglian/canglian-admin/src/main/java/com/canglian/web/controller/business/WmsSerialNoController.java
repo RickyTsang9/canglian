@@ -4,6 +4,8 @@ import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
+import com.canglian.common.utils.poi.ExcelUtil;
+import javax.servlet.http.HttpServletResponse;
 import java.util.Map;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -142,5 +144,18 @@ public class WmsSerialNoController extends BaseController
             list.add(String.valueOf(v));
         }
         return list;
+    }
+
+    /**
+     * 导出序列号台账
+     */
+    @Log(title = "序列号台账", businessType = BusinessType.EXPORT)
+    @PreAuthorize("@ss.hasPermi('business:serialNo:export') or @ss.hasPermi('business:serialNo:list')")
+    @PostMapping("/export")
+    public void export(HttpServletResponse response, WmsSerialNo query)
+    {
+        List<WmsSerialNo> list = wmsSerialNoService.selectWmsSerialNoList(query);
+        ExcelUtil<WmsSerialNo> util = new ExcelUtil<WmsSerialNo>(WmsSerialNo.class);
+        util.exportExcel(response, list, "序列号台账");
     }
 }

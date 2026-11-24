@@ -83,6 +83,9 @@
           v-hasPermi="['business:supplier:edit']"
         >同步辅助核算</el-button>
       </el-col>
+      <el-col :span="1.5">
+        <el-button type="warning" plain icon="Download" @click="handleExport" v-hasPermi="['business:supplier:export', 'business:supplier:list']">导出</el-button>
+      </el-col>
       <right-toolbar v-model:showSearch="showSearch" @queryTable="getList"></right-toolbar>
     </el-row>
 
@@ -413,7 +416,8 @@ const handleFileSuccess = (response, file) => {
   upload.open = false
   upload.isUploading = false
   proxy.$refs["uploadRef"].handleRemove(file)
-  proxy.$alert("<div style='overflow: auto;overflow-x: hidden;max-height: 70vh;padding: 10px 20px 0;'>" + response.msg + "</div>", "导入结果", { dangerouslyUseHTMLString: true })
+  const plainMsg = String(response.msg || "导入完成").replace(/<br\s*\/?>/gi, "\n").replace(/<[^>]+>/g, "")
+  proxy.$alert(plainMsg, "导入结果", { dangerouslyUseHTMLString: false })
   getList()
 }
 
@@ -434,4 +438,8 @@ function submitFileForm() {
 }
 
 getList()
+
+function handleExport() {
+  proxy.download("business/supplier/export", { ...queryParams.value }, `供应商档案_${new Date().getTime()}.xlsx`)
+}
 </script>

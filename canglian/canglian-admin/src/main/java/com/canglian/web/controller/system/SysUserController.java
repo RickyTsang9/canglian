@@ -125,6 +125,13 @@ public class SysUserController extends BaseController
     public AjaxResult add(@Validated @RequestBody SysUser user)
     {
         deptService.checkDeptDataScope(user.getDeptId());
+        if (!SecurityUtils.isAdmin() && user.getRoleIds() != null)
+        {
+            for (Long roleId : user.getRoleIds())
+            {
+                roleService.checkRoleAllowed(new SysRole(roleId));
+            }
+        }
         roleService.checkRoleDataScope(user.getRoleIds());
         if (!userService.checkUserNameUnique(user))
         {
@@ -154,6 +161,13 @@ public class SysUserController extends BaseController
         userService.checkUserAllowed(user);
         userService.checkUserDataScope(user.getUserId());
         deptService.checkDeptDataScope(user.getDeptId());
+        if (!SecurityUtils.isAdmin() && user.getRoleIds() != null)
+        {
+            for (Long roleId : user.getRoleIds())
+            {
+                roleService.checkRoleAllowed(new SysRole(roleId));
+            }
+        }
         roleService.checkRoleDataScope(user.getRoleIds());
         if (!userService.checkUserNameUnique(user))
         {
@@ -238,7 +252,15 @@ public class SysUserController extends BaseController
     @PutMapping("/authRole")
     public AjaxResult insertAuthRole(Long userId, Long[] roleIds)
     {
+        userService.checkUserAllowed(new SysUser(userId));
         userService.checkUserDataScope(userId);
+        if (!SecurityUtils.isAdmin() && roleIds != null)
+        {
+            for (Long roleId : roleIds)
+            {
+                roleService.checkRoleAllowed(new SysRole(roleId));
+            }
+        }
         roleService.checkRoleDataScope(roleIds);
         userService.insertUserAuth(userId, roleIds);
         return success();

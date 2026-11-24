@@ -4,14 +4,19 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
+import java.util.Calendar;
 import java.util.Date;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import com.canglian.business.domain.FinInvoice;
 import com.canglian.business.domain.FinPayable;
 import com.canglian.business.domain.FinReceivable;
+import com.canglian.business.domain.MdCustomer;
+import com.canglian.business.domain.MdSupplier;
 import com.canglian.business.domain.PurOrder;
 import com.canglian.business.domain.SalOrder;
 import com.canglian.business.domain.WmsInbound;
@@ -19,6 +24,8 @@ import com.canglian.business.domain.WmsOutbound;
 import com.canglian.business.mapper.FinInvoiceMapper;
 import com.canglian.business.mapper.FinPayableMapper;
 import com.canglian.business.mapper.FinReceivableMapper;
+import com.canglian.business.mapper.MdCustomerMapper;
+import com.canglian.business.mapper.MdSupplierMapper;
 import com.canglian.business.mapper.PurOrderMapper;
 import com.canglian.business.mapper.SalOrderMapper;
 import com.canglian.business.mapper.WmsInboundMapper;
@@ -61,6 +68,12 @@ public class FinInvoiceServiceImpl implements IFinInvoiceService
 
     @Autowired(required = false)
     private PurOrderMapper purOrderMapper;
+
+    @Autowired(required = false)
+    private MdCustomerMapper mdCustomerMapper;
+
+    @Autowired(required = false)
+    private MdSupplierMapper mdSupplierMapper;
 
     @Autowired
     private IFinGeneralLedgerService finGeneralLedgerService;
@@ -326,27 +339,180 @@ public class FinInvoiceServiceImpl implements IFinInvoiceService
         {
             return;
         }
-        FinInvoice q = new FinInvoice();
-        q.setSourceBillType(finInvoice.getSourceBillType());
-        q.setSourceBillId(finInvoice.getSourceBillId());
-        List<FinInvoice> related = finInvoiceMapper.selectFinInvoiceList(q);
+        Set<String> chainKeys = collectRelatedSourceKeys(finInvoice.getSourceBillType(), finInvoice.getSourceBillId());
+        Set<Long> countedInvoiceIds = new HashSet<Long>();
         BigDecimal alreadyNet = BigDecimal.ZERO;
-        if (related != null)
+        for (String key : chainKeys)
         {
-            for (FinInvoice inv : related)
+            int sep = key.indexOf(':');
+            if (sep <= 0) continue;
+            FinInvoice q = new FinInvoice();
+            q.setSourceBillType(key.substring(0, sep));
+            q.setSourceBillId(Long.valueOf(key.substring(sep + 1)));
+            List<FinInvoice> related = finInvoiceMapper.selectFinInvoiceList(q);
+            if (related != null)
             {
-                if (finInvoice.getInvoiceId() != null && finInvoice.getInvoiceId().equals(inv.getInvoiceId())) continue;
-                if ("confirmed".equals(inv.getBizStatus()))
+                for (FinInvoice inv : related)
                 {
-                    alreadyNet = alreadyNet.add(defaultAmount(inv.getInvoiceAmount()));
+                    if (finInvoice.getInvoiceId() != null && finInvoice.getInvoiceId().equals(inv.getInvoiceId())) continue;
+                    if (inv.getInvoiceId() != null && !countedInvoiceIds.add(inv.getInvoiceId())) continue;
+                    if ("confirmed".equals(inv.getBizStatus()))
+                    {
+                        alreadyNet = alreadyNet.add(defaultAmount(inv.getInvoiceAmount()));
+                    }
                 }
             }
         }
         BigDecimal projected = alreadyNet.add(defaultAmount(finInvoice.getInvoiceAmount()));
         if (projected.compareTo(sourceLimit) > 0)
         {
-            throw new ServiceException("来源单据累计开票净额(" + projected + ")超过来源单据可开票总额(" + sourceLimit + ")");
+            throw new ServiceException("来源单据链路累计开票净额(" + projected + ")超过来源单据可开票总额(" + sourceLimit + ")");
         }
+    }
+
+    private Set<String> collectRelatedSourceKeys(String sourceBillType, Long sourceBillId)
+    {
+        Set<String> keys = new HashSet<String>();
+        if (StringUtils.isEmpty(sourceBillType) || sourceBillId == null) return keys;
+        keys.add(sourceBillType + ":" + sourceBillId);
+        if ("outbound".equals(sourceBillType) || "wms_outbound".equals(sourceBillType))
+        {
+            keys.add("outbound:" + sourceBillId);
+            keys.add("wms_outbound:" + sourceBillId);
+            if (finReceivableMapper != null)
+            {
+                FinReceivable ar = finReceivableMapper.selectFinReceivableBySource("outbound", sourceBillId);
+                if (ar != null && ar.getReceivableId() != null)
+                {
+                    keys.add("receivable:" + ar.getReceivableId());
+                    keys.add("fin_receivable:" + ar.getReceivableId());
+                }
+            }
+            if (wmsOutboundMapper != null)
+            {
+                WmsOutbound out = wmsOutboundMapper.selectWmsOutboundById(sourceBillId);
+                if (out != null && "sale_order".equals(out.getSourceBillType()) && out.getSourceBillId() != null)
+                {
+                    keys.add("sale_order:" + out.getSourceBillId());
+                    keys.add("sal_order:" + out.getSourceBillId());
+                }
+            }
+        }
+        else if ("receivable".equals(sourceBillType) || "fin_receivable".equals(sourceBillType))
+        {
+            keys.add("receivable:" + sourceBillId);
+            keys.add("fin_receivable:" + sourceBillId);
+            FinReceivable ar = finReceivableMapper.selectFinReceivableById(sourceBillId);
+            if (ar != null && "outbound".equals(ar.getBillType()) && ar.getBillId() != null)
+            {
+                keys.add("outbound:" + ar.getBillId());
+                keys.add("wms_outbound:" + ar.getBillId());
+                if (wmsOutboundMapper != null)
+                {
+                    WmsOutbound out = wmsOutboundMapper.selectWmsOutboundById(ar.getBillId());
+                    if (out != null && "sale_order".equals(out.getSourceBillType()) && out.getSourceBillId() != null)
+                    {
+                        keys.add("sale_order:" + out.getSourceBillId());
+                        keys.add("sal_order:" + out.getSourceBillId());
+                    }
+                }
+            }
+        }
+        else if ("sale_order".equals(sourceBillType) || "sal_order".equals(sourceBillType))
+        {
+            keys.add("sale_order:" + sourceBillId);
+            keys.add("sal_order:" + sourceBillId);
+            if (wmsOutboundMapper != null)
+            {
+                WmsOutbound q = new WmsOutbound();
+                q.setSourceBillType("sale_order");
+                q.setSourceBillId(sourceBillId);
+                List<WmsOutbound> outs = wmsOutboundMapper.selectWmsOutboundList(q);
+                if (outs != null)
+                {
+                    for (WmsOutbound o : outs)
+                    {
+                        if (o.getOutboundId() == null) continue;
+                        keys.add("outbound:" + o.getOutboundId());
+                        keys.add("wms_outbound:" + o.getOutboundId());
+                        FinReceivable ar = finReceivableMapper.selectFinReceivableBySource("outbound", o.getOutboundId());
+                        if (ar != null && ar.getReceivableId() != null)
+                        {
+                            keys.add("receivable:" + ar.getReceivableId());
+                            keys.add("fin_receivable:" + ar.getReceivableId());
+                        }
+                    }
+                }
+            }
+        }
+        else if ("inbound".equals(sourceBillType) || "wms_inbound".equals(sourceBillType))
+        {
+            keys.add("inbound:" + sourceBillId);
+            keys.add("wms_inbound:" + sourceBillId);
+            if (finPayableMapper != null)
+            {
+                FinPayable ap = finPayableMapper.selectFinPayableBySource("inbound", sourceBillId);
+                if (ap != null && ap.getPayableId() != null)
+                {
+                    keys.add("payable:" + ap.getPayableId());
+                    keys.add("fin_payable:" + ap.getPayableId());
+                }
+            }
+            if (wmsInboundMapper != null)
+            {
+                WmsInbound inb = wmsInboundMapper.selectWmsInboundById(sourceBillId);
+                if (inb != null && "pur_order".equals(inb.getSourceBillType()) && inb.getSourceBillId() != null)
+                {
+                    keys.add("pur_order:" + inb.getSourceBillId());
+                }
+            }
+        }
+        else if ("payable".equals(sourceBillType) || "fin_payable".equals(sourceBillType))
+        {
+            keys.add("payable:" + sourceBillId);
+            keys.add("fin_payable:" + sourceBillId);
+            FinPayable ap = finPayableMapper.selectFinPayableById(sourceBillId);
+            if (ap != null && "inbound".equals(ap.getBillType()) && ap.getBillId() != null)
+            {
+                keys.add("inbound:" + ap.getBillId());
+                keys.add("wms_inbound:" + ap.getBillId());
+                if (wmsInboundMapper != null)
+                {
+                    WmsInbound inb = wmsInboundMapper.selectWmsInboundById(ap.getBillId());
+                    if (inb != null && "pur_order".equals(inb.getSourceBillType()) && inb.getSourceBillId() != null)
+                    {
+                        keys.add("pur_order:" + inb.getSourceBillId());
+                    }
+                }
+            }
+        }
+        else if ("pur_order".equals(sourceBillType))
+        {
+            keys.add("pur_order:" + sourceBillId);
+            if (wmsInboundMapper != null)
+            {
+                WmsInbound q = new WmsInbound();
+                q.setSourceBillType("pur_order");
+                q.setSourceBillId(sourceBillId);
+                List<WmsInbound> inbs = wmsInboundMapper.selectWmsInboundList(q);
+                if (inbs != null)
+                {
+                    for (WmsInbound inb : inbs)
+                    {
+                        if (inb.getInboundId() == null) continue;
+                        keys.add("inbound:" + inb.getInboundId());
+                        keys.add("wms_inbound:" + inb.getInboundId());
+                        FinPayable ap = finPayableMapper.selectFinPayableBySource("inbound", inb.getInboundId());
+                        if (ap != null && ap.getPayableId() != null)
+                        {
+                            keys.add("payable:" + ap.getPayableId());
+                            keys.add("fin_payable:" + ap.getPayableId());
+                        }
+                    }
+                }
+            }
+        }
+        return keys;
     }
 
     private BigDecimal resolveSourceBillAmount(String sourceBillType, Long sourceBillId)
@@ -384,12 +550,14 @@ public class FinInvoiceServiceImpl implements IFinInvoiceService
         if (("sale_order".equals(sourceBillType) || "sal_order".equals(sourceBillType)) && salOrderMapper != null)
         {
             SalOrder so = salOrderMapper.selectSalOrderById(sourceBillId);
-            return so == null ? null : (so.getTaxTotalAmount() != null && so.getTaxTotalAmount().compareTo(BigDecimal.ZERO) > 0 ? so.getTaxTotalAmount() : so.getTotalAmount());
+            // SalOrder.totalAmount 为价税合计（可开票总额），taxTotalAmount 仅为增值税税额
+            return so == null ? null : so.getTotalAmount();
         }
         if ("pur_order".equals(sourceBillType) && purOrderMapper != null)
         {
             PurOrder po = purOrderMapper.selectPurOrderById(sourceBillId);
-            return po == null ? null : (po.getTaxTotalAmount() != null && po.getTaxTotalAmount().compareTo(BigDecimal.ZERO) > 0 ? po.getTaxTotalAmount() : po.getTotalAmount());
+            // PurOrder.totalAmount 为价税合计（可开票总额），taxTotalAmount 仅为增值税税额
+            return po == null ? null : po.getTotalAmount();
         }
         return null;
     }
@@ -441,7 +609,12 @@ public class FinInvoiceServiceImpl implements IFinInvoiceService
     private void fillInvoiceAmount(FinInvoice finInvoice)
     {
         String invoiceType = finInvoice.getInvoiceType();
-        if (!"sale".equals(invoiceType) && !"sales".equals(invoiceType) && !"purchase".equals(invoiceType))
+        if ("sales".equals(invoiceType))
+        {
+            invoiceType = "sale";
+            finInvoice.setInvoiceType("sale");
+        }
+        if (!"sale".equals(invoiceType) && !"purchase".equals(invoiceType))
         {
             throw new ServiceException("发票类型仅支持销售发票(sale)或采购发票(purchase)");
         }
@@ -491,7 +664,7 @@ public class FinInvoiceServiceImpl implements IFinInvoiceService
         finReceivable.setSourceBillNo(StringUtils.isNotEmpty(finInvoice.getSourceBillNo()) ? finInvoice.getSourceBillNo() : finInvoice.getInvoiceNo());
         finReceivable.setBusinessDate(finInvoice.getBusinessDate());
         finReceivable.setAmount(finInvoice.getInvoiceAmount());
-        finReceivable.setDueDate(finInvoice.getInvoiceDate());
+        finReceivable.setDueDate(resolveInvoiceDueDateForCustomer(finInvoice.getCustomerId(), finInvoice.getInvoiceDate() != null ? finInvoice.getInvoiceDate() : finInvoice.getBusinessDate()));
         finReceivable.setCreateBy(operator);
         finReceivable.setRemark("销售发票确认自动生成应收单：" + finInvoice.getInvoiceNo());
         finReceivableService.insertFinReceivable(finReceivable);
@@ -511,15 +684,70 @@ public class FinInvoiceServiceImpl implements IFinInvoiceService
         finPayable.setSourceBillNo(StringUtils.isNotEmpty(finInvoice.getSourceBillNo()) ? finInvoice.getSourceBillNo() : finInvoice.getInvoiceNo());
         finPayable.setBusinessDate(finInvoice.getBusinessDate());
         finPayable.setAmount(finInvoice.getInvoiceAmount());
-        finPayable.setDueDate(finInvoice.getInvoiceDate());
+        finPayable.setDueDate(resolveInvoiceDueDateForSupplier(finInvoice.getSupplierId(), finInvoice.getInvoiceDate() != null ? finInvoice.getInvoiceDate() : finInvoice.getBusinessDate()));
         finPayable.setCreateBy(operator);
         finPayable.setRemark("采购发票确认自动生成应付单：" + finInvoice.getInvoiceNo());
         finPayableService.insertFinPayable(finPayable);
         finPayableService.auditFinPayable(finPayable.getPayableId(), operator);
     }
 
+    private Date resolveInvoiceDueDateForCustomer(Long customerId, Date baseDate)
+    {
+        Date start = baseDate == null ? new Date() : baseDate;
+        int days = 30;
+        if (customerId != null && mdCustomerMapper != null)
+        {
+            MdCustomer c = mdCustomerMapper.selectMdCustomerById(customerId);
+            if (c != null && c.getReceivableDays() != null && c.getReceivableDays() >= 0)
+            {
+                days = c.getReceivableDays();
+            }
+        }
+        Calendar cal = Calendar.getInstance();
+        cal.setTime(start);
+        cal.add(Calendar.DAY_OF_MONTH, days);
+        return cal.getTime();
+    }
+
+    private Date resolveInvoiceDueDateForSupplier(Long supplierId, Date baseDate)
+    {
+        Date start = baseDate == null ? new Date() : baseDate;
+        int days = 30;
+        if (supplierId != null && mdSupplierMapper != null)
+        {
+            MdSupplier s = mdSupplierMapper.selectMdSupplierById(supplierId);
+            if (s != null && s.getPayableDays() != null && s.getPayableDays() >= 0)
+            {
+                days = s.getPayableDays();
+            }
+        }
+        Calendar cal = Calendar.getInstance();
+        cal.setTime(start);
+        cal.add(Calendar.DAY_OF_MONTH, days);
+        return cal.getTime();
+    }
+
     private boolean hasExistingReceivableForInvoice(FinInvoice finInvoice)
     {
+        // 若发票关联的是销售订单，下游出库签收已负责生成应收单，避免重复建应收
+        if (("sale_order".equals(finInvoice.getSourceBillType()) || "sal_order".equals(finInvoice.getSourceBillType()))
+            && finInvoice.getSourceBillId() != null && wmsOutboundMapper != null)
+        {
+            WmsOutbound qOut = new WmsOutbound();
+            qOut.setSourceBillType("sale_order");
+            qOut.setSourceBillId(finInvoice.getSourceBillId());
+            List<WmsOutbound> outs = wmsOutboundMapper.selectWmsOutboundList(qOut);
+            if (outs != null && !outs.isEmpty())
+            {
+                for (WmsOutbound o : outs)
+                {
+                    if ("1".equals(o.getStatus()) && !"1".equals(o.getIsReversal()) && !"1".equals(o.getReversedFlag()))
+                    {
+                        return true;
+                    }
+                }
+            }
+        }
         FinReceivable query = new FinReceivable();
         query.setCustomerId(finInvoice.getCustomerId());
         List<FinReceivable> list = finReceivableMapper.selectFinReceivableList(query);
@@ -529,6 +757,11 @@ public class FinInvoiceServiceImpl implements IFinInvoiceService
             if ("invoice".equals(ar.getBillType()) && finInvoice.getInvoiceId().equals(ar.getBillId())) return true;
             if (finInvoice.getSourceBillId() != null && StringUtils.isNotEmpty(finInvoice.getSourceBillType()))
             {
+                if (("receivable".equals(finInvoice.getSourceBillType()) || "fin_receivable".equals(finInvoice.getSourceBillType()))
+                    && finInvoice.getSourceBillId().equals(ar.getReceivableId()))
+                {
+                    return true;
+                }
                 if ((finInvoice.getSourceBillType().equals(ar.getSourceBillType()) && finInvoice.getSourceBillId().equals(ar.getSourceBillId()))
                     || (finInvoice.getSourceBillType().equals(ar.getBillType()) && finInvoice.getSourceBillId().equals(ar.getBillId())))
                 {
@@ -542,6 +775,24 @@ public class FinInvoiceServiceImpl implements IFinInvoiceService
 
     private boolean hasExistingPayableForInvoice(FinInvoice finInvoice)
     {
+        if ("pur_order".equals(finInvoice.getSourceBillType())
+            && finInvoice.getSourceBillId() != null && wmsInboundMapper != null)
+        {
+            WmsInbound qIn = new WmsInbound();
+            qIn.setSourceBillType("pur_order");
+            qIn.setSourceBillId(finInvoice.getSourceBillId());
+            List<WmsInbound> inbs = wmsInboundMapper.selectWmsInboundList(qIn);
+            if (inbs != null && !inbs.isEmpty())
+            {
+                for (WmsInbound inb : inbs)
+                {
+                    if ("1".equals(inb.getStatus()) && !"1".equals(inb.getIsReversal()) && !"1".equals(inb.getReversedFlag()))
+                    {
+                        return true;
+                    }
+                }
+            }
+        }
         FinPayable query = new FinPayable();
         query.setSupplierId(finInvoice.getSupplierId());
         List<FinPayable> list = finPayableMapper.selectFinPayableList(query);
@@ -551,6 +802,11 @@ public class FinInvoiceServiceImpl implements IFinInvoiceService
             if ("invoice".equals(ap.getBillType()) && finInvoice.getInvoiceId().equals(ap.getBillId())) return true;
             if (finInvoice.getSourceBillId() != null && StringUtils.isNotEmpty(finInvoice.getSourceBillType()))
             {
+                if (("payable".equals(finInvoice.getSourceBillType()) || "fin_payable".equals(finInvoice.getSourceBillType()))
+                    && finInvoice.getSourceBillId().equals(ap.getPayableId()))
+                {
+                    return true;
+                }
                 if ((finInvoice.getSourceBillType().equals(ap.getSourceBillType()) && finInvoice.getSourceBillId().equals(ap.getSourceBillId()))
                     || (finInvoice.getSourceBillType().equals(ap.getBillType()) && finInvoice.getSourceBillId().equals(ap.getBillId())))
                 {

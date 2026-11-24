@@ -2,6 +2,8 @@ package com.canglian.web.controller.business;
 
 import java.util.ArrayList;
 import java.util.List;
+import com.canglian.common.utils.poi.ExcelUtil;
+import javax.servlet.http.HttpServletResponse;
 import java.util.HashMap;
 import java.util.Map;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -140,7 +142,7 @@ public class WmsOutboundController extends BaseController
     /**
      * 出库单反审核
      */
-    @PreAuthorize("@ss.hasPermi('business:outbound:unaudit') or @ss.hasPermi('business:outbound:audit')")
+    @PreAuthorize("@ss.hasPermi('business:outbound:unaudit')")
     @Log(title = "出库反审核", businessType = BusinessType.UPDATE)
     @PutMapping("/unaudit/{outboundId}")
     public AjaxResult unaudit(@PathVariable Long outboundId)
@@ -151,7 +153,7 @@ public class WmsOutboundController extends BaseController
     /**
      * 出库单一键红冲
      */
-    @PreAuthorize("@ss.hasPermi('business:outbound:reverse') or @ss.hasPermi('business:outbound:audit')")
+    @PreAuthorize("@ss.hasPermi('business:outbound:reverse')")
     @Log(title = "出库红冲", businessType = BusinessType.INSERT)
     @PostMapping("/reverse/{outboundId}")
     public AjaxResult reverse(@PathVariable Long outboundId)
@@ -216,6 +218,19 @@ public class WmsOutboundController extends BaseController
                                   @RequestParam(required = false) Long fundAccountId)
     {
         return toAjax(wmsOutboundService.returnWmsOutbound(outboundId, refundAmount, receivableId, fundAccountId, getUsername()));
+    }
+
+    /**
+     * 导出销售出库单
+     */
+    @Log(title = "销售出库单", businessType = BusinessType.EXPORT)
+    @PreAuthorize("@ss.hasPermi('business:outbound:export') or @ss.hasPermi('business:outbound:list')")
+    @PostMapping("/export")
+    public void export(HttpServletResponse response, WmsOutbound wmsOutbound)
+    {
+        List<WmsOutbound> list = wmsOutboundService.selectWmsOutboundList(wmsOutbound);
+        ExcelUtil<WmsOutbound> util = new ExcelUtil<WmsOutbound>(WmsOutbound.class);
+        util.exportExcel(response, list, "销售出库单");
     }
 }
 

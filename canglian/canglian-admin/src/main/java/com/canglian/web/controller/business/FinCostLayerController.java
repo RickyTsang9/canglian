@@ -1,6 +1,10 @@
 package com.canglian.web.controller.business;
 
 import java.util.List;
+import com.canglian.common.utils.poi.ExcelUtil;
+import com.canglian.common.enums.BusinessType;
+import com.canglian.common.annotation.Log;
+import javax.servlet.http.HttpServletResponse;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -67,5 +71,18 @@ public class FinCostLayerController extends BaseController
     public AjaxResult remove(@PathVariable Long[] costLayerIds)
     {
         throw new ServiceException(READONLY_MSG);
+    }
+
+    /**
+     * 导出FIFO成本层
+     */
+    @Log(title = "FIFO成本层", businessType = BusinessType.EXPORT)
+    @PreAuthorize("@ss.hasPermi('business:costLayer:export') or @ss.hasPermi('business:costLayer:list')")
+    @PostMapping("/export")
+    public void export(HttpServletResponse response, FinCostLayer finCostLayer)
+    {
+        List<FinCostLayer> list = finCostLayerService.selectFinCostLayerList(finCostLayer);
+        ExcelUtil<FinCostLayer> util = new ExcelUtil<FinCostLayer>(FinCostLayer.class);
+        util.exportExcel(response, list, "FIFO成本层");
     }
 }

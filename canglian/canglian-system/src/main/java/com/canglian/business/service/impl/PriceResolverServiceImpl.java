@@ -144,6 +144,24 @@ public class PriceResolverServiceImpl implements IPriceResolverService
             order = new String[] { "special", "level", "recent", "unit", "default" };
         }
 
+        // 非基准包装单位若维护了独立包装售价，优先按包装定价生效（除非策略为 recent_first），避免单件成交价乘以换算率覆盖箱价优惠
+        boolean hasExplicitNonBaseUnitPrice = matchedUnit != null
+            && !"1".equals(matchedUnit.getIsBaseUnit())
+            && convertRatio.compareTo(BigDecimal.ONE) != 0
+            && matchedUnit.getSalePrice() != null
+            && matchedUnit.getSalePrice().compareTo(BigDecimal.ZERO) > 0;
+        if (hasExplicitNonBaseUnitPrice && !"recent_first".equals(policy) && !"recent".equals(policy) && !"last_price".equals(policy))
+        {
+            if ("level_first".equals(policy) || "level".equals(policy))
+            {
+                order = new String[] { "level", "special", "unit", "recent", "default" };
+            }
+            else if (!"standard_only".equals(policy) && !"standard".equals(policy))
+            {
+                order = new String[] { "special", "level", "unit", "recent", "default" };
+            }
+        }
+
         BigDecimal basePrice = null;
         String source = "product_default";
         String sourceLabel = "商品标准售价";

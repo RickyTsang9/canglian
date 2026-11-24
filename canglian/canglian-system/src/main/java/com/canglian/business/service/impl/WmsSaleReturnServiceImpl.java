@@ -10,11 +10,14 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import com.canglian.business.domain.FinCostCalculate;
 import com.canglian.business.domain.FinCostLog;
+import com.canglian.business.domain.FinInvoice;
 import com.canglian.business.domain.FinReceivable;
+import com.canglian.business.domain.FinWriteOff;
 import com.canglian.business.domain.MdCustomer;
 import com.canglian.business.domain.MdLocation;
 import com.canglian.business.domain.MdProduct;
@@ -25,7 +28,9 @@ import com.canglian.business.domain.WmsSaleReturn;
 import com.canglian.business.domain.WmsSaleReturnItem;
 import com.canglian.business.domain.WmsStock;
 import com.canglian.business.domain.WmsStockLog;
+import com.canglian.business.mapper.FinInvoiceMapper;
 import com.canglian.business.mapper.FinReceivableMapper;
+import com.canglian.business.mapper.FinWriteOffMapper;
 import com.canglian.business.mapper.MdCustomerMapper;
 import com.canglian.business.mapper.MdLocationMapper;
 import com.canglian.business.mapper.MdProductMapper;
@@ -41,6 +46,7 @@ import com.canglian.business.service.IFinGeneralLedgerService;
 import com.canglian.business.service.IFinReceivableService;
 import com.canglian.business.service.IFinVoucherEventService;
 import com.canglian.business.service.IMdProductUnitService;
+import com.canglian.business.service.ISalOrderService;
 import com.canglian.business.service.IWmsSaleReturnService;
 import com.canglian.business.service.IWmsSerialNoService;
 import com.canglian.common.exception.ServiceException;
@@ -109,6 +115,16 @@ public class WmsSaleReturnServiceImpl implements IWmsSaleReturnService
 
     @Autowired(required = false)
     private IWmsSerialNoService wmsSerialNoService;
+
+    @Autowired(required = false)
+    private FinWriteOffMapper finWriteOffMapper;
+
+    @Autowired(required = false)
+    private FinInvoiceMapper finInvoiceMapper;
+
+    @Lazy
+    @Autowired(required = false)
+    private ISalOrderService salOrderService;
 
     @Override
     public WmsSaleReturn selectWmsSaleReturnById(Long saleReturnId)
@@ -249,15 +265,25 @@ public class WmsSaleReturnServiceImpl implements IWmsSaleReturnService
             if (returnItem.getProductId() == null) throw new ServiceException("退货明细商品不能为空");
             validateLocationBelongsToWarehouse(returnItem.getLocationId(), saleReturn.getWarehouseId());
             MdProduct product = mdProductMapper != null ? mdProductMapper.selectMdProductById(returnItem.getProductId()) : null;
+            if (product != null && "1".equals(product.getStatus()))
+            {
+                throw new ServiceException("商品[" + product.getProductName() + "]已停用，禁止销售退货审核");
+            }
             BigDecimal baseQty = resolveBaseQuantity(returnItem);
             Long locationId = defaultLocationId(returnItem.getLocationId());
             String batchNo = defaultBatchNo(returnItem.getBatchNo());
+            if (product != null && "1".equals(product.getEnableBatch()) && StringUtils.isEmpty(batchNo))
+            {
+                throw new ServiceException("商品[" + product.getProductName() + "]已启用批次管理，销售退货明细必须填写批次号");
+            }
 
-            // 序列号强管控：启用序列号的商品必须录满足额已出库 SN 并回库至在库
+            // 序列号强管控：启用序列号的商品必须录满足额已出库 SN 并校验来源出库单与客户归属后回库至在库
             if (wmsSerialNoService != null)
             {
+                Long sourceOutboundId = "outbound".equals(saleReturn.getSourceBillType()) ? saleReturn.getSourceBillId() : null;
                 wmsSerialNoService.handleSaleReturnSerials(product, saleReturn.getWarehouseId(), locationId,
-                    saleReturnId, saleReturn.getReturnNo(), returnItem.getSnCodes(), baseQty, operator);
+                    sourceOutboundId, saleReturn.getCustomerId(), saleReturnId, saleReturn.getReturnNo(),
+                    returnItem.getSnCodes(), baseQty, operator);
             }
 
             WmsStock stockQuery = new WmsStock();
@@ -365,6 +391,7 @@ public class WmsSaleReturnServiceImpl implements IWmsSaleReturnService
                 finVoucherEventService.recordVoucherEvent("sale_return_cogs", saleReturn.getSaleReturnId(), saleReturn.getReturnNo(),
                     "outbound_cogs_return", saleReturn.getBusinessDate(), totalCogsReturn, operator, "销售退货冲回销售成本待生成凭证");
             }
+            syncSourceSaleOrderProgress(saleReturn, operator);
         }
         return rows;
     }
@@ -391,6 +418,30 @@ public class WmsSaleReturnServiceImpl implements IWmsSaleReturnService
                 if (defaultBigDecimal(redAr.getReceivedAmount()).compareTo(BigDecimal.ZERO) != 0)
                 {
                     throw new ServiceException("关联红字应收单已对冲结算，禁止反审核，请使用红冲功能");
+                }
+                if (finWriteOffMapper != null)
+                {
+                    FinWriteOff woQ = new FinWriteOff();
+                    woQ.setReceivableId(redAr.getReceivableId());
+                    List<FinWriteOff> wos = finWriteOffMapper.selectFinWriteOffList(woQ);
+                    if (wos != null && !wos.isEmpty())
+                    {
+                        throw new ServiceException("关联红字应收单存在核销单(" + wos.get(0).getWriteOffNo() + ")，禁止反审核");
+                    }
+                }
+                if (finInvoiceMapper != null)
+                {
+                    for (String arType : new String[] { "receivable", "fin_receivable" })
+                    {
+                        FinInvoice invQ = new FinInvoice();
+                        invQ.setSourceBillType(arType);
+                        invQ.setSourceBillId(redAr.getReceivableId());
+                        List<FinInvoice> invs = finInvoiceMapper.selectFinInvoiceList(invQ);
+                        if (invs != null && !invs.isEmpty())
+                        {
+                            throw new ServiceException("关联红字应收单存在发票记录(" + invs.get(0).getInvoiceNo() + ")，禁止反审核");
+                        }
+                    }
                 }
                 finReceivableMapper.deleteFinReceivableById(redAr.getReceivableId());
             }
@@ -421,7 +472,9 @@ public class WmsSaleReturnServiceImpl implements IWmsSaleReturnService
         doc.setUnauditBy(operator);
         doc.setUnauditTime(new Date());
         doc.setUpdateBy(operator);
-        return wmsSaleReturnMapper.updateWmsSaleReturn(doc);
+        int rows = wmsSaleReturnMapper.updateWmsSaleReturn(doc);
+        if (rows > 0) syncSourceSaleOrderProgress(doc, operator);
+        return rows;
     }
 
     @Override
@@ -434,6 +487,7 @@ public class WmsSaleReturnServiceImpl implements IWmsSaleReturnService
         if (!"1".equals(origin.getStatus())) throw new ServiceException("仅已审核销售退货单允许红冲");
         if ("1".equals(origin.getIsReversal())) throw new ServiceException("红冲单据不允许再次红冲");
         if ("1".equals(origin.getReversedFlag())) throw new ServiceException("该销售退货单已被红冲，请勿重复红冲");
+        finGeneralLedgerService.assertPeriodOpen(origin.getBusinessDate());
         finGeneralLedgerService.assertPeriodOpen(new Date());
 
         WmsSaleReturnItem q = new WmsSaleReturnItem();
@@ -524,6 +578,7 @@ public class WmsSaleReturnServiceImpl implements IWmsSaleReturnService
             finVoucherEventService.recordVoucherEvent("sale_return_cogs", reversal.getSaleReturnId(), reversal.getReturnNo(),
                 "outbound_cogs", new Date(), totalCogsAmt, operator, "销售退货红冲恢复销售成本凭证");
         }
+        syncSourceSaleOrderProgress(origin, operator);
         return selectWmsSaleReturnById(reversal.getSaleReturnId());
     }
 
@@ -603,6 +658,7 @@ public class WmsSaleReturnServiceImpl implements IWmsSaleReturnService
         if (locationId == null || locationId <= 0L || warehouseId == null || mdLocationMapper == null) return;
         MdLocation loc = mdLocationMapper.selectMdLocationByLocationId(locationId);
         if (loc == null) throw new ServiceException("指定库位(#" + locationId + ")不存在");
+        if ("1".equals(loc.getStatus())) throw new ServiceException("库位[" + loc.getLocationName() + "]已停用，禁止退货入库");
         if (!warehouseId.equals(loc.getWarehouseId()))
         {
             throw new ServiceException("库位[" + loc.getLocationName() + "]不属于当前退货仓库");
@@ -707,24 +763,43 @@ public class WmsSaleReturnServiceImpl implements IWmsSaleReturnService
         wmsSaleReturnMapper.updateWmsSaleReturn(doc);
     }
 
+    private void syncSourceSaleOrderProgress(WmsSaleReturn doc, String operator)
+    {
+        if (doc == null || salOrderService == null || !"outbound".equals(doc.getSourceBillType()) || doc.getSourceBillId() == null)
+        {
+            return;
+        }
+        WmsOutbound outbound = wmsOutboundMapper.selectWmsOutboundById(doc.getSourceBillId());
+        if (outbound != null && "sale_order".equals(outbound.getSourceBillType()) && outbound.getSourceBillId() != null)
+        {
+            salOrderService.syncOrderProgressFromWms(outbound.getSourceBillId(), operator);
+        }
+    }
+
     private void validateSourceOutboundForReturn(WmsSaleReturn doc, List<WmsSaleReturnItem> itemList)
     {
-        if (!"outbound".equals(doc.getSourceBillType()) || doc.getSourceBillId() == null) return;
+        if (doc.getSourceBillId() == null) return;
+        if (StringUtils.isNotEmpty(doc.getSourceBillType()) && !"outbound".equals(doc.getSourceBillType())) return;
         WmsOutbound outbound = wmsOutboundMapper.selectWmsOutboundById(doc.getSourceBillId());
-        if (outbound != null)
+        if (outbound == null)
         {
-            if ("1".equals(outbound.getIsReversal()) || "1".equals(outbound.getReversedFlag()))
-            {
-                throw new ServiceException("关联出库单已红冲，禁止重复办理销售退货");
-            }
-            if ("3".equals(outbound.getDeliveryStatus()))
-            {
-                throw new ServiceException("关联出库单已办理整单退货，请勿重复退货");
-            }
-            if (!"2".equals(outbound.getDeliveryStatus()))
-            {
-                throw new ServiceException("仅已签收确认的销售出库单允许办理销售退货单；未签收出库请通过出库单反审核或整单退货处理");
-            }
+            throw new ServiceException("关联来源出库单(#" + doc.getSourceBillId() + ")不存在，无法办理销售退货");
+        }
+        if (doc.getCustomerId() != null && outbound.getCustomerId() != null && !doc.getCustomerId().equals(outbound.getCustomerId()))
+        {
+            throw new ServiceException("销售退货客户与关联来源出库单客户不一致，禁止跨客户退货");
+        }
+        if ("1".equals(outbound.getIsReversal()) || "1".equals(outbound.getReversedFlag()))
+        {
+            throw new ServiceException("关联出库单已红冲，禁止重复办理销售退货");
+        }
+        if ("3".equals(outbound.getDeliveryStatus()))
+        {
+            throw new ServiceException("关联出库单已办理整单退货，请勿重复退货");
+        }
+        if (!"2".equals(outbound.getDeliveryStatus()))
+        {
+            throw new ServiceException("仅已签收确认的销售出库单允许办理销售退货单；未签收出库请通过出库单反审核或整单退货处理");
         }
         WmsOutboundItem q = new WmsOutboundItem();
         q.setOutboundId(doc.getSourceBillId());

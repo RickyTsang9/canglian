@@ -14,7 +14,9 @@ import java.util.Set;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import com.canglian.business.domain.FinReceipt;
 import com.canglian.business.domain.FinReceivable;
+import com.canglian.business.domain.FinWriteOff;
 import com.canglian.business.domain.MdCustomer;
 import com.canglian.business.domain.MdProduct;
 import com.canglian.business.domain.MdWarehouse;
@@ -22,7 +24,11 @@ import com.canglian.business.domain.SalOrder;
 import com.canglian.business.domain.SalOrderItem;
 import com.canglian.business.domain.WmsOutbound;
 import com.canglian.business.domain.WmsOutboundItem;
+import com.canglian.business.domain.WmsSaleReturn;
+import com.canglian.business.domain.WmsSaleReturnItem;
+import com.canglian.business.mapper.FinReceiptMapper;
 import com.canglian.business.mapper.FinReceivableMapper;
+import com.canglian.business.mapper.FinWriteOffMapper;
 import com.canglian.business.mapper.MdCustomerMapper;
 import com.canglian.business.mapper.MdProductMapper;
 import com.canglian.business.mapper.MdWarehouseMapper;
@@ -30,6 +36,8 @@ import com.canglian.business.mapper.SalOrderItemMapper;
 import com.canglian.business.mapper.SalOrderMapper;
 import com.canglian.business.mapper.WmsOutboundItemMapper;
 import com.canglian.business.mapper.WmsOutboundMapper;
+import com.canglian.business.mapper.WmsSaleReturnItemMapper;
+import com.canglian.business.mapper.WmsSaleReturnMapper;
 import com.canglian.business.service.IMdProductUnitService;
 import com.canglian.business.service.IPriceResolverService;
 import com.canglian.business.service.ISalOrderService;
@@ -69,11 +77,23 @@ public class SalOrderServiceImpl implements ISalOrderService
     @Autowired
     private FinReceivableMapper finReceivableMapper;
 
+    @Autowired(required = false)
+    private FinReceiptMapper finReceiptMapper;
+
+    @Autowired(required = false)
+    private FinWriteOffMapper finWriteOffMapper;
+
     @Autowired
     private WmsOutboundMapper wmsOutboundMapper;
 
     @Autowired
     private WmsOutboundItemMapper wmsOutboundItemMapper;
+
+    @Autowired(required = false)
+    private WmsSaleReturnMapper wmsSaleReturnMapper;
+
+    @Autowired(required = false)
+    private WmsSaleReturnItemMapper wmsSaleReturnItemMapper;
 
     @Autowired
     private IPriceResolverService priceResolverService;
@@ -154,6 +174,7 @@ public class SalOrderServiceImpl implements ISalOrderService
         validateEditable(existingSalOrder);
         preserveReadonlyFields(existingSalOrder, salOrder);
         prepareOrderForSave(salOrder, false);
+        validateActiveMasterRefs(salOrder);
         int updateRows = salOrderMapper.updateSalOrder(salOrder);
         salOrderItemMapper.deleteSalOrderItemByOrderId(salOrder.getOrderId());
         saveOrderItemList(salOrder);
@@ -170,6 +191,7 @@ public class SalOrderServiceImpl implements ISalOrderService
             bizScopeHelper.assertRecordAccess(salOrder.getDeptId(), salOrder.getOwnerUserId(), salOrder.getWarehouseId());
         }
         validateEditable(salOrder);
+        validateActiveMasterRefs(salOrder);
         if ("sale".equals(salOrder.getOrderType()) && salOrder.getCustomerId() == null)
         {
             throw new ServiceException("销货订单客户不能为空");
@@ -273,6 +295,21 @@ public class SalOrderServiceImpl implements ISalOrderService
         {
             throw new ServiceException("仅审批通过或执行中的销售单据允许强制关闭");
         }
+        if ("sale".equals(salOrder.getOrderType()))
+        {
+            List<WmsOutbound> downstreamOutbounds = findDownstreamOutbounds(salOrder);
+            for (WmsOutbound ob : downstreamOutbounds)
+            {
+                if ("1".equals(ob.getIsReversal()) || "1".equals(ob.getReversedFlag()) || "3".equals(ob.getDeliveryStatus()))
+                {
+                    continue;
+                }
+                if (!"completed".equals(ob.getBizStatus()))
+                {
+                    throw new ServiceException("该销货订单存在未完成签收的在途出库单(" + ob.getOutboundNo() + ")，请先处理出库单后再强制关闭");
+                }
+            }
+        }
         boolean wasLocked = "1".equals(salOrder.getStockLockedFlag()) || (salOrder.getStockLockedFlag() == null && shouldLockStockOnApprove());
         if ("sale".equals(salOrder.getOrderType()) && wasLocked && salOrder.getWarehouseId() != null && wmsStockService != null)
         {
@@ -316,6 +353,7 @@ public class SalOrderServiceImpl implements ISalOrderService
         {
             throw new ServiceException("报价单审批通过后才允许下推");
         }
+        validateActiveMasterRefs(sourceSalOrder);
         SalOrder querySalOrder = new SalOrder();
         querySalOrder.setSourceBillNo(sourceSalOrder.getOrderNo());
         List<SalOrder> pushedSalOrderList = salOrderMapper.selectSalOrderList(querySalOrder);
@@ -375,6 +413,7 @@ public class SalOrderServiceImpl implements ISalOrderService
         {
             throw new ServiceException("销货订单客户不能为空");
         }
+        validateActiveMasterRefs(salOrder);
         List<SalOrderItem> salOrderItemList = salOrderItemMapper.selectSalOrderItemListByOrderId(orderId);
         if (salOrderItemList == null || salOrderItemList.isEmpty())
         {
@@ -574,8 +613,9 @@ public class SalOrderServiceImpl implements ISalOrderService
             return;
         }
         List<WmsOutbound> outbounds = findDownstreamOutbounds(salOrder);
-        Map<Long, BigDecimal> pushedByItemId = new HashMap<Long, BigDecimal>();
-        Map<Long, BigDecimal> pushedByProductId = new HashMap<Long, BigDecimal>();
+        Map<Long, BigDecimal> pushedBaseByItemId = new HashMap<Long, BigDecimal>();
+        Map<Long, BigDecimal> pushedBaseByProductId = new HashMap<Long, BigDecimal>();
+        Map<Long, BigDecimal> returnedBaseByProductId = new HashMap<Long, BigDecimal>();
         boolean hasDraftOutbound = false;
         boolean hasAnyActiveOutbound = false;
 
@@ -597,15 +637,56 @@ public class SalOrderServiceImpl implements ISalOrderService
             {
                 for (WmsOutboundItem outItem : outItems)
                 {
+                    BigDecimal outBaseQty = outItem.getBaseQuantity() != null && outItem.getBaseQuantity().compareTo(BigDecimal.ZERO) > 0
+                        ? outItem.getBaseQuantity()
+                        : defaultAmount(outItem.getQuantity()).multiply(
+                            outItem.getConvertRatio() != null && outItem.getConvertRatio().compareTo(BigDecimal.ZERO) > 0
+                                ? outItem.getConvertRatio() : BigDecimal.ONE).setScale(4, RoundingMode.HALF_UP);
                     if (outItem.getSourceItemId() != null)
                     {
-                        pushedByItemId.put(outItem.getSourceItemId(),
-                            defaultAmount(pushedByItemId.get(outItem.getSourceItemId())).add(defaultAmount(outItem.getQuantity())));
+                        pushedBaseByItemId.put(outItem.getSourceItemId(),
+                            defaultAmount(pushedBaseByItemId.get(outItem.getSourceItemId())).add(outBaseQty));
                     }
                     else if (outItem.getProductId() != null)
                     {
-                        pushedByProductId.put(outItem.getProductId(),
-                            defaultAmount(pushedByProductId.get(outItem.getProductId())).add(defaultAmount(outItem.getQuantity())));
+                        pushedBaseByProductId.put(outItem.getProductId(),
+                            defaultAmount(pushedBaseByProductId.get(outItem.getProductId())).add(outBaseQty));
+                    }
+                }
+            }
+            // 扣减关联出库单下已审核未红冲的销售退货单数量，形成“下推->签收->退货”完整执行进度闭环
+            if (wmsSaleReturnMapper != null && wmsSaleReturnItemMapper != null)
+            {
+                WmsSaleReturn srQ = new WmsSaleReturn();
+                srQ.setSourceBillType("outbound");
+                srQ.setSourceBillId(out.getOutboundId());
+                srQ.setStatus("1");
+                List<WmsSaleReturn> returns = wmsSaleReturnMapper.selectWmsSaleReturnList(srQ);
+                if (returns != null)
+                {
+                    for (WmsSaleReturn sr : returns)
+                    {
+                        if ("1".equals(sr.getIsReversal()) || "1".equals(sr.getReversedFlag()))
+                        {
+                            continue;
+                        }
+                        WmsSaleReturnItem sriQ = new WmsSaleReturnItem();
+                        sriQ.setSaleReturnId(sr.getSaleReturnId());
+                        List<WmsSaleReturnItem> srItems = wmsSaleReturnItemMapper.selectWmsSaleReturnItemList(sriQ);
+                        if (srItems != null)
+                        {
+                            for (WmsSaleReturnItem sri : srItems)
+                            {
+                                if (sri.getProductId() == null) continue;
+                                BigDecimal retBase = sri.getBaseQuantity() != null && sri.getBaseQuantity().compareTo(BigDecimal.ZERO) != 0
+                                    ? sri.getBaseQuantity().abs()
+                                    : defaultAmount(sri.getQuantity()).abs().multiply(
+                                        sri.getConvertRatio() != null && sri.getConvertRatio().compareTo(BigDecimal.ZERO) > 0
+                                            ? sri.getConvertRatio() : BigDecimal.ONE).setScale(4, RoundingMode.HALF_UP);
+                                returnedBaseByProductId.put(sri.getProductId(),
+                                    defaultAmount(returnedBaseByProductId.get(sri.getProductId())).add(retBase));
+                            }
+                        }
                     }
                 }
             }
@@ -614,13 +695,30 @@ public class SalOrderServiceImpl implements ISalOrderService
         boolean allFulfilled = true;
         for (SalOrderItem item : orderItems)
         {
-            BigDecimal shipped = defaultAmount(pushedByItemId.get(item.getOrderItemId()));
-            if (shipped.compareTo(BigDecimal.ZERO) == 0 && pushedByProductId.containsKey(item.getProductId()))
+            BigDecimal itemRatio = item.getConvertRatio() != null && item.getConvertRatio().compareTo(BigDecimal.ZERO) > 0
+                ? item.getConvertRatio() : BigDecimal.ONE;
+            BigDecimal orderedQty = defaultAmount(item.getQuantity());
+            BigDecimal shippedBase = defaultAmount(pushedBaseByItemId.get(item.getOrderItemId()));
+            if (shippedBase.compareTo(BigDecimal.ZERO) == 0 && pushedBaseByProductId.containsKey(item.getProductId()))
             {
-                shipped = defaultAmount(pushedByProductId.get(item.getProductId())).min(defaultAmount(item.getQuantity()));
+                BigDecimal availBase = defaultAmount(pushedBaseByProductId.get(item.getProductId()));
+                BigDecimal orderBase = orderedQty.multiply(itemRatio).setScale(4, RoundingMode.HALF_UP);
+                shippedBase = availBase.min(orderBase);
+                pushedBaseByProductId.put(item.getProductId(), availBase.subtract(shippedBase));
             }
+            BigDecimal remRetBase = defaultAmount(returnedBaseByProductId.get(item.getProductId()));
+            if (remRetBase.compareTo(BigDecimal.ZERO) > 0 && shippedBase.compareTo(BigDecimal.ZERO) > 0)
+            {
+                BigDecimal deductRet = shippedBase.min(remRetBase);
+                shippedBase = shippedBase.subtract(deductRet);
+                returnedBaseByProductId.put(item.getProductId(), remRetBase.subtract(deductRet));
+            }
+            BigDecimal shipped = itemRatio.compareTo(BigDecimal.ONE) == 0
+                ? shippedBase
+                : shippedBase.divide(itemRatio, 4, RoundingMode.HALF_UP);
+            if (shipped.compareTo(BigDecimal.ZERO) < 0) shipped = BigDecimal.ZERO;
             salOrderItemMapper.updateShippedQty(item.getOrderItemId(), shipped);
-            if (shipped.compareTo(defaultAmount(item.getQuantity())) < 0)
+            if (shipped.compareTo(orderedQty) < 0)
             {
                 allFulfilled = false;
             }
@@ -821,7 +919,7 @@ public class SalOrderServiceImpl implements ISalOrderService
                 salOrderItem.setPrice(resolved.setScale(2, RoundingMode.HALF_UP));
             }
             BigDecimal discountRate = salOrderItem.getDiscountRate() == null ? HUNDRED : salOrderItem.getDiscountRate();
-            if (discountRate.compareTo(BigDecimal.ZERO) <= 0 || discountRate.compareTo(HUNDRED) > 0)
+            if (discountRate.compareTo(BigDecimal.ZERO) < 0 || discountRate.compareTo(HUNDRED) > 0)
             {
                 throw new ServiceException("明细折扣率必须在 0 到 100 之间");
             }
@@ -922,7 +1020,8 @@ public class SalOrderServiceImpl implements ISalOrderService
                     continue;
                 }
                 BigDecimal unsettledAmount = defaultAmount(finReceivable.getAmount())
-                    .subtract(defaultAmount(finReceivable.getReceivedAmount()));
+                    .subtract(defaultAmount(finReceivable.getReceivedAmount()))
+                    .subtract(defaultAmount(finReceivable.getBadDebtAmount()));
                 if ("2".equals(finReceivable.getBillDirection()))
                 {
                     // 红字应收可冲抵客户敞口
@@ -931,6 +1030,43 @@ public class SalOrderServiceImpl implements ISalOrderService
                 else if (unsettledAmount.compareTo(BigDecimal.ZERO) > 0)
                 {
                     outstandingReceivableAmount = outstandingReceivableAmount.add(unsettledAmount);
+                }
+            }
+        }
+        // 扣减客户已确认且尚未核销的预收款余额
+        if (finReceiptMapper != null)
+        {
+            FinReceipt rcQ = new FinReceipt();
+            rcQ.setCustomerId(salOrder.getCustomerId());
+            rcQ.setStatus("1");
+            List<FinReceipt> receipts = finReceiptMapper.selectFinReceiptList(rcQ);
+            if (receipts != null)
+            {
+                for (FinReceipt rc : receipts)
+                {
+                    if (rc.getReceivableId() == null && defaultAmount(rc.getAmount()).compareTo(BigDecimal.ZERO) > 0)
+                    {
+                        BigDecimal usedWo = BigDecimal.ZERO;
+                        if (finWriteOffMapper != null)
+                        {
+                            FinWriteOff woQ = new FinWriteOff();
+                            woQ.setReceiptId(rc.getReceiptId());
+                            woQ.setStatus("1");
+                            List<FinWriteOff> wos = finWriteOffMapper.selectFinWriteOffList(woQ);
+                            if (wos != null)
+                            {
+                                for (FinWriteOff wo : wos)
+                                {
+                                    usedWo = usedWo.add(defaultAmount(wo.getAmount()));
+                                }
+                            }
+                        }
+                        BigDecimal unapplied = defaultAmount(rc.getAmount()).subtract(usedWo);
+                        if (unapplied.compareTo(BigDecimal.ZERO) > 0)
+                        {
+                            outstandingReceivableAmount = outstandingReceivableAmount.subtract(unapplied);
+                        }
+                    }
                 }
             }
         }

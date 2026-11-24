@@ -39,21 +39,38 @@ public class FinExpenseServiceImpl implements IFinExpenseService
     @Autowired
     private IFinVoucherEventService finVoucherEventService;
 
+    @Autowired(required = false)
+    private BizScopeHelper bizScopeHelper;
+
     @Override
     public FinExpense selectFinExpenseById(Long expenseId)
     {
-        return finExpenseMapper.selectFinExpenseById(expenseId);
+        FinExpense exp = finExpenseMapper.selectFinExpenseById(expenseId);
+        if (exp != null && bizScopeHelper != null)
+        {
+            bizScopeHelper.assertRecordAccess(exp.getDeptId(), exp.getOwnerUserId());
+        }
+        return exp;
     }
 
     @Override
     public List<FinExpense> selectFinExpenseList(FinExpense finExpense)
     {
+        if (bizScopeHelper != null)
+        {
+            bizScopeHelper.applyScopeFilter(finExpense, "", true, false);
+        }
         return finExpenseMapper.selectFinExpenseList(finExpense);
     }
 
     @Override
     public int insertFinExpense(FinExpense finExpense)
     {
+        if (bizScopeHelper != null)
+        {
+            if (finExpense.getDeptId() == null) finExpense.setDeptId(bizScopeHelper.getCurrentDeptId());
+            if (finExpense.getOwnerUserId() == null) finExpense.setOwnerUserId(bizScopeHelper.getCurrentUserId());
+        }
         if (finExpense.getExpenseDate() == null)
         {
             finExpense.setExpenseDate(new Date());
@@ -194,6 +211,10 @@ public class FinExpenseServiceImpl implements IFinExpenseService
     {
         FinExpense finExpense = finExpenseMapper.selectFinExpenseById(expenseId);
         if (finExpense == null) throw new ServiceException("费用单不存在");
+        if (bizScopeHelper != null)
+        {
+            bizScopeHelper.assertRecordAccess(finExpense.getDeptId(), finExpense.getOwnerUserId());
+        }
         return finExpense;
     }
 

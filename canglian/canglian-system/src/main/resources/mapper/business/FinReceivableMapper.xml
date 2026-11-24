@@ -21,6 +21,8 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         <result property="status"         column="status"          />
         <result property="bizStatus"      column="biz_status"      />
         <result property="dueDate"        column="due_date"        />
+        <result property="deptId"         column="dept_id"         />
+        <result property="ownerUserId"    column="owner_user_id"   />
         <result property="createBy"       column="create_by"       />
         <result property="createTime"     column="create_time"     />
         <result property="updateBy"       column="update_by"       />
@@ -31,7 +33,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
     <sql id="selectFinReceivableVo">
         select receivable_id, receivable_no, customer_id, bill_type, bill_id, source_bill_type, source_bill_id,
                source_bill_no, business_date, amount, bill_direction, received_amount, bad_debt_amount, status, biz_status, due_date,
-               create_by, create_time, update_by, update_time, remark
+               dept_id, owner_user_id, create_by, create_time, update_by, update_time, remark
         from fin_receivable
     </sql>
 
@@ -77,6 +79,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             <if test="status != null and status != ''">
                 and status = #{status}
             </if>
+            ${params.dataScope}
         </where>
         order by receivable_id desc
     </select>
@@ -103,6 +106,8 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             <if test="status != null">status,</if>
             <if test="bizStatus != null">biz_status,</if>
             <if test="dueDate != null">due_date,</if>
+            <if test="deptId != null">dept_id,</if>
+            <if test="ownerUserId != null">owner_user_id,</if>
             <if test="createBy != null and createBy != ''">create_by,</if>
             create_time,
             <if test="updateBy != null and updateBy != ''">update_by,</if>
@@ -124,6 +129,8 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             <if test="status != null">#{status},</if>
             <if test="bizStatus != null">#{bizStatus},</if>
             <if test="dueDate != null">#{dueDate},</if>
+            <if test="deptId != null">#{deptId},</if>
+            <if test="ownerUserId != null">#{ownerUserId},</if>
             <if test="createBy != null and createBy != ''">#{createBy},</if>
             sysdate(),
             <if test="updateBy != null and updateBy != ''">#{updateBy},</if>

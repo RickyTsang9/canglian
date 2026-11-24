@@ -15,6 +15,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         <result property="baseDiffQty" column="base_diff_qty" />
         <result property="productionDate" column="production_date" />
         <result property="expiryDate"  column="expiry_date"   />
+        <result property="snCodes"     column="sn_codes"      />
         <result property="stockQty"    column="stock_qty"     />
         <result property="actualQty"   column="actual_qty"    />
         <result property="diffQty"     column="diff_qty"      />
@@ -24,7 +25,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
 
     <sql id="selectWmsInventoryCheckItemVo">
         select check_item_id, check_id, product_id, location_id, batch_no,
-               unit_name, convert_ratio, base_diff_qty, production_date, expiry_date,
+               unit_name, convert_ratio, base_diff_qty, production_date, expiry_date, sn_codes,
                stock_qty, actual_qty, diff_qty, price, diff_amount
         from wms_inventory_check_item
     </sql>
@@ -56,6 +57,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             <if test="baseDiffQty != null">base_diff_qty,</if>
             <if test="productionDate != null">production_date,</if>
             <if test="expiryDate != null">expiry_date,</if>
+            <if test="snCodes != null">sn_codes,</if>
             <if test="stockQty != null">stock_qty,</if>
             <if test="actualQty != null">actual_qty,</if>
             <if test="diffQty != null">diff_qty,</if>
@@ -72,6 +74,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             <if test="baseDiffQty != null">#{baseDiffQty},</if>
             <if test="productionDate != null">#{productionDate},</if>
             <if test="expiryDate != null">#{expiryDate},</if>
+            <if test="snCodes != null">#{snCodes},</if>
             <if test="stockQty != null">#{stockQty},</if>
             <if test="actualQty != null">#{actualQty},</if>
             <if test="diffQty != null">#{diffQty},</if>
@@ -92,6 +95,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             <if test="baseDiffQty != null">base_diff_qty = #{baseDiffQty},</if>
             <if test="productionDate != null">production_date = #{productionDate},</if>
             <if test="expiryDate != null">expiry_date = #{expiryDate},</if>
+            <if test="snCodes != null">sn_codes = #{snCodes},</if>
             <if test="stockQty != null">stock_qty = #{stockQty},</if>
             <if test="actualQty != null">actual_qty = #{actualQty},</if>
             <if test="diffQty != null">diff_qty = #{diffQty},</if>

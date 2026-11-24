@@ -40,8 +40,28 @@ public class WmsPurchaseReturnItemServiceImpl implements IWmsPurchaseReturnItemS
     @Override
     public List<WmsPurchaseReturnItem> selectWmsPurchaseReturnItemList(WmsPurchaseReturnItem wmsPurchaseReturnItem)
     {
-        if (wmsPurchaseReturnItem != null && wmsPurchaseReturnItem.getPurchaseReturnId() != null) assertReturnAccess(wmsPurchaseReturnItem.getPurchaseReturnId());
-        return wmsPurchaseReturnItemMapper.selectWmsPurchaseReturnItemList(wmsPurchaseReturnItem);
+        if (wmsPurchaseReturnItem != null && wmsPurchaseReturnItem.getPurchaseReturnId() != null)
+        {
+            assertReturnAccess(wmsPurchaseReturnItem.getPurchaseReturnId());
+            return wmsPurchaseReturnItemMapper.selectWmsPurchaseReturnItemList(wmsPurchaseReturnItem);
+        }
+        List<WmsPurchaseReturnItem> list = wmsPurchaseReturnItemMapper.selectWmsPurchaseReturnItemList(wmsPurchaseReturnItem);
+        if (bizScopeHelper == null || list == null || list.isEmpty()) return list;
+        java.util.List<WmsPurchaseReturnItem> filtered = new java.util.ArrayList<WmsPurchaseReturnItem>();
+        java.util.Map<Long, Boolean> cache = new java.util.HashMap<Long, Boolean>();
+        for (WmsPurchaseReturnItem it : list)
+        {
+            Long pid = it.getPurchaseReturnId();
+            Boolean ok = cache.get(pid);
+            if (ok == null)
+            {
+                WmsPurchaseReturn doc = pid == null ? null : wmsPurchaseReturnMapper.selectWmsPurchaseReturnById(pid);
+                ok = doc != null && bizScopeHelper.canAccessRecord(doc.getDeptId(), doc.getOwnerUserId(), doc.getWarehouseId());
+                cache.put(pid, ok);
+            }
+            if (Boolean.TRUE.equals(ok)) filtered.add(it);
+        }
+        return filtered;
     }
 
     @Override
@@ -62,6 +82,10 @@ public class WmsPurchaseReturnItemServiceImpl implements IWmsPurchaseReturnItemS
         WmsPurchaseReturnItem existed = wmsPurchaseReturnItemMapper.selectWmsPurchaseReturnItemById(wmsPurchaseReturnItem.getPurchaseReturnItemId());
         if (existed == null) throw new ServiceException("采购退货明细不存在");
         WmsPurchaseReturn doc = assertDraftReturn(existed.getPurchaseReturnId());
+        if (wmsPurchaseReturnItem.getPurchaseReturnId() != null && !wmsPurchaseReturnItem.getPurchaseReturnId().equals(existed.getPurchaseReturnId()))
+        {
+            assertDraftReturn(wmsPurchaseReturnItem.getPurchaseReturnId());
+        }
         normalizeItem(wmsPurchaseReturnItem);
         int rows = wmsPurchaseReturnItemMapper.updateWmsPurchaseReturnItem(wmsPurchaseReturnItem);
         if (rows > 0) recalculateHeader(doc);

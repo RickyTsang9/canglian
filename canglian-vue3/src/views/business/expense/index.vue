@@ -71,6 +71,9 @@
           v-hasPermi="['business:expense:remove']"
         >删除</el-button>
       </el-col>
+      <el-col :span="1.5">
+        <el-button type="warning" plain icon="Download" @click="handleExport" v-hasPermi="['business:expense:export', 'business:expense:list']">导出</el-button>
+      </el-col>
       <right-toolbar v-model:showSearch="showSearch" @queryTable="getList"></right-toolbar>
     </el-row>
 
@@ -451,4 +454,8 @@ Promise.all([
 ]).finally(() => {
   getList()
 })
+
+function handleExport() {
+  proxy.download("business/expense/export", { ...queryParams.value }, `费用单_${new Date().getTime()}.xlsx`)
+}
 </script>

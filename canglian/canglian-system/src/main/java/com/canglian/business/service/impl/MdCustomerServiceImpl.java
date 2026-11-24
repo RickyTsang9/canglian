@@ -1,14 +1,17 @@
 package com.canglian.business.service.impl;
 
+import java.math.BigDecimal;
 import java.util.List;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import com.canglian.business.domain.FinReceivable;
 import com.canglian.business.domain.MdCustomer;
 import com.canglian.business.domain.SalOrder;
 import com.canglian.business.mapper.FinReceivableMapper;
 import com.canglian.business.mapper.MdCustomerMapper;
 import com.canglian.business.mapper.SalOrderMapper;
+import com.canglian.business.service.IFinReceivableService;
 import com.canglian.business.service.IMdCustomerService;
 import com.canglian.common.exception.ServiceException;
 import com.canglian.common.utils.StringUtils;
@@ -29,6 +32,9 @@ public class MdCustomerServiceImpl implements IMdCustomerService
 
     @Autowired
     private FinReceivableMapper finReceivableMapper;
+
+    @Autowired(required = false)
+    private IFinReceivableService finReceivableService;
 
     /**
      * 查询客户档案信息
@@ -111,10 +117,18 @@ public class MdCustomerServiceImpl implements IMdCustomerService
      * @return 结果
      */
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public int insertMdCustomer(MdCustomer mdCustomer)
     {
         validateCustomerCodeUnique(mdCustomer);
-        return mdCustomerMapper.insertMdCustomer(mdCustomer);
+        int rows = mdCustomerMapper.insertMdCustomer(mdCustomer);
+        if (rows > 0 && finReceivableService != null && mdCustomer.getCustomerId() != null
+            && mdCustomer.getOpeningReceivable() != null && mdCustomer.getOpeningReceivable().compareTo(BigDecimal.ZERO) > 0)
+        {
+            finReceivableService.syncOpeningReceivable(mdCustomer.getCustomerId(), mdCustomer.getCustomerCode(),
+                mdCustomer.getOpeningReceivable(), mdCustomer.getReceivableDays(), mdCustomer.getCreateBy());
+        }
+        return rows;
     }
 
     /**
@@ -124,9 +138,15 @@ public class MdCustomerServiceImpl implements IMdCustomerService
      * @return 结果
      */
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public int updateMdCustomer(MdCustomer mdCustomer)
     {
         validateCustomerCodeUnique(mdCustomer);
+        if (finReceivableService != null && mdCustomer.getCustomerId() != null && mdCustomer.getOpeningReceivable() != null)
+        {
+            finReceivableService.syncOpeningReceivable(mdCustomer.getCustomerId(), mdCustomer.getCustomerCode(),
+                mdCustomer.getOpeningReceivable(), mdCustomer.getReceivableDays(), mdCustomer.getUpdateBy());
+        }
         return mdCustomerMapper.updateMdCustomer(mdCustomer);
     }
 
@@ -164,10 +184,11 @@ public class MdCustomerServiceImpl implements IMdCustomerService
 
     private void validateCustomerCodeUnique(MdCustomer mdCustomer)
     {
-        if (mdCustomer == null || StringUtils.isEmpty(mdCustomer.getCustomerCode()))
+        if (mdCustomer == null || StringUtils.isEmpty(mdCustomer.getCustomerCode()) || mdCustomer.getCustomerCode().trim().isEmpty())
         {
             throw new ServiceException("客户编码不能为空");
         }
+        mdCustomer.setCustomerCode(mdCustomer.getCustomerCode().trim());
         MdCustomer existing = mdCustomerMapper.selectMdCustomerByCode(mdCustomer.getCustomerCode());
         if (existing != null && !existing.getCustomerId().equals(mdCustomer.getCustomerId()))
         {
@@ -180,6 +201,11 @@ public class MdCustomerServiceImpl implements IMdCustomerService
         if (customerId == null)
         {
             return;
+        }
+        MdCustomer existing = mdCustomerMapper.selectMdCustomerById(customerId);
+        if (existing != null && existing.getOpeningReceivable() != null && existing.getOpeningReceivable().compareTo(BigDecimal.ZERO) != 0)
+        {
+            throw new ServiceException("客户[" + existing.getCustomerName() + "]存在非零期初应收余额，不允许删除，请先清零或停用");
         }
         if (mdCustomerMapper.countCustomerReferences(customerId) > 0)
         {

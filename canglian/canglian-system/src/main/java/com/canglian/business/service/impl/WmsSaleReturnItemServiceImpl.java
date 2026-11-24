@@ -40,8 +40,28 @@ public class WmsSaleReturnItemServiceImpl implements IWmsSaleReturnItemService
     @Override
     public List<WmsSaleReturnItem> selectWmsSaleReturnItemList(WmsSaleReturnItem wmsSaleReturnItem)
     {
-        if (wmsSaleReturnItem != null && wmsSaleReturnItem.getSaleReturnId() != null) assertReturnAccess(wmsSaleReturnItem.getSaleReturnId());
-        return wmsSaleReturnItemMapper.selectWmsSaleReturnItemList(wmsSaleReturnItem);
+        if (wmsSaleReturnItem != null && wmsSaleReturnItem.getSaleReturnId() != null)
+        {
+            assertReturnAccess(wmsSaleReturnItem.getSaleReturnId());
+            return wmsSaleReturnItemMapper.selectWmsSaleReturnItemList(wmsSaleReturnItem);
+        }
+        List<WmsSaleReturnItem> list = wmsSaleReturnItemMapper.selectWmsSaleReturnItemList(wmsSaleReturnItem);
+        if (bizScopeHelper == null || list == null || list.isEmpty()) return list;
+        java.util.List<WmsSaleReturnItem> filtered = new java.util.ArrayList<WmsSaleReturnItem>();
+        java.util.Map<Long, Boolean> cache = new java.util.HashMap<Long, Boolean>();
+        for (WmsSaleReturnItem it : list)
+        {
+            Long pid = it.getSaleReturnId();
+            Boolean ok = cache.get(pid);
+            if (ok == null)
+            {
+                WmsSaleReturn doc = pid == null ? null : wmsSaleReturnMapper.selectWmsSaleReturnById(pid);
+                ok = doc != null && bizScopeHelper.canAccessRecord(doc.getDeptId(), doc.getOwnerUserId(), doc.getWarehouseId());
+                cache.put(pid, ok);
+            }
+            if (Boolean.TRUE.equals(ok)) filtered.add(it);
+        }
+        return filtered;
     }
 
     @Override
@@ -62,6 +82,10 @@ public class WmsSaleReturnItemServiceImpl implements IWmsSaleReturnItemService
         WmsSaleReturnItem existed = wmsSaleReturnItemMapper.selectWmsSaleReturnItemById(wmsSaleReturnItem.getSaleReturnItemId());
         if (existed == null) throw new ServiceException("销售退货明细不存在");
         WmsSaleReturn doc = assertDraftReturn(existed.getSaleReturnId());
+        if (wmsSaleReturnItem.getSaleReturnId() != null && !wmsSaleReturnItem.getSaleReturnId().equals(existed.getSaleReturnId()))
+        {
+            assertDraftReturn(wmsSaleReturnItem.getSaleReturnId());
+        }
         normalizeItem(wmsSaleReturnItem);
         int rows = wmsSaleReturnItemMapper.updateWmsSaleReturnItem(wmsSaleReturnItem);
         if (rows > 0) recalculateHeader(doc);

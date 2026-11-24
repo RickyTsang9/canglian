@@ -18,6 +18,9 @@ public class FinCostAccountServiceImpl implements IFinCostAccountService
     @Autowired
     private FinCostAccountMapper finCostAccountMapper;
 
+    @Autowired(required = false)
+    private BizScopeHelper bizScopeHelper;
+
     /**
      * 查询成本账户信息
      * 
@@ -27,7 +30,9 @@ public class FinCostAccountServiceImpl implements IFinCostAccountService
     @Override
     public FinCostAccount selectFinCostAccountById(Long costAccountId)
     {
-        return finCostAccountMapper.selectFinCostAccountById(costAccountId);
+        FinCostAccount acc = finCostAccountMapper.selectFinCostAccountById(costAccountId);
+        if (acc != null && bizScopeHelper != null) bizScopeHelper.assertWarehouseAccess(acc.getWarehouseId());
+        return acc;
     }
 
     /**
@@ -39,7 +44,15 @@ public class FinCostAccountServiceImpl implements IFinCostAccountService
     @Override
     public List<FinCostAccount> selectFinCostAccountList(FinCostAccount finCostAccount)
     {
-        return finCostAccountMapper.selectFinCostAccountList(finCostAccount);
+        List<FinCostAccount> list = finCostAccountMapper.selectFinCostAccountList(finCostAccount);
+        java.util.Set<Long> allowed = bizScopeHelper == null ? null : bizScopeHelper.getRestrictedWarehouseIds();
+        if (allowed == null || list == null) return list;
+        java.util.List<FinCostAccount> filtered = new java.util.ArrayList<FinCostAccount>();
+        for (FinCostAccount a : list)
+        {
+            if (allowed.contains(a.getWarehouseId())) filtered.add(a);
+        }
+        return filtered;
     }
 
     /**
@@ -51,6 +64,7 @@ public class FinCostAccountServiceImpl implements IFinCostAccountService
     @Override
     public int insertFinCostAccount(FinCostAccount finCostAccount)
     {
+        if (bizScopeHelper != null && finCostAccount != null) bizScopeHelper.assertWarehouseAccess(finCostAccount.getWarehouseId());
         return finCostAccountMapper.insertFinCostAccount(finCostAccount);
     }
 
@@ -63,6 +77,7 @@ public class FinCostAccountServiceImpl implements IFinCostAccountService
     @Override
     public int updateFinCostAccount(FinCostAccount finCostAccount)
     {
+        if (bizScopeHelper != null && finCostAccount != null) bizScopeHelper.assertWarehouseAccess(finCostAccount.getWarehouseId());
         return finCostAccountMapper.updateFinCostAccount(finCostAccount);
     }
 
@@ -75,6 +90,11 @@ public class FinCostAccountServiceImpl implements IFinCostAccountService
     @Override
     public int deleteFinCostAccountById(Long costAccountId)
     {
+        if (bizScopeHelper != null && costAccountId != null)
+        {
+            FinCostAccount acc = finCostAccountMapper.selectFinCostAccountById(costAccountId);
+            if (acc != null) bizScopeHelper.assertWarehouseAccess(acc.getWarehouseId());
+        }
         return finCostAccountMapper.deleteFinCostAccountById(costAccountId);
     }
 
@@ -87,6 +107,14 @@ public class FinCostAccountServiceImpl implements IFinCostAccountService
     @Override
     public int deleteFinCostAccountByIds(Long[] costAccountIds)
     {
+        if (bizScopeHelper != null && costAccountIds != null)
+        {
+            for (Long id : costAccountIds)
+            {
+                FinCostAccount acc = finCostAccountMapper.selectFinCostAccountById(id);
+                if (acc != null) bizScopeHelper.assertWarehouseAccess(acc.getWarehouseId());
+            }
+        }
         return finCostAccountMapper.deleteFinCostAccountByIds(costAccountIds);
     }
 }

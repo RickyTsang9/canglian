@@ -1,6 +1,8 @@
 package com.canglian.web.controller.business;
 
 import java.util.List;
+import com.canglian.common.utils.poi.ExcelUtil;
+import javax.servlet.http.HttpServletResponse;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
@@ -103,6 +105,19 @@ public class FinExpenseController extends BaseController
     public AjaxResult remove(@PathVariable Long[] expenseIds)
     {
         return toAjax(finExpenseService.deleteFinExpenseByIds(expenseIds));
+    }
+
+    /**
+     * 导出费用单
+     */
+    @Log(title = "费用单", businessType = BusinessType.EXPORT)
+    @PreAuthorize("@ss.hasPermi('business:expense:export') or @ss.hasPermi('business:expense:list')")
+    @PostMapping("/export")
+    public void export(HttpServletResponse response, FinExpense finExpense)
+    {
+        List<FinExpense> list = finExpenseService.selectFinExpenseList(finExpense);
+        ExcelUtil<FinExpense> util = new ExcelUtil<FinExpense>(FinExpense.class);
+        util.exportExcel(response, list, "费用单");
     }
 }
 

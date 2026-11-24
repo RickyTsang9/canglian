@@ -4,6 +4,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.Calendar;
 import java.util.Date;
 import java.util.List;
 import java.util.Objects;
@@ -14,10 +15,12 @@ import com.canglian.business.domain.FinOffsetLog;
 import com.canglian.business.domain.FinPayable;
 import com.canglian.business.domain.FinPayment;
 import com.canglian.business.domain.FinWriteOff;
+import com.canglian.business.domain.MdSupplier;
 import com.canglian.business.mapper.FinOffsetLogMapper;
 import com.canglian.business.mapper.FinPayableMapper;
 import com.canglian.business.mapper.FinPaymentMapper;
 import com.canglian.business.mapper.FinWriteOffMapper;
+import com.canglian.business.mapper.MdSupplierMapper;
 import com.canglian.business.service.IFinGeneralLedgerService;
 import com.canglian.business.service.IFinPayableService;
 import com.canglian.business.service.IFinVoucherEventService;
@@ -52,24 +55,48 @@ public class FinPayableServiceImpl implements IFinPayableService
     @Autowired(required = false)
     private FinWriteOffMapper finWriteOffMapper;
 
+    @Autowired(required = false)
+    private MdSupplierMapper mdSupplierMapper;
+
+    @Autowired(required = false)
+    private BizScopeHelper bizScopeHelper;
+
     @Override
     public FinPayable selectFinPayableById(Long payableId)
     {
-        return finPayableMapper.selectFinPayableById(payableId);
+        FinPayable ap = finPayableMapper.selectFinPayableById(payableId);
+        if (ap != null && bizScopeHelper != null)
+        {
+            bizScopeHelper.assertRecordAccess(ap.getDeptId(), ap.getOwnerUserId());
+        }
+        return ap;
     }
 
     @Override
     public List<FinPayable> selectFinPayableList(FinPayable finPayable)
     {
+        if (bizScopeHelper != null)
+        {
+            bizScopeHelper.applyScopeFilter(finPayable, "", true, false);
+        }
         return finPayableMapper.selectFinPayableList(finPayable);
     }
 
     @Override
     public int insertFinPayable(FinPayable finPayable)
     {
+        if (bizScopeHelper != null)
+        {
+            if (finPayable.getDeptId() == null) finPayable.setDeptId(bizScopeHelper.getCurrentDeptId());
+            if (finPayable.getOwnerUserId() == null) finPayable.setOwnerUserId(bizScopeHelper.getCurrentUserId());
+        }
         if (finPayable.getBusinessDate() == null)
         {
             finPayable.setBusinessDate(new Date());
+        }
+        if (finPayable.getDueDate() == null)
+        {
+            finPayable.setDueDate(resolveSupplierDueDate(finPayable.getSupplierId(), finPayable.getBusinessDate(), null));
         }
         if (finGeneralLedgerService != null)
         {
@@ -150,10 +177,11 @@ public class FinPayableServiceImpl implements IFinPayableService
         finPayable.setUpdateBy(operator);
         int rows = finPayableMapper.updateFinPayable(finPayable);
         if (rows > 0 && finVoucherEventService != null
-            && (StringUtils.isEmpty(finPayable.getBillType()) || "manual".equals(finPayable.getBillType())))
+            && (StringUtils.isEmpty(finPayable.getBillType()) || "manual".equals(finPayable.getBillType()) || "invoice".equals(finPayable.getBillType())))
         {
             finVoucherEventService.recordVoucherEvent("payable", finPayable.getPayableId(), finPayable.getPayableNo(),
-                "manual_payable", finPayable.getBusinessDate(), finPayable.getAmount(), operator, "手工应付单审核待生成凭证");
+                "manual_payable", finPayable.getBusinessDate(), finPayable.getAmount(), operator,
+                "invoice".equals(finPayable.getBillType()) ? "独立采购发票自动应付待生成凭证" : "手工应付单审核待生成凭证");
         }
         return rows;
     }
@@ -171,9 +199,9 @@ public class FinPayableServiceImpl implements IFinPayableService
         {
             throw new ServiceException("退货自动生成的红字应付冲减单不允许直接反确认，请操作原退货单");
         }
-        if ("inbound".equals(finPayable.getBillType()) || "invoice".equals(finPayable.getBillType()))
+        if ("inbound".equals(finPayable.getBillType()) || "invoice".equals(finPayable.getBillType()) || "opening".equals(finPayable.getBillType()))
         {
-            throw new ServiceException("由业务单据自动生成的应付单不允许直接反确认，请先反审核来源单据");
+            throw new ServiceException("由业务单据或供应商期初自动生成的应付单不允许直接反确认，请操作来源单据或供应商档案");
         }
         finGeneralLedgerService.assertPeriodOpen(finPayable.getBusinessDate());
         if (defaultAmount(finPayable.getPaidAmount()).compareTo(BigDecimal.ZERO) != 0)
@@ -210,6 +238,10 @@ public class FinPayableServiceImpl implements IFinPayableService
             return existing;
         }
         Date bizDate = businessDate == null ? new Date() : businessDate;
+        if (finGeneralLedgerService != null)
+        {
+            finGeneralLedgerService.assertPeriodOpen(bizDate);
+        }
         FinPayable redAp = new FinPayable();
         redAp.setPayableNo(generatePayableNo());
         redAp.setSupplierId(supplierId);
@@ -226,6 +258,11 @@ public class FinPayableServiceImpl implements IFinPayableService
         redAp.setStatus("0");
         redAp.setBizStatus("confirmed");
         redAp.setCreateBy(operator);
+        if (bizScopeHelper != null)
+        {
+            redAp.setDeptId(bizScopeHelper.getCurrentDeptId());
+            redAp.setOwnerUserId(bizScopeHelper.getCurrentUserId());
+        }
         redAp.setRemark(StringUtils.isEmpty(remark) ? "采购退货自动生成红字应付冲减单" : remark);
         finPayableMapper.insertFinPayable(redAp);
         return redAp;
@@ -251,6 +288,8 @@ public class FinPayableServiceImpl implements IFinPayableService
 
         FinPayable redAp = getExistingFinPayable(redPayableId);
         FinPayable blueAp = getExistingFinPayable(targetPayableId);
+        finGeneralLedgerService.assertPeriodOpen(redAp.getBusinessDate());
+        finGeneralLedgerService.assertPeriodOpen(blueAp.getBusinessDate());
         if (!"2".equals(redAp.getBillDirection()) || defaultAmount(redAp.getAmount()).compareTo(BigDecimal.ZERO) >= 0)
         {
             throw new ServiceException("来源单据不是有效的红字应付冲减单");
@@ -336,6 +375,8 @@ public class FinPayableServiceImpl implements IFinPayableService
 
         FinPayable blueAp = getExistingFinPayable(log.getPositiveBillId());
         FinPayable redAp = getExistingFinPayable(log.getRedBillId());
+        finGeneralLedgerService.assertPeriodOpen(redAp.getBusinessDate());
+        finGeneralLedgerService.assertPeriodOpen(blueAp.getBusinessDate());
         BigDecimal amt = defaultAmount(log.getOffsetAmount());
 
         BigDecimal nextBluePaid = defaultAmount(blueAp.getPaidAmount()).subtract(amt);
@@ -356,6 +397,98 @@ public class FinPayableServiceImpl implements IFinPayableService
         log.setReverseBy(operator);
         log.setReverseTime(new Date());
         return finOffsetLogMapper.updateFinOffsetLog(log);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public FinPayable syncOpeningPayable(Long supplierId, String supplierCode, BigDecimal openingAmount, Integer payableDays, String operator)
+    {
+        if (supplierId == null)
+        {
+            return null;
+        }
+        BigDecimal amt = defaultAmount(openingAmount);
+        if (amt.compareTo(BigDecimal.ZERO) < 0)
+        {
+            throw new ServiceException("期初应付余额不能小于0");
+        }
+        FinPayable existing = finPayableMapper.selectFinPayableBySource("supplier_opening", supplierId);
+        if (existing == null)
+        {
+            if (amt.compareTo(BigDecimal.ZERO) == 0)
+            {
+                return null;
+            }
+            Date now = new Date();
+            if (finGeneralLedgerService != null)
+            {
+                finGeneralLedgerService.assertPeriodOpen(now);
+            }
+            FinPayable openAp = new FinPayable();
+            openAp.setPayableNo(generatePayableNo());
+            openAp.setSupplierId(supplierId);
+            openAp.setBillType("opening");
+            openAp.setBillId(supplierId);
+            openAp.setSourceBillType("supplier_opening");
+            openAp.setSourceBillId(supplierId);
+            openAp.setSourceBillNo(StringUtils.isNotEmpty(supplierCode) ? supplierCode : ("SUP-" + supplierId));
+            openAp.setBusinessDate(now);
+            openAp.setDueDate(resolveSupplierDueDate(supplierId, now, payableDays));
+            openAp.setAmount(amt);
+            openAp.setBillDirection("1");
+            openAp.setPaidAmount(BigDecimal.ZERO);
+            openAp.setStatus("0");
+            openAp.setBizStatus("confirmed");
+            openAp.setCreateBy(StringUtils.isEmpty(operator) ? "admin" : operator);
+            openAp.setRemark("供应商档案期初应付余额建账");
+            finPayableMapper.insertFinPayable(openAp);
+            return openAp;
+        }
+        if (defaultAmount(existing.getAmount()).compareTo(amt) == 0)
+        {
+            return existing;
+        }
+        if (defaultAmount(existing.getPaidAmount()).compareTo(BigDecimal.ZERO) != 0)
+        {
+            throw new ServiceException("供应商期初应付单(" + existing.getPayableNo() + ")已产生付款或核销记录，禁止直接修改期初应付余额");
+        }
+        assertNoDraftDependentsOnPayable(existing.getPayableId());
+        if (finGeneralLedgerService != null)
+        {
+            finGeneralLedgerService.assertPeriodOpen(existing.getBusinessDate());
+        }
+        if (amt.compareTo(BigDecimal.ZERO) == 0)
+        {
+            finPayableMapper.deleteFinPayableById(existing.getPayableId());
+            return null;
+        }
+        existing.setAmount(amt);
+        existing.setDueDate(resolveSupplierDueDate(supplierId, existing.getBusinessDate(), payableDays));
+        existing.setUpdateBy(StringUtils.isEmpty(operator) ? "admin" : operator);
+        finPayableMapper.updateFinPayable(existing);
+        return existing;
+    }
+
+    private Date resolveSupplierDueDate(Long supplierId, Date businessDate, Integer overrideDays)
+    {
+        Date base = businessDate == null ? new Date() : businessDate;
+        int days = 30;
+        if (overrideDays != null && overrideDays >= 0)
+        {
+            days = overrideDays;
+        }
+        else if (supplierId != null && mdSupplierMapper != null)
+        {
+            MdSupplier s = mdSupplierMapper.selectMdSupplierById(supplierId);
+            if (s != null && s.getPayableDays() != null && s.getPayableDays() >= 0)
+            {
+                days = s.getPayableDays();
+            }
+        }
+        Calendar cal = Calendar.getInstance();
+        cal.setTime(base);
+        cal.add(Calendar.DAY_OF_MONTH, days);
+        return cal.getTime();
     }
 
     private void assertNoDraftDependentsOnPayable(Long payableId)
@@ -402,6 +535,10 @@ public class FinPayableServiceImpl implements IFinPayableService
         if (finPayable == null)
         {
             throw new ServiceException("应付单不存在");
+        }
+        if (bizScopeHelper != null)
+        {
+            bizScopeHelper.assertRecordAccess(finPayable.getDeptId(), finPayable.getOwnerUserId());
         }
         return finPayable;
     }
